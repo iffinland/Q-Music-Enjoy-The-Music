@@ -1,4 +1,4 @@
-# Q-Music-Enjoy-The-Music
+# Q-Music | Enjoy The Music
 A decentralized platform for enjoying and sharing music and other audio files in the Qortal environment
 ## 🎯 Overview
 
