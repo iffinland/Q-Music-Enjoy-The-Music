@@ -1,89 +1,95 @@
-# Q-Music | Enjoy The Music
-A decentralized platform for enjoying and sharing music and other audio files in the Qortal environment
-## 🎯 Overview
+# Q-Music – Enjoy the Music
 
-Q-Music is a Web3 music application that allows users to discover, publish, and organize music in a truly decentralized environment. Built with React and integrated with the QORTAL blockchain, it provides a censorship-resistant platform for music sharing and discovery.
+Q-Music on Qortal platvormi jaoks loodud muusika- ja meediamängija, mis koondab kogukonna avaldatud laulud, playlistid, podcastid ja videod ühte kaasaegsesse kasutajaliidesse. Projekt väljendab uue Q-Music kogukonna tulevikuvisiooni: detsentraliseeritud, censorsip-kindel ja kasutajaid kaasav meediakogemus.
 
-## ✨ Features
+## Mis projekti sees toimub?
 
-### 🎵 Music Publishing
-- **Upload & Publish**: Upload audio files directly to the QORTAL network
-- **Metadata Support**: Add artist information, titles, and descriptions
-- **Thumbnail Support**: Optional cover art for your tracks
-- **Decentralized Storage**: All content stored on QDN (QORTAL Data Network)
+- Avaleht kuvab värskelt lisatud lood, playlistid, podcastid ja videod ning võimaldab kiiret navigeerimist.
+- Meediateek on jaotatud alamlehtedeks (laulud, playlistid, podcastid, videod), et sirvida ka suuri kogusid.
+- Täpsemad vaated võimaldavad kuulata loo-, playlisti-, podcasti- ja videodetaile eraldi lehtedel koos taustainfo ning navigeerimisvõimalustega.
+- Otsing ja filtrid aitavad leida uusi teoseid; täiendavad ülevaated nagu "Newest" annavad kiire ligipääsu värsketele lugudele.
+- Requests-osa laseb kasutajatel esitada kogukonnale laulu/playlisti soovitusi, neid täita, raporteerida või kustutada.
+- Statistika ja alamribad aitavad jälgida Q-Music ökosüsteemi elavust.
+- Lemmikute haldus salvestatakse lokaalselt brauserisse, et sageli kuulatud sisu oleks clipsi kaugusel.
 
-### 📋 Playlist Management
-- **Create Playlists**: Organize your favorite tracks into custom playlists
-- **Decentralized Playlists**: Playlists are stored on the blockchain
-- **Share & Discover**: Browse playlists created by other users
-- **No Overwriting**: Each playlist gets a unique identifier
+## Tehnoloogiapino
 
-### 🔍 Music Discovery
-- **Browse All Songs**: Explore all music published on the network
-- **Browse Playlists**: Discover playlists created by the community
-- **Homepage Feed**: See the latest releases and playlists
-- **Search & Filter**: Find music by various criteria
+- **Raamistik**: React 18, TypeScript, Vite
+- **Kujundus**: Tailwind CSS, Material UI, Emotion
+- **Rakenduse olek**: Redux Toolkit, Zustand
+- **Andmeallikad**: QORTAL Core API ja QDN (Qortal Data Network)
+- **Praktilised tööriistad**: React Hook Form, React Router DOM, moment.js, localforage, Radix UI dialoogid/sliderid
+- **Audiotöötlus**: music-metadata-browser, use-sound
 
-### 🎧 Audio Player
-- **Built-in Player**: Integrated audio player with standard controls
-- **Persistent Player**: Player stays fixed at the bottom of the screen
-- **Queue Management**: Add songs to play queue
-- **Responsive Design**: Works on both desktop and mobile
+## Qortaliga töötamine
 
-## 🛠️ Technology Stack
+Rakendus eeldab Qortal võrgu ja Qortal Core'i olemasolu:
 
-- **Frontend**: React 18 + Vite
-- **Styling**: CSS3 with responsive design
-- **Blockchain**: QORTAL Network integration
-- **Storage**: QDN (QORTAL Data Network)
-- **API**: QORTAL Core API
-- **Audio**: Web Audio API
+1. Käivita Qortal Core või ava Qortal UI, mis eksponeerib `qortalRequest` API-d.
+2. Kui töötad lokaalselt, lisa polüfüll `src/polyfills/qortal.ts` kaudu – see näitab hoiatust, et päris API puudub.
+3. Autentimiseks ja kogukonna funktsioonide (Requests, statistika jmt) kasutamiseks on vaja Qortal kontot.
 
-### QORTAL Integration
-This app requires the QORTAL Core to function. It can be run:
-- Inside the QORTAL UI (recommended)
-- With QORTAL Core running locally
-- Connected to a QORTAL gateway
+> Vihje: arenduskeskkonnas kasuta Qortal UI siseset brauserit või defineeri bridge oma arendusega; ilma selleta väljastab rakendus arendaja konsooli hoiatuse.
 
-## 📱 Usage
+## Projekti käivitamine lokaalselt
 
-1. **Connect**: Ensure QORTAL connection is active
-2. **Login**: Use your QORTAL credentials
-3. **Publish Music**: Upload audio files with metadata
-4. **Create Playlists**: Organize tracks into playlists
-5. **Discover**: Browse music published by the community
-6. **Enjoy**: Stream music directly in the browser
+1. Paigalda Node.js (soovitavalt 18.x või uuem).
+2. Liigu projekti juurkausta:  
+   `cd /home/iffiolen/REACT-PROJECTS/Q-Music/working_folder`
+3. Paigalda sõltuvused:  
+   `npm install`
+4. Arendusserver:  
+   `npm run dev` ja ava terminalis kuvatud URL (nt http://localhost:5173).
+5. Koodi kvaliteedi kontroll:  
+   `npm run lint`
+6. Tootmispakett:  
+   `npm run build` (valmispaketid tekivad kausta `dist/`).
 
-## 🔐 Decentralization Benefits
+## Varunduse parim praktika
 
-- **No Central Authority**: No single point of failure
-- **Censorship Resistant**: Content cannot be arbitrarily removed
-- **User Owned**: You control your own content and data
-- **Transparent**: All transactions visible on blockchain
-- **Immutable**: Published content is permanently preserved
+Kombineeri Git commit'id (tõuke GitHubi reposse `Q-Music-Enjoy-The-Music`) lokaalse arhiveerimisega, et oleks tagatud nii versioonikontroll kui ka koopiad välisteks juhuks.
 
-## 🤝 Contributing
+1. Loo kaust varukoopiate jaoks (pärast projekti ümbernimetamist on see juba olemas, vajadusel uuenda rada):  
+   `mkdir -p /home/iffiolen/REACT-PROJECTS/Q-Music/BACKUPS`
+2. Lisa skript `working_folder/scripts/backup.sh` järgmise sisuga ja muuda käivitatavaks (`chmod +x working_folder/scripts/backup.sh`):
 
-This is an open-source project. Contributions are welcome! Please feel free to:
-- Report bugs
-- Suggest features  
-- Submit pull requests
-- Improve documentation
+   ```bash
+   #!/usr/bin/env bash
+   set -euo pipefail
 
-## 📄 License
+   PROJECT_DIR="/home/iffiolen/REACT-PROJECTS/Q-Music/working_folder"
+   BACKUP_DIR="/home/iffiolen/REACT-PROJECTS/Q-Music/BACKUPS"
+   TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 
-This project is open source. Please check the license file for details.
+   mkdir -p "$BACKUP_DIR"
+   tar --exclude='.git' \
+       --exclude='node_modules' \
+       --exclude='dist' \
+       --exclude='BACKUPS' \
+       -czf "$BACKUP_DIR/$TIMESTAMP.tar.gz" \
+       -C "$PROJECT_DIR" .
 
-## 🔗 Links
+   ls -1t "$BACKUP_DIR" | tail -n +5 | while read -r old; do
+     rm -f "$BACKUP_DIR/$old"
+   done
+   ```
 
-- **QORTAL**: [qortal.dev](https://qortal.dev)
-- **QDN Documentation**: QORTAL Data Network docs
-- **Community**: Join the QORTAL community for support
+3. Käivita skript vajadusel käsitsi või lisa cron'i (`crontab -e`), et see töötaks nt igal ööl.
+4. Sünkroniseeri Git commit'id GitHubi:  
+   `git add . && git commit -m "Your message" && git push`.
 
-## 🎵 About
+Skripti loogika jätab alati alles neli kõige värskemat arhivi; vajadusel muuda `tail -n +5` väärtust, kui soovid rohkem koopiad säilitada.
 
-Q-Music represents the future of decentralized music distribution. By leveraging blockchain technology, it creates a platform where artists and listeners can interact directly without intermediaries, ensuring fair compensation and creative freedom.
+## Kaastöö ja arenduse suunised
+
+- Hargi repo, loo oma haru (`git checkout -b feature/uus-funktsioon`), tee muudatused, lisa testid/kontrollid ja esita pull request.
+- Pane tähele ESLint reegleid ja Tailwindi/TypeScripti stiili.
+- Küsimuste korral ava GitHubi arutelu või issue.
+
+## Litsents
+
+Projekt on avaldatud MIT litsentsi all. Täpsem info failis `LICENSE`.
 
 ---
 
-*Built with ❤️ for the decentralized music community*
+Q-Music areneb koos kogukonnaga – pane muusika mängima ja naudi!
