@@ -1,95 +1,103 @@
 # Q-Music – Enjoy the Music
 
-Q-Music on Qortal platvormi jaoks loodud muusika- ja meediamängija, mis koondab kogukonna avaldatud laulud, playlistid, podcastid ja videod ühte kaasaegsesse kasutajaliidesse. Projekt väljendab uue Q-Music kogukonna tulevikuvisiooni: detsentraliseeritud, censorsip-kindel ja kasutajaid kaasav meediakogemus.
+Q-Music is a music and media player built for the Qortal platform. It brings together community-published songs, playlists, podcasts, and videos inside a modern interface and showcases the future vision of the Q-Music community: decentralized, censorship-resistant, and user-driven media.
 
-## Mis projekti sees toimub?
+## What the project delivers
 
-- Avaleht kuvab värskelt lisatud lood, playlistid, podcastid ja videod ning võimaldab kiiret navigeerimist.
-- Meediateek on jaotatud alamlehtedeks (laulud, playlistid, podcastid, videod), et sirvida ka suuri kogusid.
-- Täpsemad vaated võimaldavad kuulata loo-, playlisti-, podcasti- ja videodetaile eraldi lehtedel koos taustainfo ning navigeerimisvõimalustega.
-- Otsing ja filtrid aitavad leida uusi teoseid; täiendavad ülevaated nagu "Newest" annavad kiire ligipääsu värsketele lugudele.
-- Requests-osa laseb kasutajatel esitada kogukonnale laulu/playlisti soovitusi, neid täita, raporteerida või kustutada.
-- Statistika ja alamribad aitavad jälgida Q-Music ökosüsteemi elavust.
-- Lemmikute haldus salvestatakse lokaalselt brauserisse, et sageli kuulatud sisu oleks clipsi kaugusel.
+- The home screen highlights newly added songs, playlists, podcasts, and videos with quick navigation links.
+- The media library splits content into dedicated sections (songs, playlists, podcasts, videos) so large collections stay manageable.
+- Detail pages let you explore individual songs, playlists, podcasts, and videos with rich metadata and navigation helpers.
+- Search and filter tools make it easy to discover fresh material; overviews such as “Newest” provide fast access to recent uploads.
+- The Requests area allows listeners to publish song/playlist requests, fill them, report issues, or delete their own entries.
+- Statistics panels surface insights about the health of the Q-Music ecosystem.
+- Favorite items are stored locally in the browser, keeping frequently played media close at hand.
 
-## Tehnoloogiapino
+## Technology stack
 
-- **Raamistik**: React 18, TypeScript, Vite
-- **Kujundus**: Tailwind CSS, Material UI, Emotion
-- **Rakenduse olek**: Redux Toolkit, Zustand
-- **Andmeallikad**: QORTAL Core API ja QDN (Qortal Data Network)
-- **Praktilised tööriistad**: React Hook Form, React Router DOM, moment.js, localforage, Radix UI dialoogid/sliderid
-- **Audiotöötlus**: music-metadata-browser, use-sound
+- **Framework**: React 18, TypeScript, Vite
+- **Styling**: Tailwind CSS, Material UI, Emotion
+- **State management**: Redux Toolkit, Zustand
+- **Data sources**: QORTAL Core API and QDN (Qortal Data Network)
+- **Productivity tools**: React Hook Form, React Router DOM, moment.js, localforage, Radix UI dialog/slider components
+- **Audio processing**: music-metadata-browser, use-sound
 
-## Qortaliga töötamine
+## Working with Qortal
 
-Rakendus eeldab Qortal võrgu ja Qortal Core'i olemasolu:
+The app depends on the Qortal network and Qortal Core:
 
-1. Käivita Qortal Core või ava Qortal UI, mis eksponeerib `qortalRequest` API-d.
-2. Kui töötad lokaalselt, lisa polüfüll `src/polyfills/qortal.ts` kaudu – see näitab hoiatust, et päris API puudub.
-3. Autentimiseks ja kogukonna funktsioonide (Requests, statistika jmt) kasutamiseks on vaja Qortal kontot.
+1. Start Qortal Core or open the Qortal UI that exposes the `qortalRequest` API.
+2. When running locally, the polyfill `src/polyfills/qortal.ts` logs a warning whenever the real API is absent.
+3. A Qortal account is required to authenticate and use community features (Requests, statistics, etc.).
 
-> Vihje: arenduskeskkonnas kasuta Qortal UI siseset brauserit või defineeri bridge oma arendusega; ilma selleta väljastab rakendus arendaja konsooli hoiatuse.
+> Tip: During development, use the browser inside the Qortal UI or bridge a local environment to Qortal Core; otherwise the console shows a warning that the API is unavailable.
 
-## Projekti käivitamine lokaalselt
+## Running the project locally
 
-1. Paigalda Node.js (soovitavalt 18.x või uuem).
-2. Liigu projekti juurkausta:  
+1. Install Node.js (18.x or newer recommended).
+2. Change to the project directory:  
    `cd /home/iffiolen/REACT-PROJECTS/Q-Music/working_folder`
-3. Paigalda sõltuvused:  
+3. Install dependencies:  
    `npm install`
-4. Arendusserver:  
-   `npm run dev` ja ava terminalis kuvatud URL (nt http://localhost:5173).
-5. Koodi kvaliteedi kontroll:  
+4. Launch the dev server:  
+   `npm run dev` and open the printed URL (for example http://localhost:5173).
+5. Run lint checks:  
    `npm run lint`
-6. Tootmispakett:  
-   `npm run build` (valmispaketid tekivad kausta `dist/`).
+6. Produce a production bundle:  
+   `npm run build` (artifacts land in the `dist/` folder).
 
-## Varunduse parim praktika
+## Backup best practice
 
-Kombineeri Git commit'id (tõuke GitHubi reposse `Q-Music-Enjoy-The-Music`) lokaalse arhiveerimisega, et oleks tagatud nii versioonikontroll kui ka koopiad välisteks juhuks.
+Combine Git commits (push to the GitHub repository `Q-Music-Enjoy-The-Music`) with local archives so you always have both version history and filesystem snapshots.
 
-1. Loo kaust varukoopiate jaoks (pärast projekti ümbernimetamist on see juba olemas, vajadusel uuenda rada):  
+1. Create the backup directory if needed:  
    `mkdir -p /home/iffiolen/REACT-PROJECTS/Q-Music/BACKUPS`
-2. Lisa skript `working_folder/scripts/backup.sh` järgmise sisuga ja muuda käivitatavaks (`chmod +x working_folder/scripts/backup.sh`):
+2. Add the script `working_folder/scripts/backup.sh` with the contents below and make it executable (`chmod +x working_folder/scripts/backup.sh`):
 
    ```bash
    #!/usr/bin/env bash
    set -euo pipefail
 
-   PROJECT_DIR="/home/iffiolen/REACT-PROJECTS/Q-Music/working_folder"
-   BACKUP_DIR="/home/iffiolen/REACT-PROJECTS/Q-Music/BACKUPS"
+   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+   PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+   REPO_ROOT="$(cd "$PROJECT_DIR/.." && pwd)"
+   BACKUP_DIR="$REPO_ROOT/BACKUPS"
+
    TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
+   ARCHIVE_PATH="$BACKUP_DIR/$TIMESTAMP.tar.gz"
 
    mkdir -p "$BACKUP_DIR"
+
    tar --exclude='.git' \
        --exclude='node_modules' \
        --exclude='dist' \
        --exclude='BACKUPS' \
-       -czf "$BACKUP_DIR/$TIMESTAMP.tar.gz" \
+       -czf "$ARCHIVE_PATH" \
        -C "$PROJECT_DIR" .
 
-   ls -1t "$BACKUP_DIR" | tail -n +5 | while read -r old; do
-     rm -f "$BACKUP_DIR/$old"
-   done
+   echo "Backup created: $ARCHIVE_PATH"
+
+   old_backups=$(ls -1t "$BACKUP_DIR"/*.tar.gz 2>/dev/null | tail -n +5 || true)
+   if [[ -n "$old_backups" ]]; then
+     echo "$old_backups" | xargs -r rm --
+   fi
    ```
 
-3. Käivita skript vajadusel käsitsi või lisa cron'i (`crontab -e`), et see töötaks nt igal ööl.
-4. Sünkroniseeri Git commit'id GitHubi:  
+3. Run the script manually whenever you finish a work session or before risky changes.
+4. Keep Git in sync:  
    `git add . && git commit -m "Your message" && git push`.
 
-Skripti loogika jätab alati alles neli kõige värskemat arhivi; vajadusel muuda `tail -n +5` väärtust, kui soovid rohkem koopiad säilitada.
+The script always preserves the four most recent archives; adjust `tail -n +5` if you want to keep more.
 
-## Kaastöö ja arenduse suunised
+## Collaboration guidelines
 
-- Hargi repo, loo oma haru (`git checkout -b feature/uus-funktsioon`), tee muudatused, lisa testid/kontrollid ja esita pull request.
-- Pane tähele ESLint reegleid ja Tailwindi/TypeScripti stiili.
-- Küsimuste korral ava GitHubi arutelu või issue.
+- Fork the repository, create a branch (`git checkout -b feature/your-feature`), implement changes, add tests/checks, then open a pull request.
+- Follow the ESLint rules and Tailwind/TypeScript style already used in the project.
+- For questions, open an issue or discussion on GitHub.
 
-## Litsents
+## License
 
-Projekt on avaldatud MIT litsentsi all. Täpsem info failis `LICENSE`.
+Published under the MIT License. See the `LICENSE` file for details.
 
 ---
 
-Q-Music areneb koos kogukonnaga – pane muusika mängima ja naudi!
+Q-Music grows with its community—turn up the music and enjoy!
