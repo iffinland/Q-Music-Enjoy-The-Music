@@ -540,7 +540,11 @@ export const Library: React.FC = () => {
               </div>
             </div>
 
-            <SearchContent songs={songListLibrary} />
+            <SearchContent
+              songs={songListLibrary}
+              showInlineActions={false}
+              enableInlinePlay={false}
+            />
             <LazyLoad onLoadMore={fetchMyLibrary} />
           </>
         )}
@@ -605,7 +609,11 @@ export const Library: React.FC = () => {
                 <div className="mt-5 mb-4">
                   <h2 className="text-xl font-semibold text-white">Favorite Songs</h2>
                 </div>
-                <SearchContent songs={favoriteList ?? []} />
+                <SearchContent
+                  songs={favoriteList ?? []}
+                  showInlineActions={false}
+                  enableInlinePlay={false}
+                />
                 <LazyLoad onLoadMore={getLikedSongs} />
               </>
             )}

@@ -10,7 +10,7 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { FaPlay } from 'react-icons/fa';
-import { FiDownload, FiThumbsUp } from 'react-icons/fi';
+import { FiDownload, FiEdit2, FiThumbsUp } from 'react-icons/fi';
 import { LuCopy } from 'react-icons/lu';
 import { RiHandCoinLine } from 'react-icons/ri';
 import { Song } from '../../types';
@@ -50,6 +50,10 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
   const publisher = song.name || '—';
   const encodedPublisher = song.name ? encodeURIComponent(song.name) : '';
   const encodedIdentifier = song.id ? encodeURIComponent(song.id) : '';
+  const isOwner = useMemo(() => {
+    if (!username || !song?.name) return false;
+    return username.toLowerCase() === song.name.toLowerCase();
+  }, [song?.name, username]);
 
   useEffect(() => {
     let cancelled = false;
@@ -226,6 +230,22 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
     sendTipModal.open(song.name);
   }, [sendTipModal, song.name, username]);
 
+  const handleEdit = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+
+    if (!isOwner) {
+      toast.error('Only the original publisher can edit this song.');
+      return;
+    }
+
+    if (!encodedPublisher || !encodedIdentifier) {
+      toast.error('Song metadata incomplete.');
+      return;
+    }
+
+    navigate(`/songs/${encodedPublisher}/${encodedIdentifier}?edit=true`);
+  }, [encodedIdentifier, encodedPublisher, isOwner, navigate]);
+
   const metadataMap = useMemo(
     () => parseKeyValueMetadata(song.description),
     [song.description],
@@ -313,8 +333,8 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
                   event.stopPropagation();
                   handlePlay();
                 }}
-                title="Esita"
-                aria-label="Play song"
+                title="Play"
+                aria-label="Play"
               >
                 <FaPlay size={14} />
               </HomeActionButton>
@@ -334,8 +354,8 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
                   event.stopPropagation();
                   handleLike(event);
                 }}
-                title={hasLike ? 'Eemalda meeldimine' : 'Meeldib'}
-                aria-label="Toggle like"
+                title="Like It"
+                aria-label="Like It"
                 active={hasLike}
                 disabled={likeBusy}
                 className="px-2"
@@ -357,8 +377,8 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
                   activeClassName="bg-sky-800/80 text-white hover:bg-sky-700/80"
                   inactiveClassName="bg-sky-900/50 text-sky-200/80 hover:bg-sky-800/70"
                   iconSize={14}
-                  title="Lisa lemmikutesse"
-                  ariaLabel="Add to favorites"
+                  title="Add Favorites"
+                  ariaLabel="Add Favorites"
                 />
               </div>
             ),
@@ -368,8 +388,8 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
                   event.stopPropagation();
                   handleDownload();
                 }}
-                title="Lae alla"
-                aria-label="Download song"
+                title="Download"
+                aria-label="Download"
               >
                 <FiDownload size={14} />
               </HomeActionButton>
@@ -380,8 +400,8 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
                   event.stopPropagation();
                   handleShare();
                 }}
-                title="Jaga linki"
-                aria-label="Share song"
+                title="Copy link & Share It"
+                aria-label="Copy link & Share It"
               >
                 <LuCopy size={14} />
               </HomeActionButton>
@@ -392,12 +412,21 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
                   event.stopPropagation();
                   handleTip();
                 }}
-                title="Jäta tippi"
-                aria-label="Send tip"
+                title="Send Tips to Publisher"
+                aria-label="Send Tips to Publisher"
               >
                 <RiHandCoinLine size={14} />
               </HomeActionButton>
             ),
+            isOwner ? (
+              <HomeActionButton
+                onClick={handleEdit}
+                title="Edit"
+                aria-label="Edit"
+              >
+                <FiEdit2 size={14} />
+              </HomeActionButton>
+            ) : null,
           ];
 
           while (actionNodes.length < 8) {

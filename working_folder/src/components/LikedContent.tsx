@@ -1,56 +1,13 @@
-import useOnPlay from "../hooks/useOnPlay";
+import React from "react";
 import { Song } from "../types";
-import { AddToPlaylistButton } from "./AddToPlayistButton";
-import LikeButton from "./LikeButton";
-import MediaItem from "./MediaItem";
+import SearchContent from "./SearchContent";
 
-
-
-interface SearchContentProps {
+interface LikedContentProps {
   songs: Song[];
 }
 
-export const LikedContent: React.FC<SearchContentProps> = ({
-  songs
-}) => {
-  const onPlay = useOnPlay(songs);
+export const LikedContent: React.FC<LikedContentProps> = ({ songs }) => {
+  return <SearchContent songs={songs} />;
+};
 
-  if (songs.length === 0) {
-    return (
-      <div 
-        className="
-          flex 
-          flex-col 
-          gap-y-2 
-          w-full 
-          px-6 
-          text-sky-200/80
-        "
-      >
-        No songs found.
-      </div>
-    )
-  }
-  console.log('liked content')
-
-  return ( 
-    <div className="flex flex-col gap-y-2 w-full px-6">
-      {songs.map((song: Song) => (
-        <div 
-          key={song.id} 
-          className="flex items-center gap-x-4 w-full"
-        >
-          <div className="flex-1">
-            <MediaItem 
-              onClick={(id: string) => onPlay(id)} 
-              data={song}
-            />
-          </div>
-          <AddToPlaylistButton song={song} />
-          <LikeButton songId={song.id} name={song.name} service={song.service ?? ''} songData={song} />
-        </div>
-      ))}
-    </div>
-  );
-}
- 
+export default LikedContent;

@@ -1,21 +1,22 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import moment from 'moment';
-import { FiDownload, FiEdit2, FiPlay, FiShare2, FiStar, FiThumbsUp, FiTrash2 } from 'react-icons/fi';
+import { FiDownload, FiEdit2, FiPlay, FiShare2, FiStar, FiThumbsUp } from 'react-icons/fi';
 import { RiHandCoinLine } from 'react-icons/ri';
-import { Podcast } from '../../types';
+import { Podcast, Song } from '../../types';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import { useNavigate } from 'react-router-dom';
+import { MdPlaylistAdd } from 'react-icons/md';
 
 interface PodcastCardProps {
   podcast: Podcast;
   onPlay?: (podcast: Podcast) => void;
   onLike?: (podcast: Podcast) => void;
   onAddFavorite?: (podcast: Podcast) => void;
+  onAddToPlaylist?: (songData: Song) => void;
   onDownload?: (podcast: Podcast) => void;
   onCopyLink?: (podcast: Podcast) => void;
   onSendTips?: (podcast: Podcast) => void;
   isHighlighted?: boolean;
-  onDelete?: (podcast: Podcast) => void;
   onEdit?: (podcast: Podcast) => void;
   isFavorite?: boolean;
   isLiked?: boolean;
@@ -89,11 +90,11 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
   onPlay,
   onLike,
   onAddFavorite,
+  onAddToPlaylist,
   onDownload,
   onCopyLink,
   onSendTips,
   isHighlighted = false,
-  onDelete,
   onEdit,
   isFavorite = false,
   isLiked = false,
@@ -111,6 +112,14 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
     if (!podcast.publisher || !podcast.id) return;
     navigate(`/podcasts/${encodeURIComponent(podcast.publisher)}/${encodeURIComponent(podcast.id)}`);
   }, [navigate, podcast.publisher, podcast.id]);
+  const playlistSongData = useMemo<Song>(() => ({
+    id: podcast.id,
+    title: podcast.title,
+    name: podcast.publisher,
+    author: podcast.publisher,
+    service: podcast.service || 'PODCAST',
+    status: podcast.status,
+  }), [podcast.id, podcast.publisher, podcast.service, podcast.status, podcast.title]);
 
   return (
     <div
@@ -161,11 +170,11 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:w-40 md:justify-items-center">
-        <ActionIcon title="Play this podcast" onClick={() => onPlay?.(podcast)}>
+        <ActionIcon title="Play" onClick={() => onPlay?.(podcast)}>
           <FiPlay size={16} />
         </ActionIcon>
         <ActionIcon
-          title="Like this podcast"
+          title="Like It"
           onClick={() => onLike?.(podcast)}
           isActive={isLiked}
         >
@@ -175,38 +184,38 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
           </div>
         </ActionIcon>
         <ActionIcon
-          title="Add to favorites"
+          title="Add Favorites"
           onClick={() => onAddFavorite?.(podcast)}
           isActive={isFavorite}
         >
           <FiStar size={16} />
         </ActionIcon>
+        {onAddToPlaylist && (
+          <ActionIcon title="Add to Playlist" onClick={() => onAddToPlaylist?.(playlistSongData)}>
+            <MdPlaylistAdd size={18} />
+          </ActionIcon>
+        )}
         <ActionIcon
-          title="Download this podcast"
+          title="Download"
           onClick={() => onDownload?.(podcast)}
         >
           <FiDownload size={16} />
         </ActionIcon>
         <ActionIcon
-          title="Share this podcast"
+          title="Copy link & Share It"
           onClick={() => onCopyLink?.(podcast)}
         >
           <FiShare2 size={16} />
         </ActionIcon>
         <ActionIcon
-          title="Send tips to the creator"
+          title="Send Tips to Publisher"
           onClick={() => onSendTips?.(podcast)}
         >
           <RiHandCoinLine size={16} />
         </ActionIcon>
         {onEdit && (
-          <ActionIcon title="Edit podcast" onClick={() => onEdit?.(podcast)}>
+          <ActionIcon title="Edit" onClick={() => onEdit?.(podcast)}>
             <FiEdit2 />
-          </ActionIcon>
-        )}
-        {onDelete && (
-          <ActionIcon title="Delete podcast" onClick={() => onDelete?.(podcast)}>
-            <FiTrash2 />
           </ActionIcon>
         )}
       </div>

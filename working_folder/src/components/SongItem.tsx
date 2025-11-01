@@ -4,10 +4,10 @@ import { RootState } from "../state/store";
 import radioImg from '../assets/img/enjoy-music.jpg';
 import { MyContext } from "../wrappers/DownloadWrapper";
 import { FaPlay } from "react-icons/fa";
-import { FiDownload, FiThumbsUp } from "react-icons/fi";
+import { FiDownload, FiEdit2, FiThumbsUp } from "react-icons/fi";
 import { LuCopy } from "react-icons/lu";
 import { RiHandCoinLine } from "react-icons/ri";
-import { MouseEvent, useCallback, useContext, useEffect, useState } from "react";
+import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import LikeButton from "./LikeButton";
 import { Song } from "../types";
 import { AddToPlaylistButton } from "./AddToPlayistButton";
@@ -40,6 +40,11 @@ const SongItem: React.FC<SongItemProps> = ({
   const [songLikeCount, setSongLikeCount] = useState<number | null>(null);
   const [hasSongLike, setHasSongLike] = useState<boolean>(false);
   const [isProcessingLike, setIsProcessingLike] = useState<boolean>(false);
+
+  const isOwner = useMemo(() => {
+    if (!username || !data?.name) return false;
+    return username.toLowerCase() === data.name.toLowerCase();
+  }, [username, data?.name]);
 
   const coverImage = imageCoverHash[data.id] || radioImg;
   const publisherName = data?.name?.trim() || "—";
@@ -152,9 +157,45 @@ const SongItem: React.FC<SongItemProps> = ({
     }
   }, [copyToClipboard, data.id, data.name]);
 
-  const handlePlaceholder = (event: MouseEvent<HTMLButtonElement>) => {
+  const handleDownload = useCallback(async (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-  }
+
+    if (!data?.name) {
+      toast.error("Song publisher information is missing.");
+      return;
+    }
+
+    try {
+      const resolvedUrl = await getQdnResourceUrl('AUDIO', data.name, data.id);
+      if (!resolvedUrl) {
+        toast.error("Song download is not available yet.");
+        return;
+      }
+
+      const anchor = document.createElement('a');
+      anchor.href = resolvedUrl;
+      anchor.download = `${(data.title || data.id || 'song').replace(/\s+/g, '_')}.audio`;
+      anchor.rel = 'noopener';
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+
+      dispatch(setAddToDownloads({
+        name: data.name,
+        service: 'AUDIO',
+        id: data.id,
+        identifier: data.id,
+        url: resolvedUrl,
+        status: data?.status,
+        title: data?.title || "",
+        author: data?.author || "",
+      }));
+      toast.success("Song download started.");
+    } catch (error) {
+      console.error("Failed to download song", error);
+      toast.error("Song could not be downloaded. Please try again later.");
+    }
+  }, [data?.author, data?.id, data?.name, data?.status, data?.title, dispatch]);
 
   const handleSendTip = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -174,6 +215,22 @@ const SongItem: React.FC<SongItemProps> = ({
     },
     [data.name, sendTipModal, username],
   );
+
+  const handleEdit = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+
+    if (!isOwner) {
+      toast.error("Only the original publisher can edit this song.");
+      return;
+    }
+
+    if (!data?.name || !data?.id) {
+      toast.error("Song metadata incomplete.");
+      return;
+    }
+
+    navigate(`/songs/${encodedPublisher}/${encodedIdentifier}?edit=true`);
+  }, [data?.id, data?.name, encodedIdentifier, encodedPublisher, isOwner, navigate]);
 
   const favoriteSongData: Song = {
     id: data.id,
@@ -298,7 +355,7 @@ const SongItem: React.FC<SongItemProps> = ({
           onClick={handlePlay}
           className="flex items-center justify-center w-9 h-9 rounded-full bg-sky-800/70 hover:bg-sky-700 text-white transition"
           aria-label="Play"
-          title="Play song"
+          title="Play"
         >
           <FaPlay size={16} />
         </button>
@@ -316,8 +373,8 @@ const SongItem: React.FC<SongItemProps> = ({
               ? 'bg-sky-800/70 text-white hover:bg-sky-700'
               : 'bg-sky-900/40 text-sky-200/70 hover:bg-sky-800/50'
           }`}
-          aria-label="Like this song"
-          title={hasSongLike ? "Unlike this song" : "Like this song"}
+          aria-label="Like It"
+          title="Like It"
         >
           <FiThumbsUp size={16} />
           <span>{songLikeCount ?? '—'}</span>
@@ -331,15 +388,15 @@ const SongItem: React.FC<SongItemProps> = ({
           activeClassName="bg-sky-800/70 hover:bg-sky-700"
           inactiveClassName="bg-sky-900/40 text-sky-200/60 hover:bg-sky-800/40"
           iconSize={16}
-          title="Add to Favorites"
-          ariaLabel="Add to favorites"
+          title="Add Favorites"
+          ariaLabel="Add Favorites"
         />
         <button
           type="button"
-          onClick={handlePlaceholder}
+          onClick={handleDownload}
           className="flex items-center justify-center w-9 h-9 rounded-full bg-sky-900/40 text-sky-200/60 hover:bg-sky-800/50 transition"
           aria-label="Download"
-          title="Download song"
+          title="Download"
         >
           <FiDownload size={16} />
         </button>
@@ -347,8 +404,8 @@ const SongItem: React.FC<SongItemProps> = ({
           type="button"
           onClick={handleCopyLink}
           className="flex items-center justify-center w-9 h-9 rounded-full bg-sky-900/40 text-sky-200/60 hover:bg-sky-800/50 transition"
-          aria-label="Copy link"
-          title="Copy song link"
+          aria-label="Copy link & Share It"
+          title="Copy link & Share It"
         >
           <LuCopy size={16} />
         </button>
@@ -356,11 +413,22 @@ const SongItem: React.FC<SongItemProps> = ({
           type="button"
           onClick={handleSendTip}
           className="flex items-center justify-center w-9 h-9 rounded-full bg-sky-900/40 text-sky-200/60 hover:bg-sky-800/50 transition"
-          aria-label="Send tip"
-          title="Send a tip"
+          aria-label="Send Tips to Publisher"
+          title="Send Tips to Publisher"
         >
           <RiHandCoinLine size={16} />
         </button>
+        {isOwner && (
+          <button
+            type="button"
+            onClick={handleEdit}
+            className="flex items-center justify-center w-9 h-9 rounded-full bg-sky-900/40 text-sky-200/60 hover:bg-sky-800/50 transition"
+            aria-label="Edit"
+            title="Edit"
+          >
+            <FiEdit2 size={16} />
+          </button>
+        )}
       </div>
     </div>
   </div>

@@ -13,10 +13,11 @@ import VideoAlphabetFilter from '../../components/videos/VideoAlphabetFilter';
 import VideoCard from '../../components/videos/VideoCard';
 import VideoPlayerOverlay from '../../components/videos/VideoPlayerOverlay';
 import { fetchVideos } from '../../services/videos';
-import { Video } from '../../types';
+import { Song, Video } from '../../types';
 import { CircularProgress } from '@mui/material';
 import useUploadVideoModal from '../../hooks/useUploadVideoModal';
 import useSendTipModal from '../../hooks/useSendTipModal';
+import useAddSongToPlaylistModal from '../../hooks/useAddSongToPlaylistModal';
 import { toast } from 'react-hot-toast';
 import { buildVideoShareUrl } from '../../utils/qortalLinks';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -68,6 +69,7 @@ const Videos: React.FC = () => {
   const [isPlayerLoading, setIsPlayerLoading] = useState(false);
   const videoFetchToastId = useRef<string | null>(null);
   const sendTipModal = useSendTipModal();
+  const addSongToPlaylistModal = useAddSongToPlaylistModal();
 
   const dismissVideoFetchToast = useCallback(() => {
     if (videoFetchToastId.current) {
@@ -531,6 +533,14 @@ const Videos: React.FC = () => {
     [sendTipModal, username],
   );
 
+  const handleAddVideoToPlaylist = useCallback((songData: Song) => {
+    if (!username) {
+      toast.error('Log in to manage playlists.');
+      return;
+    }
+    addSongToPlaylistModal.onOpen(songData);
+  }, [addSongToPlaylistModal, username]);
+
   const paginationItems = useMemo(() => {
     if (totalPages <= 10) {
       return Array.from({ length: totalPages }, (_, index) => index + 1);
@@ -593,11 +603,11 @@ const Videos: React.FC = () => {
                     onPlay={handlePlayVideo}
                     onLike={handleLikeVideo}
                     onAddFavorite={handleFavoriteVideo}
+                    onAddToPlaylist={handleAddVideoToPlaylist}
                     onDownload={handleDownloadVideo}
                     onCopyLink={handleShareVideo}
                     onSendTips={handleSendTips}
                     onEdit={username === video.publisher ? handleEditVideo : undefined}
-                    onDelete={username === video.publisher ? handleDeleteVideo : undefined}
                     isFavorite={Boolean(favorites?.songs?.[video.id])}
                     isLiked={Boolean(likedByUser[video.id])}
                     likeCount={likeCounts[video.id] ?? 0}

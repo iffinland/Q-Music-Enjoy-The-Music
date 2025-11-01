@@ -10,9 +10,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import localforage from 'localforage';
 import { toast } from 'react-hot-toast';
-import { FiPlay, FiShare2, FiThumbsUp } from 'react-icons/fi';
+import { FiDownload, FiEdit2, FiPlay, FiShare2, FiThumbsUp } from 'react-icons/fi';
 import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
-import { PlayList, removeFavPlaylist, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavPlaylist } from '../../state/features/globalSlice';
+import { PlayList, removeFavPlaylist, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavPlaylist, setNewPlayList } from '../../state/features/globalSlice';
 import { RootState } from '../../state/store';
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import { useContext } from 'react';
@@ -23,6 +23,9 @@ import HomeActionButton from './HomeActionButton';
 import HomeCardHoverDetails from './HomeCardHoverDetails';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import { formatDateTime } from '../../utils/metadata';
+import useUploadPlaylistModal from '../../hooks/useUploadPlaylistModal';
+import useSendTipModal from '../../hooks/useSendTipModal';
+import { RiHandCoinLine } from 'react-icons/ri';
 
 const playlistFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites',
@@ -45,6 +48,8 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
   const favoritesPlaylist = useSelector((state: RootState) => state.global.favoritesPlaylist);
   const downloads = useSelector((state: RootState) => state.global.downloads);
   const navigate = useNavigate();
+  const uploadPlaylistModal = useUploadPlaylistModal();
+  const sendTipModal = useSendTipModal();
 
   const [likeCount, setLikeCount] = useState<number | null>(null);
   const [hasLiked, setHasLiked] = useState(false);
@@ -58,6 +63,10 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
     () => favoritesPlaylist?.some((item) => item.id === playlist.id) ?? false,
     [favoritesPlaylist, playlist.id],
   );
+  const isOwner = useMemo(() => {
+    if (!username || !playlist?.user) return false;
+    return username.toLowerCase() === playlist.user.toLowerCase();
+  }, [playlist?.user, username]);
 
   useEffect(() => {
     let cancelled = false;
@@ -230,6 +239,61 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
   const encodedPublisher = playlist.user ? encodeURIComponent(playlist.user) : '';
   const encodedIdentifier = encodeURIComponent(playlist.id);
 
+  const handleDownload = useCallback(async () => {
+    if (!playlist.user) {
+      toast.error('Koostaja puudub.');
+      return;
+    }
+
+    try {
+      const resource = await qortalRequest({
+        action: 'FETCH_QDN_RESOURCE',
+        name: playlist.user,
+        service: 'PLAYLIST',
+        identifier: playlist.id,
+      });
+
+      if (!resource) {
+        toast.error('Playlisti sisu ei leitud allalaadimiseks.');
+        return;
+      }
+
+      const blob = new Blob([JSON.stringify(resource, null, 2)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${(playlist.title || playlist.id || 'playlist').replace(/\s+/g, '_')}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      toast.success('Playlisti fail salvestatud.');
+    } catch (error) {
+      console.error('Failed to download playlist', error);
+      toast.error('Playlisti ei õnnestunud alla laadida.');
+    }
+  }, [playlist.id, playlist.title, playlist.user]);
+
+  const handleTip = useCallback(() => {
+    if (!username) {
+      toast.error('Logi sisse, et jätta tippi.');
+      return;
+    }
+    if (!playlist.user) {
+      toast.error('Playlisti koostaja puudub.');
+      return;
+    }
+    sendTipModal.open(playlist.user);
+  }, [playlist.user, sendTipModal, username]);
+
+  const handleEdit = useCallback(() => {
+    if (!isOwner) {
+      toast.error('Vaid koostaja saab playlisti muuta.');
+      return;
+    }
+    dispatch(setNewPlayList(playlist));
+    uploadPlaylistModal.onOpen();
+  }, [dispatch, isOwner, playlist, uploadPlaylistModal]);
+
   const hoverEntries = useMemo(() => {
     const entries: { label: string; value: string }[] = [];
 
@@ -316,8 +380,8 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
                   event.stopPropagation();
                   handlePlay();
                 }}
-                title="Esita"
-                aria-label="Play playlist"
+                title="Play"
+                aria-label="Play"
                 disabled={playBusy}
               >
                 <FiPlay size={14} />
@@ -328,8 +392,8 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
                 onClick={(event) => {
                   handleToggleLike(event);
                 }}
-                title={hasLiked ? 'Eemalda meeldimine' : 'Meeldib'}
-                aria-label="Toggle like"
+                title="Like It"
+                aria-label="Like It"
                 active={hasLiked}
                 disabled={likeBusy}
                 className="px-2"
@@ -346,8 +410,8 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
                   event.stopPropagation();
                   handleToggleFavorite();
                 }}
-                title={isFavorited ? 'Eemalda lemmikutest' : 'Lisa lemmikutesse'}
-                aria-label="Toggle favorite"
+                title="Add Favorites"
+                aria-label="Add Favorites"
                 active={isFavorited}
                 disabled={favBusy}
               >
@@ -358,14 +422,50 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
               <HomeActionButton
                 onClick={(event) => {
                   event.stopPropagation();
+                  handleDownload();
+                }}
+                title="Download"
+                aria-label="Download"
+              >
+                <FiDownload size={14} />
+              </HomeActionButton>
+            ),
+            (
+              <HomeActionButton
+                onClick={(event) => {
+                  event.stopPropagation();
                   handleShare();
                 }}
-                title="Jaga"
-                aria-label="Share playlist"
+                title="Copy link & Share It"
+                aria-label="Copy link & Share It"
               >
                 <FiShare2 size={14} />
               </HomeActionButton>
             ),
+            (
+              <HomeActionButton
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleTip();
+                }}
+                title="Send Tips to Publisher"
+                aria-label="Send Tips to Publisher"
+              >
+                <RiHandCoinLine size={14} />
+              </HomeActionButton>
+            ),
+            isOwner ? (
+              <HomeActionButton
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleEdit();
+                }}
+                title="Edit"
+                aria-label="Edit"
+              >
+                <FiEdit2 size={14} />
+              </HomeActionButton>
+            ) : null,
           ];
 
           while (actionNodes.length < 8) {

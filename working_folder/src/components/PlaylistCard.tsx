@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
-import { FiPlay, FiShare2, FiThumbsUp } from 'react-icons/fi';
+import { FiDownload, FiEdit2, FiPlay, FiShare2, FiThumbsUp } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import localforage from 'localforage';
 
@@ -21,6 +21,7 @@ import {
   setCurrentPlaylist,
   setCurrentSong,
   setFavPlaylist,
+  setNewPlayList,
 } from '../state/features/globalSlice';
 import { RootState } from '../state/store';
 import { MyContext } from '../wrappers/DownloadWrapper';
@@ -32,6 +33,9 @@ import {
   likePlaylist,
   unlikePlaylist,
 } from '../services/playlistLikes';
+import useUploadPlaylistModal from '../hooks/useUploadPlaylistModal';
+import useSendTipModal from '../hooks/useSendTipModal';
+import { RiHandCoinLine } from 'react-icons/ri';
 
 interface PlaylistCardProps {
   data: PlayList;
@@ -50,6 +54,8 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
     (state: RootState) => state.global.favoritesPlaylist,
   );
   const { downloadVideo } = useContext(MyContext);
+  const uploadPlaylistModal = useUploadPlaylistModal();
+  const sendTipModal = useSendTipModal();
 
   const [likeCount, setLikeCount] = useState<number | null>(null);
   const [hasLiked, setHasLiked] = useState<boolean>(false);
@@ -63,6 +69,10 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
     () => favoritesPlaylist?.some((playlist) => playlist.id === data.id) ?? false,
     [favoritesPlaylist, data.id],
   );
+  const isOwner = useMemo(() => {
+    if (!username || !data?.user) return false;
+    return username.toLowerCase() === data.user.toLowerCase();
+  }, [data?.user, username]);
 
   useEffect(() => {
     let cancelled = false;
@@ -292,6 +302,78 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
 
   const FavoriteIcon = isFavorited ? AiFillHeart : AiOutlineHeart;
 
+  const handleDownloadPlaylist = useCallback(
+    async (event: MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+
+      if (!data.user) {
+        toast.error('Creator information is missing.');
+        return;
+      }
+
+      try {
+        const resource = await qortalRequest({
+          action: 'FETCH_QDN_RESOURCE',
+          name: data.user,
+          service: 'PLAYLIST',
+          identifier: data.id,
+        });
+
+        if (!resource) {
+          toast.error('Playlist content not found.');
+          return;
+        }
+
+        const blob = new Blob([JSON.stringify(resource, null, 2)], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${(data.title || data.id || 'playlist').replace(/\s+/g, '_')}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+        toast.success('Playlist downloaded.');
+      } catch (error) {
+        console.error('Failed to download playlist', error);
+        toast.error('Could not download this playlist.');
+      }
+    },
+    [data.id, data.title, data.user],
+  );
+
+  const handleSendTip = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+
+      if (!username) {
+        toast.error('Log in to send tips.');
+        return;
+      }
+      if (!data.user) {
+        toast.error('Creator information is missing.');
+        return;
+      }
+
+      sendTipModal.open(data.user);
+    },
+    [data.user, sendTipModal, username],
+  );
+
+  const handleEditPlaylist = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+
+      if (!isOwner) {
+        toast.error('Only the original creator can edit this playlist.');
+        return;
+      }
+
+      dispatch(setNewPlayList(data));
+      uploadPlaylistModal.onOpen();
+    },
+    [data, dispatch, isOwner, uploadPlaylistModal],
+  );
+
   return (
     <div
       role="button"
@@ -343,13 +425,13 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
       </div>
       <div className="mt-auto w-full pt-4">
         <div className="flex flex-wrap items-center justify-between gap-2 text-sky-200/80">
-          <button
-            type="button"
-            onClick={handlePlayPlaylist}
-            disabled={isPlayBusy}
+        <button
+          type="button"
+          onClick={handlePlayPlaylist}
+          disabled={isPlayBusy}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-800/70 text-white transition hover:bg-sky-700 disabled:opacity-60"
-          aria-label="Play playlist"
-          title="Play playlist"
+          aria-label="Play"
+          title="Play"
         >
           <FiPlay size={16} />
         </button>
@@ -362,8 +444,8 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
               ? 'bg-sky-800/70 text-white hover:bg-sky-700'
               : 'bg-sky-900/40 text-sky-200/70 hover:bg-sky-800/50'
           } disabled:opacity-60`}
-          aria-label="Like this playlist"
-          title={hasLiked ? 'Unlike this playlist' : 'Like this playlist'}
+          aria-label="Like It"
+          title="Like It"
         >
           <FiThumbsUp size={16} />
           <span>{likeCount ?? '—'}</span>
@@ -377,20 +459,49 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
               ? 'bg-sky-800/70 text-white hover:bg-sky-700'
               : 'bg-sky-900/40 text-sky-200/70 hover:bg-sky-800/50'
           } disabled:opacity-60`}
-          aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-          title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+          aria-label="Add Favorites"
+          title="Add Favorites"
         >
           <FavoriteIcon size={18} />
         </button>
         <button
           type="button"
+          onClick={handleDownloadPlaylist}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-900/40 text-sky-200/70 transition hover:bg-sky-800/50"
+          aria-label="Download"
+          title="Download"
+        >
+          <FiDownload size={16} />
+        </button>
+        <button
+          type="button"
           onClick={handleSharePlaylist}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-900/40 text-sky-200/70 transition hover:bg-sky-800/50"
-          aria-label="Share playlist"
-          title="Share playlist"
+          aria-label="Copy link & Share It"
+          title="Copy link & Share It"
         >
           <FiShare2 size={16} />
         </button>
+        <button
+          type="button"
+          onClick={handleSendTip}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-900/40 text-sky-200/70 transition hover:bg-sky-800/50"
+          aria-label="Send Tips to Publisher"
+          title="Send Tips to Publisher"
+        >
+          <RiHandCoinLine size={16} />
+        </button>
+        {isOwner && (
+          <button
+            type="button"
+            onClick={handleEditPlaylist}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-900/40 text-sky-200/70 transition hover:bg-sky-800/50"
+            aria-label="Edit"
+            title="Edit"
+          >
+            <FiEdit2 size={16} />
+          </button>
+        )}
         </div>
       </div>
     </div>

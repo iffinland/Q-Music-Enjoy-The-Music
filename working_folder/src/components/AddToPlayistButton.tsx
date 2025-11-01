@@ -30,8 +30,8 @@ export const AddToPlaylistButton: React.FC<AddToPlaylistButtonProps> = ({
         "cursor-pointer rounded-full bg-sky-900/50 p-2 text-white transition hover:bg-sky-800/60",
         className
       )}
-      aria-label="Add song to playlist"
-      title="Add song to playlist"
+      aria-label="Add to Playlist"
+      title="Add to Playlist"
     >
       <MdPlaylistAdd size={iconSize} className="pointer-events-none" />
     </button>

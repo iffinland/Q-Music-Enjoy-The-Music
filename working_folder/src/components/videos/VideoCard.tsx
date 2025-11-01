@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import moment from 'moment';
 import {
   FiDownload,
@@ -7,23 +7,23 @@ import {
   FiShare2,
   FiStar,
   FiThumbsUp,
-  FiTrash2,
 } from 'react-icons/fi';
 import { RiHandCoinLine } from 'react-icons/ri';
-import { Video } from '../../types';
+import { Song, Video } from '../../types';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import { useNavigate } from 'react-router-dom';
+import { MdPlaylistAdd } from 'react-icons/md';
 
 interface VideoCardProps {
   video: Video;
   onPlay?: (video: Video) => void;
   onLike?: (video: Video) => void;
   onAddFavorite?: (video: Video) => void;
+  onAddToPlaylist?: (songData: Song) => void;
   onDownload?: (video: Video) => void;
   onCopyLink?: (video: Video) => void;
   onSendTips?: (video: Video) => void;
   onEdit?: (video: Video) => void;
-  onDelete?: (video: Video) => void;
   isFavorite?: boolean;
   isLiked?: boolean;
   likeCount?: number;
@@ -76,11 +76,11 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   onPlay,
   onLike,
   onAddFavorite,
+  onAddToPlaylist,
   onDownload,
   onCopyLink,
   onSendTips,
   onEdit,
-  onDelete,
   isFavorite = false,
   isLiked = false,
   likeCount = 0,
@@ -97,6 +97,14 @@ export const VideoCard: React.FC<VideoCardProps> = ({
     if (!video.publisher || !video.id) return;
     navigate(`/videos/${encodeURIComponent(video.publisher)}/${encodeURIComponent(video.id)}`);
   }, [navigate, video.publisher, video.id]);
+  const playlistSongData = useMemo<Song>(() => ({
+    id: video.id,
+    title: video.title,
+    name: video.publisher,
+    author: video.author,
+    service: video.service || 'VIDEO',
+    status: video.status,
+  }), [video.author, video.id, video.publisher, video.service, video.status, video.title]);
 
   return (
     <div
@@ -151,11 +159,11 @@ export const VideoCard: React.FC<VideoCardProps> = ({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <ActionIcon title="Play this video" onClick={() => onPlay?.(video)}>
+        <ActionIcon title="Play" onClick={() => onPlay?.(video)}>
           <FiPlay size={16} />
         </ActionIcon>
         <ActionIcon
-          title="Like this video"
+          title="Like It"
           onClick={() => onLike?.(video)}
           isActive={isLiked}
         >
@@ -165,38 +173,38 @@ export const VideoCard: React.FC<VideoCardProps> = ({
           </div>
         </ActionIcon>
         <ActionIcon
-          title="Add to favorites"
+          title="Add Favorites"
           onClick={() => onAddFavorite?.(video)}
           isActive={isFavorite}
         >
           <FiStar size={16} />
         </ActionIcon>
+        {onAddToPlaylist && (
+          <ActionIcon title="Add to Playlist" onClick={() => onAddToPlaylist?.(playlistSongData)}>
+            <MdPlaylistAdd size={18} />
+          </ActionIcon>
+        )}
         <ActionIcon
-          title="Download this video"
+          title="Download"
           onClick={() => onDownload?.(video)}
         >
           <FiDownload size={16} />
         </ActionIcon>
         <ActionIcon
-          title="Share this video"
+          title="Copy link & Share It"
           onClick={() => onCopyLink?.(video)}
         >
           <FiShare2 size={16} />
         </ActionIcon>
         <ActionIcon
-          title="Send tips to the creator"
+          title="Send Tips to Publisher"
           onClick={() => onSendTips?.(video)}
         >
           <RiHandCoinLine size={16} />
         </ActionIcon>
         {onEdit && (
-          <ActionIcon title="Edit video" onClick={() => onEdit?.(video)}>
+          <ActionIcon title="Edit" onClick={() => onEdit?.(video)}>
             <FiEdit2 size={16} />
-          </ActionIcon>
-        )}
-        {onDelete && (
-          <ActionIcon title="Delete video" onClick={() => onDelete?.(video)}>
-            <FiTrash2 size={16} />
           </ActionIcon>
         )}
       </div>

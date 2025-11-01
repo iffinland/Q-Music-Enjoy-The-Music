@@ -12,6 +12,7 @@ import { Podcast, Song } from '../../types';
 import { CircularProgress } from '@mui/material';
 import useUploadPodcastModal from '../../hooks/useUploadPodcastModal';
 import useSendTipModal from '../../hooks/useSendTipModal';
+import useAddSongToPlaylistModal from '../../hooks/useAddSongToPlaylistModal';
 import { toast } from 'react-hot-toast';
 import { buildPodcastShareUrl } from '../../utils/qortalLinks';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -51,6 +52,7 @@ const Podcasts: React.FC = () => {
   const mountedRef = useRef(true);
   const uploadPodcastModal = useUploadPodcastModal();
   const sendTipModal = useSendTipModal();
+  const addSongToPlaylistModal = useAddSongToPlaylistModal();
   const location = useLocation();
   const navigate = useNavigate();
   const [sharedPodcastId, setSharedPodcastId] = useState<string | null>(null);
@@ -509,6 +511,14 @@ const Podcasts: React.FC = () => {
     [sendTipModal, username],
   );
 
+  const handleAddPodcastToPlaylist = useCallback((songData: Song) => {
+    if (!username) {
+      toast.error('Log in to manage playlists.');
+      return;
+    }
+    addSongToPlaylistModal.onOpen(songData);
+  }, [addSongToPlaylistModal, username]);
+
   const handleDeletePodcast = useCallback(async (podcast: Podcast) => {
     if (!username) {
       toast.error('Log in to manage podcasts.');
@@ -758,7 +768,8 @@ const Podcasts: React.FC = () => {
                     onPlay={handlePlayPodcast}
                     onLike={handleLikePodcast}
                     onAddFavorite={handleFavoritePodcast}
-      onDownload={handleDownloadPodcast}
+                    onAddToPlaylist={handleAddPodcastToPlaylist}
+                    onDownload={handleDownloadPodcast}
                     onCopyLink={handleSharePodcast}
                     onSendTips={handleSendTips}
                     isHighlighted={podcast.id === highlightedPodcastId}
@@ -766,7 +777,6 @@ const Podcasts: React.FC = () => {
                     isLiked={Boolean(likedByUser[podcast.id])}
                     likeCount={likeCounts[podcast.id] ?? 0}
                     onEdit={username === podcast.publisher ? handleEditPodcast : undefined}
-                    onDelete={username === podcast.publisher ? handleDeletePodcast : undefined}
                   />
                 </div>
               ))}
