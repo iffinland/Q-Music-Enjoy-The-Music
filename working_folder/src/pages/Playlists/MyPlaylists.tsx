@@ -4,6 +4,7 @@ import { useFetchSongs } from '../../hooks/fetchSongs'
 import { useSelector } from 'react-redux'
 import { RootState } from '../../state/store'
 import { PlayListsContent } from '../../components/PlaylistsContent'
+import LibraryPlaylistActions from '../../components/library/LibraryPlaylistActions'
 export const MyPlaylists = () => {
   const {    getMyPlaylists
   } = useFetchSongs()
@@ -20,7 +21,12 @@ export const MyPlaylists = () => {
             Playlists
           </h1>
         </div>
-        <PlayListsContent playlists={playlistsToRender} />
+        <PlayListsContent
+          playlists={playlistsToRender}
+          renderActions={(playlist) => (
+            <LibraryPlaylistActions playlist={playlist} />
+          )}
+        />
          <LazyLoad onLoadMore={getMyPlaylists}></LazyLoad>
 
      

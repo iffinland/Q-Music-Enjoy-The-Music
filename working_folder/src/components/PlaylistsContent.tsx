@@ -10,6 +10,7 @@ import SortControls from "./common/SortControls";
 
 interface PlaylistsContentProps {
   playlists: PlayList[];
+  renderActions?: (playlist: PlayList) => React.ReactNode;
 }
 
 const ALL_CATEGORIES_VALUE = "ALL";
@@ -30,6 +31,7 @@ const getPlaylistCategory = (playlist: PlayList): string | null => {
 
 export const PlayListsContent: React.FC<PlaylistsContentProps> = ({
   playlists,
+  renderActions,
 }) => {
   const navigate = useNavigate();
   const playlistHash = useSelector(
@@ -126,6 +128,11 @@ export const PlayListsContent: React.FC<PlaylistsContentProps> = ({
                 data={playlist}
               />
             </div>
+            {renderActions && (
+              <div className="flex-shrink-0">
+                {renderActions(playlist)}
+              </div>
+            )}
           </div>
         ))}
         {showEmptyState && (

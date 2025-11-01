@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import localforage from 'localforage';
 import Header from '../../components/Header';
 import Box from '../../components/Box';
-import SearchContent from '../../components/SearchContent';
+import LibrarySongList from '../../components/library/LibrarySongList';
 import LazyLoad from '../../components/common/LazyLoad';
 import { useFetchSongs } from '../../hooks/fetchSongs';
 import { RootState } from '../../state/store';
@@ -540,11 +540,7 @@ export const Library: React.FC = () => {
               </div>
             </div>
 
-            <SearchContent
-              songs={songListLibrary}
-              showInlineActions={false}
-              enableInlinePlay={false}
-            />
+            <LibrarySongList songs={songListLibrary ?? []} />
             <LazyLoad onLoadMore={fetchMyLibrary} />
           </>
         )}
@@ -609,11 +605,7 @@ export const Library: React.FC = () => {
                 <div className="mt-5 mb-4">
                   <h2 className="text-xl font-semibold text-white">Favorite Songs</h2>
                 </div>
-                <SearchContent
-                  songs={favoriteList ?? []}
-                  showInlineActions={false}
-                  enableInlinePlay={false}
-                />
+                <LibrarySongList songs={favoriteList ?? []} />
                 <LazyLoad onLoadMore={getLikedSongs} />
               </>
             )}
