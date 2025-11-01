@@ -5,10 +5,10 @@ import {
   FiEdit2,
   FiPlay,
   FiShare2,
-  FiStar,
   FiThumbsUp,
 } from 'react-icons/fi';
 import { RiHandCoinLine } from 'react-icons/ri';
+import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
 import { Song, Video } from '../../types';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import { useNavigate } from 'react-router-dom';
@@ -177,7 +177,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
           onClick={() => onAddFavorite?.(video)}
           isActive={isFavorite}
         >
-          <FiStar size={16} />
+          {isFavorite ? <AiFillHeart size={16} /> : <AiOutlineHeart size={16} />}
         </ActionIcon>
         {onAddToPlaylist && (
           <ActionIcon title="Add to Playlist" onClick={() => onAddToPlaylist?.(playlistSongData)}>

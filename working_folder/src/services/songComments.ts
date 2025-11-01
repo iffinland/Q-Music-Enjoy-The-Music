@@ -12,6 +12,7 @@ export interface SongComment {
   author: string;
   message: string;
   created: number;
+  updated?: number;
 }
 
 const uid = new ShortUniqueId();
@@ -52,13 +53,17 @@ export const fetchSongComments = async (
 
         if (data.songIdentifier !== songIdentifier) continue;
 
+        const created = data.created ?? entry.created ?? Date.now();
+        const updated = data.updated ?? created;
+
         aggregated.push({
           id: entry.identifier,
           songIdentifier: data.songIdentifier,
           songPublisher: data.songPublisher,
           author: data.author || entry.name,
           message: data.message || '',
-          created: data.created ?? entry.created ?? Date.now(),
+          created,
+          updated,
         });
       } catch (error) {
         console.error('Failed to fetch song comment', error);
@@ -101,6 +106,7 @@ export const publishSongComment = async ({
     author,
     message,
     created: timestamp,
+    updated: timestamp,
   };
 
   const data64 = await objectToBase64(payload);
@@ -137,37 +143,35 @@ export const deleteSongComment = async (author: string, identifier: string) => {
   });
 };
 
-export const reportSongComment = async (
-  reporter: string,
+export const updateSongComment = async (
   comment: SongComment,
-  reason: string,
+  message: string,
 ) => {
-  const reportIdentifier = `${comment.id}_report_${Date.now()}`;
+  const timestamp = Date.now();
   const payload = {
-    id: reportIdentifier,
-    commentId: comment.id,
-    songIdentifier: comment.songIdentifier,
-    songPublisher: comment.songPublisher,
-    reporter,
-    reason,
-    created: Date.now(),
+    ...comment,
+    message,
+    updated: timestamp,
   };
 
   const data64 = await objectToBase64(payload);
+  const filename = `${comment.id}.json`;
 
   await qortalRequest({
     action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
     resources: [
       {
-        name: reporter,
+        name: comment.author,
         service: 'DOCUMENT',
         data64,
-        identifier: reportIdentifier,
-        filename: `${reportIdentifier}.json`,
-        title: `Report for comment ${comment.id}`.slice(0, 55),
-        description: reason.slice(0, 120),
+        identifier: comment.id,
+        filename,
+        title: `Comment update ${comment.songIdentifier}`.slice(0, 55),
+        description: message.slice(0, 120),
         encoding: 'base64',
       },
     ],
   });
+
+  return payload;
 };

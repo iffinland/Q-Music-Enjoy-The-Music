@@ -569,6 +569,19 @@ const Videos: React.FC = () => {
         />
       </Header>
 
+      <Box className="mt-6 border border-amber-600/40 bg-amber-900/30 p-4 text-sm text-amber-100 shadow-lg shadow-amber-900/20">
+        <p className="font-semibold uppercase tracking-wide text-amber-200">
+          Please publish only MUSIC VIDEOS here — use the{' '}
+          <a
+            href="qortal://APP/Q-Tube"
+            className="font-bold text-amber-50 underline decoration-amber-200 underline-offset-4 hover:text-white"
+          >
+            Q-Tube
+          </a>{' '}
+          app for other videos.
+        </p>
+      </Box>
+
       <div className="mt-6 flex flex-col gap-6">
         <Box className="p-6">
           <VideoAlphabetFilter

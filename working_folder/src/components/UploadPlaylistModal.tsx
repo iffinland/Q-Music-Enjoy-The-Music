@@ -212,7 +212,7 @@ const UploadPlaylistModal = () => {
           resources: resources
         }
         await qortalRequest(multiplePublish)
-      toast.success('The playlist was published successfully! Redirects...', { duration: successRedirectDelay });
+      toast.success('The playlist was published successfully!', { duration: successRedirectDelay });
       if(newPlaylist?.id){
         //update playlist in store
         dispatch(addToPlaylistHashMap(
@@ -244,7 +244,6 @@ const UploadPlaylistModal = () => {
         reset();
         dispatch(setNewPlayList(null))
         uploadModal.onClose();
-        navigate('/');
         successTimeoutRef.current = null;
       }, successRedirectDelay);
       

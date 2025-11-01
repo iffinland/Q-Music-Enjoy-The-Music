@@ -17,6 +17,7 @@ import { getQdnResourceUrl } from "../utils/qortalApi";
 import { Link, useNavigate } from "react-router-dom";
 import useSendTipModal from "../hooks/useSendTipModal";
 import { fetchSongLikeCount, hasUserLikedSong, likeSong, unlikeSong } from "../services/songLikes";
+import useUploadModal from "../hooks/useUploadModal";
 
 interface SongItemProps {
   data: SongMeta;
@@ -37,6 +38,7 @@ const SongItem: React.FC<SongItemProps> = ({
   const dispatch = useDispatch()
   const navigate = useNavigate();
   const sendTipModal = useSendTipModal();
+  const uploadModal = useUploadModal();
   const [songLikeCount, setSongLikeCount] = useState<number | null>(null);
   const [hasSongLike, setHasSongLike] = useState<boolean>(false);
   const [isProcessingLike, setIsProcessingLike] = useState<boolean>(false);
@@ -224,13 +226,13 @@ const SongItem: React.FC<SongItemProps> = ({
       return;
     }
 
-    if (!data?.name || !data?.id) {
+    if (!data) {
       toast.error("Song metadata incomplete.");
       return;
     }
 
-    navigate(`/songs/${encodedPublisher}/${encodedIdentifier}?edit=true`);
-  }, [data?.id, data?.name, encodedIdentifier, encodedPublisher, isOwner, navigate]);
+    uploadModal.openSingleEdit(data);
+  }, [data, isOwner, uploadModal]);
 
   const favoriteSongData: Song = {
     id: data.id,

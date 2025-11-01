@@ -17,9 +17,10 @@ import { toast } from 'react-hot-toast';
 
 import { Song } from '../../types';
 import { MyContext } from '../../wrappers/DownloadWrapper';
-import { setAddToDownloads, setCurrentSong } from '../../state/features/globalSlice';
+import { SongMeta, setAddToDownloads, setCurrentSong } from '../../state/features/globalSlice';
 import { RootState } from '../../state/store';
 import useSendTipModal from '../../hooks/useSendTipModal';
+import useUploadModal from '../../hooks/useUploadModal';
 import useAddSongToPlaylistModal from '../../hooks/useAddSongToPlaylistModal';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildSongShareUrl } from '../../utils/qortalLinks';
@@ -44,6 +45,7 @@ export const LibrarySongActions: React.FC<LibrarySongActionsProps> = ({
   const downloads = useSelector((state: RootState) => state.global.downloads);
   const username = useSelector((state: RootState) => state.auth.user?.name);
   const sendTipModal = useSendTipModal();
+  const uploadModal = useUploadModal();
   const addSongToPlaylistModal = useAddSongToPlaylistModal();
   const navigate = useNavigate();
 
@@ -279,13 +281,21 @@ export const LibrarySongActions: React.FC<LibrarySongActionsProps> = ({
         return;
       }
 
-      navigate(
-        `/songs/${encodeURIComponent(song.name)}/${encodeURIComponent(
-          song.id,
-        )}?edit=true`,
-      );
+      const songMetaForEdit: SongMeta = {
+        id: song.id,
+        name: song.name,
+        title: song.title || '',
+        author: song.author,
+        description: (song as any)?.description || '',
+        created: (song as any)?.created || Date.now(),
+        updated: (song as any)?.updated || Date.now(),
+        status: song.status,
+        service: song.service,
+      };
+
+      uploadModal.openSingleEdit(songMetaForEdit);
     },
-    [isOwner, navigate, song.id, song.name],
+    [isOwner, song, uploadModal],
   );
 
   const handleAddToPlaylist = useCallback(

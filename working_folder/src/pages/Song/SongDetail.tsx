@@ -10,12 +10,12 @@ import { setAddToDownloads, setCurrentSong, SongMeta } from '../../state/feature
 import { fetchSongByIdentifier } from '../../services/songs';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { MyContext } from '../../wrappers/DownloadWrapper';
-import { SongComment, fetchSongComments, publishSongComment, deleteSongComment, reportSongComment } from '../../services/songComments';
-import { FiTrash2, FiFlag } from 'react-icons/fi';
+import { SongComment, fetchSongComments, publishSongComment, deleteSongComment, updateSongComment } from '../../services/songComments';
+import { FiTrash2, FiPlay, FiShare2, FiEdit2 } from 'react-icons/fi';
 import { buildSongShareUrl } from '../../utils/qortalLinks';
 import moment from 'moment';
 import { toast } from 'react-hot-toast';
-import { FiPlay, FiShare2 } from 'react-icons/fi';
+import useUploadModal from '../../hooks/useUploadModal';
 
 const DEFAULT_COVER =
   'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect width="100%25" height="100%25" fill="%230b2137"%3E%3C/rect%3E%3Ctext x="50%25" y="50%25" fill="%2355a8ff" font-size="28" font-family="Arial" text-anchor="middle"%3ENo Cover%3C/text%3E%3C/svg%3E';
@@ -25,6 +25,7 @@ const SongDetail: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { downloadVideo } = useContext(MyContext);
+  const uploadModal = useUploadModal();
   const username = useSelector((state: RootState) => state.auth.user?.name);
   const downloads = useSelector((state: RootState) => state.global.downloads);
 
@@ -40,6 +41,9 @@ const SongDetail: React.FC = () => {
   const [isLoadingComments, setIsLoadingComments] = useState<boolean>(false);
   const [commentText, setCommentText] = useState<string>('');
   const [isSubmittingComment, setIsSubmittingComment] = useState<boolean>(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editedCommentText, setEditedCommentText] = useState<string>('');
+  const [isSavingCommentEdit, setIsSavingCommentEdit] = useState<boolean>(false);
 
   const loadSong = useCallback(async () => {
     if (!publisher || !identifier) {
@@ -151,6 +155,20 @@ const SongDetail: React.FC = () => {
     }
   }, [identifier, publisher]);
 
+  const isOwner = useMemo(() => {
+    if (!username || !song?.name) return false;
+    return username.toLowerCase() === song.name.toLowerCase();
+  }, [song?.name, username]);
+
+  const handleEditSong = useCallback(() => {
+    if (!song) return;
+    if (!isOwner) {
+      toast.error('Only the original publisher can edit this song.');
+      return;
+    }
+    uploadModal.openSingleEdit(song);
+  }, [isOwner, song, uploadModal]);
+
   const handleSubmitComment = useCallback(async () => {
     if (!username) {
       toast.error('Log in to comment.');
@@ -209,31 +227,70 @@ const SongDetail: React.FC = () => {
       await deleteSongComment(username, comment.id);
       setComments((prev) => prev.filter((entry) => entry.id !== comment.id));
       toast.success('Comment deleted.');
+      if (editingCommentId === comment.id) {
+        setEditingCommentId(null);
+        setEditedCommentText('');
+      }
     } catch (error) {
       console.error('Failed to delete comment', error);
       toast.error('Could not delete the comment.');
     }
-  }, [username]);
+  }, [editingCommentId, username]);
 
-  const handleReportComment = useCallback(async (comment: SongComment) => {
+  const handleStartEditComment = useCallback((comment: SongComment) => {
     if (!username) {
       toast.error('Log in to continue.');
       return;
     }
-
-    const reason = window.prompt('Describe the issue with this comment (optional):', '');
-    if (reason === null) {
+    if (comment.author !== username) {
+      toast.error('Only the original author can edit this comment.');
       return;
     }
-
-    try {
-      await reportSongComment(username, comment, reason || 'Reported without comment');
-      toast.success('Thank you! The comment was reported.');
-    } catch (error) {
-      console.error('Failed to report comment', error);
-      toast.error('Could not report the comment.');
-    }
+    setEditingCommentId(comment.id);
+    setEditedCommentText(comment.message);
   }, [username]);
+
+  const handleCancelEditComment = useCallback(() => {
+    setEditingCommentId(null);
+    setEditedCommentText('');
+  }, []);
+
+  const handleSaveEditComment = useCallback(async () => {
+    if (!editingCommentId) return;
+    const target = comments.find((comment) => comment.id === editingCommentId);
+    if (!target) {
+      toast.error('Comment could not be found.');
+      return;
+    }
+    const trimmed = editedCommentText.trim();
+    if (!trimmed) {
+      toast.error('Comment cannot be empty.');
+      return;
+    }
+    setIsSavingCommentEdit(true);
+    try {
+      const updated = await updateSongComment(target, trimmed);
+      setComments((prev) =>
+        prev.map((comment) =>
+          comment.id === updated.id
+            ? {
+                ...comment,
+                message: updated.message,
+                updated: updated.updated,
+              }
+            : comment,
+        ),
+      );
+      toast.success('Comment updated.');
+      setEditingCommentId(null);
+      setEditedCommentText('');
+    } catch (error) {
+      console.error('Failed to update comment', error);
+      toast.error('Could not update the comment.');
+    } finally {
+      setIsSavingCommentEdit(false);
+    }
+  }, [comments, editedCommentText, editingCommentId]);
 
   const formattedDetails = useMemo(() => {
     if (!song?.description) return null;
@@ -275,21 +332,30 @@ const SongDetail: React.FC = () => {
           <div className="flex flex-wrap gap-3">
             <Button
               onClick={handlePlaySong}
-              className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-400 px-5 py-2 w-auto"
+              className="flex items-center justify-center gap-2 rounded-md bg-emerald-500/90 px-5 py-2 text-black transition hover:bg-emerald-400"
             >
               <FiPlay />
               {currentDownloadStatus === 'READY' ? 'Play again' : 'Play song'}
             </Button>
             <Button
               onClick={handleShare}
-              className="flex items-center justify-center gap-2 bg-sky-700 hover:bg-sky-600 px-5 py-2 w-auto"
+              className="flex items-center justify-center gap-2 rounded-md bg-sky-700/80 px-5 py-2 text-white transition hover:bg-sky-600"
             >
               <FiShare2 />
               Share
             </Button>
+            {isOwner && song && (
+              <Button
+                onClick={handleEditSong}
+                className="flex items-center justify-center gap-2 rounded-md border border-sky-700/60 bg-sky-900/60 px-5 py-2 text-sky-100 transition hover:bg-sky-800/60"
+              >
+                <FiEdit2 />
+                Edit
+              </Button>
+            )}
             <Button
               onClick={() => navigate(-1)}
-              className="bg-sky-900/60 border border-sky-500/50 text-white px-5 py-2 w-auto hover:bg-sky-900/40"
+              className="flex items-center justify-center gap-2 rounded-md border border-sky-900/60 bg-slate-900/50 px-5 py-2 text-sky-200/80 transition hover:bg-slate-900/40"
             >
               Go Back
             </Button>
@@ -370,8 +436,9 @@ const SongDetail: React.FC = () => {
                 <p className="text-sm text-sky-200/70">No comments yet. Be the first!</p>
               )}
               {comments.map((comment) => {
-                const canDelete = username && comment.author === username;
-                const canReport = username && comment.author !== username;
+                const canModify = username && comment.author === username;
+                const isEditing = editingCommentId === comment.id;
+                const displayTimestamp = comment.updated ?? comment.created;
                 return (
                   <div
                     key={comment.id}
@@ -382,34 +449,55 @@ const SongDetail: React.FC = () => {
                         {comment.author || 'Anonymous'}
                       </span>
                       <span className="text-xs text-sky-400/70">
-                        {moment(comment.created).format('MMM D, YYYY • HH:mm')}
+                        {moment(displayTimestamp).format('MMM D, YYYY • HH:mm')}
+                        {comment.updated && comment.updated !== comment.created && (
+                          <span className="ml-2 text-[10px] uppercase tracking-wide text-sky-400/50">
+                            (edited)
+                          </span>
+                        )}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm text-sky-200/80 whitespace-pre-wrap">
-                      {comment.message}
-                    </p>
-                    {(canDelete || canReport) && (
+                    {isEditing ? (
+                      <div className="mt-3 space-y-3">
+                        <Textarea
+                          value={editedCommentText}
+                          onChange={(event) => setEditedCommentText(event.target.value)}
+                          className="h-24 resize-none"
+                        />
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          <button
+                            type="button"
+                            onClick={handleSaveEditComment}
+                            disabled={isSavingCommentEdit}
+                            className="flex items-center gap-1 rounded border border-emerald-500/60 bg-emerald-600/20 px-3 py-1 text-emerald-200 transition hover:bg-emerald-500/30 disabled:opacity-60"
+                          >
+                            {isSavingCommentEdit ? 'Saving…' : 'Save'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCancelEditComment}
+                            disabled={isSavingCommentEdit}
+                            className="flex items-center gap-1 rounded border border-sky-700/60 bg-sky-900/40 px-3 py-1 text-sky-200 transition hover:bg-sky-800/40 disabled:opacity-60"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-sky-200/80 whitespace-pre-wrap">
+                        {comment.message}
+                      </p>
+                    )}
+                    {canModify && !isEditing && (
                       <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                        {canDelete && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteComment(comment)}
-                            className="flex items-center gap-1 rounded border border-red-500/50 px-2 py-1 text-red-200 transition hover:bg-red-500/20"
-                          >
-                            <FiTrash2 />
-                            Delete
-                          </button>
-                        )}
-                        {canReport && (
-                          <button
-                            type="button"
-                            onClick={() => handleReportComment(comment)}
-                            className="flex items-center gap-1 rounded border border-amber-500/50 px-2 py-1 text-amber-200 transition hover:bg-amber-500/20"
-                          >
-                            <FiFlag />
-                            Report
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditComment(comment)}
+                          className="flex items-center gap-1 rounded border border-sky-600/60 px-2 py-1 text-sky-200 transition hover:bg-sky-700/20"
+                        >
+                          <FiEdit2 />
+                          Edit
+                        </button>
                       </div>
                     )}
                   </div>

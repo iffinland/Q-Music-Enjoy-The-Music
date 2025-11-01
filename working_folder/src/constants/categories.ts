@@ -4,6 +4,7 @@ export const MUSIC_CATEGORIES = [
   'Classical & Orchestra',
   'Country & Folk',
   'Electronic & Dance',
+  'Trance',
   'Hip-Hop & Rap',
   'Jazz & Blues',
   'Pop',

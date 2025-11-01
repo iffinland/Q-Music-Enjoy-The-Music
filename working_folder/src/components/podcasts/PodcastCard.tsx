@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo } from 'react';
 import moment from 'moment';
-import { FiDownload, FiEdit2, FiPlay, FiShare2, FiStar, FiThumbsUp } from 'react-icons/fi';
+import { FiDownload, FiEdit2, FiPlay, FiShare2, FiThumbsUp } from 'react-icons/fi';
 import { RiHandCoinLine } from 'react-icons/ri';
+import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
 import { Podcast, Song } from '../../types';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import { useNavigate } from 'react-router-dom';
@@ -188,7 +189,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
           onClick={() => onAddFavorite?.(podcast)}
           isActive={isFavorite}
         >
-          <FiStar size={16} />
+          {isFavorite ? <AiFillHeart size={16} /> : <AiOutlineHeart size={16} />}
         </ActionIcon>
         {onAddToPlaylist && (
           <ActionIcon title="Add to Playlist" onClick={() => onAddToPlaylist?.(playlistSongData)}>

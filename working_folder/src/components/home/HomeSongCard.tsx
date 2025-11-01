@@ -28,6 +28,7 @@ import HomeActionButton from './HomeActionButton';
 import HomeCardHoverDetails from './HomeCardHoverDetails';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import { buildMetadataEntries, formatDateTime, parseKeyValueMetadata } from '../../utils/metadata';
+import useUploadModal from '../../hooks/useUploadModal';
 
 interface HomeSongCardProps {
   song: SongMeta;
@@ -41,6 +42,7 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
   const username = useSelector((state: RootState) => state.auth.user?.name);
   const sendTipModal = useSendTipModal();
   const navigate = useNavigate();
+  const uploadModal = useUploadModal();
 
   const [likeCount, setLikeCount] = useState<number | null>(null);
   const [hasLike, setHasLike] = useState<boolean>(false);
@@ -238,13 +240,8 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
       return;
     }
 
-    if (!encodedPublisher || !encodedIdentifier) {
-      toast.error('Song metadata incomplete.');
-      return;
-    }
-
-    navigate(`/songs/${encodedPublisher}/${encodedIdentifier}?edit=true`);
-  }, [encodedIdentifier, encodedPublisher, isOwner, navigate]);
+    uploadModal.openSingleEdit(song);
+  }, [isOwner, song, uploadModal]);
 
   const metadataMap = useMemo(
     () => parseKeyValueMetadata(song.description),

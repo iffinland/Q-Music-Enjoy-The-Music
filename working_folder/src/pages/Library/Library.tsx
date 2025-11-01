@@ -5,13 +5,15 @@ import localforage from 'localforage';
 import Header from '../../components/Header';
 import Box from '../../components/Box';
 import LibrarySongList from '../../components/library/LibrarySongList';
+import LibraryPodcastCard from '../../components/library/LibraryPodcastCard';
+import LibraryVideoCard from '../../components/library/LibraryVideoCard';
+import VideoPlayerOverlay from '../../components/videos/VideoPlayerOverlay';
 import LazyLoad from '../../components/common/LazyLoad';
 import { useFetchSongs } from '../../hooks/fetchSongs';
 import { RootState } from '../../state/store';
 import { MyPlaylists } from '../Playlists/MyPlaylists';
 import { FavPlaylists } from '../Playlists/FavPlaylists';
 import { IoMdCloudUpload } from 'react-icons/io';
-import { FaPlay } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { setAddToDownloads, setCurrentPlaylist, setCurrentSong } from '../../state/features/globalSlice';
 import { MyContext } from '../../wrappers/DownloadWrapper';
@@ -95,6 +97,20 @@ export const Library: React.FC = () => {
   const [hasLoadedUserRequests, setHasLoadedUserRequests] = useState(false);
   const [hasLoadedFavPodcasts, setHasLoadedFavPodcasts] = useState(false);
   const [hasLoadedFavVideos, setHasLoadedFavVideos] = useState(false);
+
+  const [playerVideo, setPlayerVideo] = useState<Video | null>(null);
+  const [playerUrl, setPlayerUrl] = useState<string | null>(null);
+  const [playerError, setPlayerError] = useState<string | null>(null);
+  const [isPlayerOpen, setIsPlayerOpen] = useState(false);
+  const [isPlayerLoading, setIsPlayerLoading] = useState(false);
+  const videoFetchToastId = useRef<string | null>(null);
+
+  const dismissVideoFetchToast = useCallback(() => {
+    if (videoFetchToastId.current) {
+      toast.dismiss(videoFetchToastId.current);
+      videoFetchToastId.current = null;
+    }
+  }, []);
 
   const { getYourLibrary, getLikedSongs } = useFetchSongs();
 
@@ -266,6 +282,51 @@ export const Library: React.FC = () => {
     };
   }, [mode, loadUserPodcasts, loadFavoritePodcasts, loadUserVideos, loadFavoriteVideos]);
 
+  const handlePlayVideo = useCallback(async (video: Video) => {
+    dismissVideoFetchToast();
+    setPlayerVideo(video);
+    setPlayerUrl(null);
+    setPlayerError(null);
+    setIsPlayerOpen(true);
+    setIsPlayerLoading(true);
+
+    try {
+      const resolvedUrl = await getQdnResourceUrl('VIDEO', video.publisher, video.id);
+
+      if (resolvedUrl) {
+        dismissVideoFetchToast();
+        setPlayerUrl(resolvedUrl);
+        setIsPlayerLoading(false);
+      } else {
+        const toastId = `video-fetch-${video.id}`;
+        videoFetchToastId.current = toastId;
+        toast.loading('Preparing the video stream. Please try again shortly.', { id: toastId });
+        downloadVideo({
+          name: video.publisher,
+          service: 'VIDEO',
+          identifier: video.id,
+          title: video.title || '',
+          author: video.author || video.publisher,
+          id: video.id,
+        });
+        setPlayerError('Video is being fetched. Please close and reopen the player in a moment.');
+        setIsPlayerLoading(false);
+      }
+    } catch (error) {
+      setPlayerError('Could not start the video. Please try again.');
+      setIsPlayerLoading(false);
+      dismissVideoFetchToast();
+    }
+  }, [dismissVideoFetchToast, downloadVideo]);
+
+  const handleClosePlayer = useCallback(() => {
+    dismissVideoFetchToast();
+    setIsPlayerOpen(false);
+    setPlayerVideo(null);
+    setPlayerUrl(null);
+    setPlayerError(null);
+  }, [dismissVideoFetchToast]);
+
   const playFavoriteCollection = useCallback(async () => {
     if (!favoriteList || favoriteList.length === 0) return;
 
@@ -309,85 +370,27 @@ export const Library: React.FC = () => {
 
   const favoritesAvailable = Boolean(favorites);
 
-  const renderPodcastList = (collection: Podcast[]) => (
+  const renderPodcastList = (collection: Podcast[], options?: { onFavoriteChange?: () => void }) => (
     <div className="space-y-3">
       {collection.map((podcast) => (
-        <button
+        <LibraryPodcastCard
           key={podcast.id}
-          type="button"
-          onClick={() => {
-            if (!podcast.publisher || !podcast.id) return;
-            navigate(`/podcasts/${encodeURIComponent(podcast.publisher)}/${encodeURIComponent(podcast.id)}`);
-          }}
-          className="w-full rounded-xl border border-sky-900/60 bg-sky-950/60 px-4 py-4 text-left transition hover:border-sky-700/70 hover:bg-sky-950/80"
-        >
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="text-lg font-semibold text-white">{podcast.title}</h3>
-              <span className="text-xs uppercase tracking-wide text-sky-300/80">
-                {formatTimestamp(podcast.updated ?? podcast.created)}
-              </span>
-            </div>
-            <p className="text-xs text-sky-400/80">
-              {podcast.publisher ? `Published by ${podcast.publisher}` : 'Publisher unknown'}
-              {podcast.category ? ` • ${podcast.category}` : ''}
-            </p>
-            {podcast.description && (
-              <p
-                className="text-sm text-sky-200/85"
-                style={{
-                  display: '-webkit-box',
-                  WebkitLineClamp: 3,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                }}
-              >
-                {podcast.description}
-              </p>
-            )}
-          </div>
-        </button>
+          podcast={podcast}
+          onFavoriteChange={options?.onFavoriteChange}
+        />
       ))}
     </div>
   );
 
-  const renderVideoList = (collection: Video[]) => (
+  const renderVideoList = (collection: Video[], options?: { onFavoriteChange?: () => void }) => (
     <div className="space-y-3">
       {collection.map((video) => (
-        <button
+        <LibraryVideoCard
           key={video.id}
-          type="button"
-          onClick={() => {
-            if (!video.publisher || !video.id) return;
-            navigate(`/videos/${encodeURIComponent(video.publisher)}/${encodeURIComponent(video.id)}`);
-          }}
-          className="w-full rounded-xl border border-sky-900/60 bg-sky-950/60 px-4 py-4 text-left transition hover:border-sky-700/70 hover:bg-sky-950/80"
-        >
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="text-lg font-semibold text-white">{video.title}</h3>
-              <span className="text-xs uppercase tracking-wide text-sky-300/80">
-                {formatTimestamp(video.updated ?? video.created)}
-              </span>
-            </div>
-            <p className="text-xs text-sky-400/80">
-              {video.publisher ? `Published by ${video.publisher}` : 'Publisher unknown'}
-            </p>
-            {video.description && (
-              <p
-                className="text-sm text-sky-200/85"
-                style={{
-                  display: '-webkit-box',
-                  WebkitLineClamp: 3,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                }}
-              >
-                {video.description}
-              </p>
-            )}
-          </div>
-        </button>
+          video={video}
+          onPlay={handlePlayVideo}
+          onFavoriteChange={options?.onFavoriteChange}
+        />
       ))}
     </div>
   );
@@ -557,7 +560,7 @@ export const Library: React.FC = () => {
             ) : userPodcasts.length === 0 ? (
               <EmptyState message="You have not published any podcasts yet." />
             ) : (
-              renderPodcastList(userPodcasts)
+              renderPodcastList(userPodcasts, { onFavoriteChange: loadFavoritePodcasts })
             )}
           </>
         )}
@@ -622,7 +625,7 @@ export const Library: React.FC = () => {
             ) : favoritePodcasts.length === 0 ? (
               <EmptyState message="You have not saved any podcasts as favorites yet." />
             ) : (
-              renderPodcastList(favoritePodcasts)
+              renderPodcastList(favoritePodcasts, { onFavoriteChange: loadFavoritePodcasts })
             )}
           </>
         )}
@@ -637,7 +640,7 @@ export const Library: React.FC = () => {
             ) : favoriteVideos.length === 0 ? (
               <EmptyState message="You have not saved any videos as favorites yet." />
             ) : (
-              renderVideoList(favoriteVideos)
+              renderVideoList(favoriteVideos, { onFavoriteChange: loadFavoriteVideos })
             )}
           </>
         )}
@@ -655,6 +658,14 @@ export const Library: React.FC = () => {
           </>
         )}
       </Header>
+      <VideoPlayerOverlay
+        isOpen={isPlayerOpen}
+        onClose={handleClosePlayer}
+        video={playerVideo}
+        videoUrl={playerUrl}
+        isLoading={isPlayerLoading}
+        error={playerError}
+      />
     </Box>
   );
 };
