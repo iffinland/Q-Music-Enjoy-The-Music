@@ -180,8 +180,8 @@ export const useFetchSongs = () => {
       for (const content of structureData) {
         if (content.name && content.id) {
 
-          if (!imageCoverHash[content.id]) {
-            queueFetchAvatars.push(() => getImgCover(content.id, content.name))
+        if (!imageCoverHash[content.id]) {
+          queueFetchAvatars.push(() => getImgCover(content.id, content.name), `${content.name}:${content.id}`)
             // getImgCover(content.id, content.name)
           }
         }
@@ -252,7 +252,7 @@ export const useFetchSongs = () => {
 
 
         if (!imageCoverHash[object.id]) {
-          queueFetchAvatars.push(() => getImgCover(object.id, object.name))
+          queueFetchAvatars.push(() => getImgCover(object.id, object.name), `${object.name}:${object.id}`)
           // getImgCover(object.id, object.name)
         }
 

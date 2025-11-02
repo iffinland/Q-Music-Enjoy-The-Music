@@ -91,8 +91,16 @@ const Sidebar = ({ children, songs }: SidebarProps) => {
             <AddLibrary songs={songs} />
           </div>
         </Box>
-        <div className="bg-sky-900/80 border border-sky-500/40 px-5 py-1 rounded-md h-10 flex items-center justify-center text-sm font-medium text-sky-200/80">
-          <span>Current version ALPHA</span>
+        <div className="flex flex-col gap-2">
+          <a
+            href="qortal://use-group/action-join/groupid-827"
+            className="block rounded-md border border-emerald-500/60 bg-emerald-700/40 px-5 py-2 text-center text-sm font-semibold text-emerald-100 transition hover:bg-emerald-600/50 hover:text-white"
+          >
+            Join CHAT &amp; Help
+          </a>
+          <div className="bg-sky-900/80 border border-sky-500/40 px-5 py-2 rounded-md flex items-center justify-center text-sm font-medium text-sky-200/80">
+            <span>Current version BETA</span>
+          </div>
         </div>
       </div>
     </div>

@@ -179,7 +179,7 @@ export const Playlist = () => {
    
     const transformSongs = (playListData?.songs || []).map((song: any)=> {
       if (!imageCoverHash[song?.identifier]) {
-        queueFetchAvatars.push(() => getImgCover(song?.identifier, song?.name))
+        queueFetchAvatars.push(() => getImgCover(song?.identifier, song?.name), `${song?.name}:${song?.identifier}`)
       }
       return {
         ...song,

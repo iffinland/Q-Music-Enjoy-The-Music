@@ -9,6 +9,21 @@ const MAX_FETCH_BATCHES = 10;
 const normalizeTitle = (identifier: string): string =>
   identifier.replace(VIDEO_IDENTIFIER_PREFIX, '').replace(/[_-]+/g, ' ').trim();
 
+const isLikeArtifact = (entry: any): boolean => {
+  const title = typeof entry?.metadata?.title === 'string' ? entry.metadata.title.trim().toLowerCase() : '';
+  const description = typeof entry?.metadata?.description === 'string' ? entry.metadata.description.trim().toLowerCase() : '';
+  if (title.startsWith('like:')) return true;
+  if (description.includes('video like for')) return true;
+  return false;
+};
+
+const isDeletedOrDraft = (entry: any): boolean => {
+  const status = entry?.status?.status || entry?.status;
+  if (!status) return false;
+  const normalized = typeof status === 'string' ? status.toUpperCase() : '';
+  return normalized === 'DELETED' || normalized === 'DRAFT';
+};
+
 export const buildVideoMeta = (item: any): Video | null => {
   if (!item || !item.identifier) {
     return null;
@@ -35,7 +50,6 @@ export const buildVideoMeta = (item: any): Video | null => {
 
 export const fetchVideos = async (): Promise<Video[]> => {
   const aggregated: Video[] = [];
-  const rawEntries: Array<{ entry: any; index: number }> = [];
   const seen = new Set<string>();
 
   let offset = 0;
@@ -59,12 +73,20 @@ export const fetchVideos = async (): Promise<Video[]> => {
     }
 
     for (const entry of payload) {
+      if (isDeletedOrDraft(entry)) continue;
+      if (isLikeArtifact(entry)) continue;
       if (shouldHideQdnResource(entry)) continue;
       const video = buildVideoMeta(entry);
       if (!video) continue;
       if (seen.has(video.id)) continue;
+      // Ensure the document belongs to the publisher (guards against like artifacts)
+      if (typeof entry?.name === 'string' && typeof video.publisher === 'string') {
+        if (entry.name.trim().toLowerCase() !== video.publisher.trim().toLowerCase()) {
+          continue;
+        }
+      }
+      if (seen.has(video.id)) continue;
       aggregated.push(video);
-      rawEntries.push({ entry, index: aggregated.length - 1 });
       seen.add(video.id);
     }
 
@@ -228,7 +250,9 @@ export const fetchVideosByPublisher = async (
         (entry) =>
           typeof entry?.identifier === 'string' &&
           entry.identifier.startsWith(VIDEO_IDENTIFIER_PREFIX) &&
-          !shouldHideQdnResource(entry),
+          !shouldHideQdnResource(entry) &&
+          !isDeletedOrDraft(entry) &&
+          !isLikeArtifact(entry),
       )
       .slice(0, limit)
       .map(async (entry) => {
@@ -269,7 +293,7 @@ export const fetchVideoByGlobalIdentifier = async (identifier: string): Promise<
   }
 
   const [entry] = lookup;
-  if (!entry?.identifier || shouldHideQdnResource(entry)) {
+  if (!entry?.identifier || shouldHideQdnResource(entry) || isLikeArtifact(entry) || isDeletedOrDraft(entry)) {
     return null;
   }
 

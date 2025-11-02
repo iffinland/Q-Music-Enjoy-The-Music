@@ -219,8 +219,9 @@ const BrowseAllPlaylists: React.FC = () => {
         if (!playlistId || !playlistUser) continue;
 
         if (!imageCoverHashRef.current[playlistId]) {
-          queueFetchAvatars.push(() =>
-            getImgCover(playlistId, playlistUser)
+          queueFetchAvatars.push(
+            () => getImgCover(playlistId, playlistUser),
+            `${playlistUser}:${playlistId}`,
           );
         }
 

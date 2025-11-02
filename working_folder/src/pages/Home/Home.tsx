@@ -67,7 +67,6 @@ const HomeHero = () => (
     <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
       <div className="max-w-2xl space-y-4">
         <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-wide text-sky-300/90">
-          <span className="rounded-full border border-sky-500/40 bg-sky-900/50 px-3 py-1 text-sky-200/90">Alpha preview</span>
           <span>The app is not yet optimized for mobile use</span>
         </div>
         <h1 className="text-3xl font-bold text-white md:text-4xl">

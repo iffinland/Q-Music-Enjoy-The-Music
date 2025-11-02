@@ -195,7 +195,7 @@ const BrowseAllSongs: React.FC = () => {
       for (const song of sortedSongs) {
         if (!song?.id || !song?.name) continue;
         if (!imageCoverHashRef.current[song.id]) {
-          queueFetchAvatars.push(() => getImgCover(song.id, song.name));
+          queueFetchAvatars.push(() => getImgCover(song.id, song.name), `${song.name}:${song.id}`);
         }
       }
 
