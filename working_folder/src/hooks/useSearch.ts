@@ -8,6 +8,7 @@ import { Podcast } from '../types';
 import { Video } from '../types';
 import { SongRequest } from '../state/features/requestsSlice';
 import { setIsLoadingGlobal } from '../state/features/globalSlice';
+import { buildVideoMeta } from '../services/videos';
 
 const SONG_PREFIX = 'enjoymusic_song_';
 const PLAYLIST_PREFIX_QMUSIC = 'enjoymusic_playlist_';
@@ -36,103 +37,123 @@ export const useSearch = () => {
     // bump version for each invocation
     requestVersionRef._[versionKey] = (requestVersionRef._[versionKey] || 0) + 1;
     const currentVersion = requestVersionRef._[versionKey];
+    const normalized = searchTerm.trim();
+    if (!normalized) {
+      dispatch(setIsLoadingGlobal(false));
+      return { songs: [], playlists: [], videos: [], podcasts: [], requests: [] };
+    }
+
     dispatch(setIsLoadingGlobal(true));
     setError(null);
 
-    const query = searchTerm.toLowerCase().replace(/ /g, '_');
+    const normalizedLower = normalized.toLowerCase();
+    const normalizedUnderscore = normalizedLower.replace(/\s+/g, '_');
+    const query = normalizedUnderscore;
+    const LIMIT = 40;
+
+    const matchesQuery = (...fields: Array<string | undefined | null>) =>
+      fields.some((field) => {
+        if (!field || typeof field !== 'string') return false;
+        const lower = field.toLowerCase();
+        return lower.includes(normalizedLower) || lower.includes(normalizedUnderscore);
+      });
+
+    const searchWithPrefix = async (service: string, prefix: string) => {
+      const [byMetadata, byIdentifier] = await Promise.all([
+        searchQdnResources({
+          mode: 'ALL',
+          service,
+          query,
+          limit: LIMIT,
+          includeMetadata: true,
+          reverse: true,
+          excludeBlocked: true,
+          includeStatus: true,
+        }),
+        searchQdnResources({
+          mode: 'ALL',
+          service,
+          identifier: prefix,
+          limit: LIMIT,
+          includeMetadata: true,
+          reverse: true,
+          excludeBlocked: true,
+          includeStatus: true,
+        }),
+      ]);
+
+      const combined = [...(byMetadata || []), ...(byIdentifier || [])];
+      const seen = new Set<string>();
+      const filtered = combined.filter((entry: any) => {
+        if (!entry?.identifier || typeof entry.identifier !== 'string') return false;
+        if (!entry.identifier.startsWith(prefix)) return false;
+        if (shouldHideQdnResource(entry)) return false;
+        if (seen.has(entry.identifier)) return false;
+        seen.add(entry.identifier);
+        return true;
+      });
+      return filtered;
+    };
 
     try {
-      const LIMIT = 20; // reduce payloads for initial results
       const [
         songResults,
         playlistResultsQmusic,
         playlistResultsEarbump,
-        videoResults,
+        videoDocumentResults,
+        videoBinaryResults,
         podcastResults,
         requestResults,
       ] = await Promise.all([
-        searchQdnResources({
-          mode: 'ALL',
-          service: 'AUDIO',
-          query,
-          identifier: SONG_PREFIX,
-          limit: LIMIT,
-          includeMetadata: true,
-          reverse: true,
-          excludeBlocked: true,
-          includeStatus: false, // status not needed for initial list
-        }),
-        searchQdnResources({
-          mode: 'ALL',
-          service: 'PLAYLIST',
-          query,
-          identifier: PLAYLIST_PREFIX_QMUSIC,
-          limit: LIMIT,
-          includeMetadata: true,
-          reverse: true,
-          excludeBlocked: true,
-        }),
-        searchQdnResources({
-            mode: 'ALL',
-            service: 'PLAYLIST',
-            query,
-            identifier: PLAYLIST_PREFIX_EARBUMP,
-            limit: LIMIT,
-            includeMetadata: true,
-            reverse: true,
-            excludeBlocked: true,
-          }),
-        searchQdnResources({
-          mode: 'ALL',
-          service: 'VIDEO',
-          query,
-          identifier: VIDEO_PREFIX,
-          limit: LIMIT,
-          includeMetadata: true,
-          reverse: true,
-          excludeBlocked: true,
-          includeStatus: false,
-        }),
-        searchQdnResources({
-          mode: 'ALL',
-          service: 'DOCUMENT',
-          query,
-          identifier: PODCAST_PREFIX,
-          limit: LIMIT,
-          includeMetadata: true,
-          reverse: true,
-          excludeBlocked: true,
-          includeStatus: false,
-        }),
-        searchQdnResources({
-          mode: 'ALL',
-          service: 'DOCUMENT',
-          query,
-          identifier: REQUEST_PREFIX,
-          limit: LIMIT,
-          includeMetadata: true,
-          reverse: true,
-          excludeBlocked: true,
-          includeStatus: false,
-        }),
+        searchWithPrefix('AUDIO', SONG_PREFIX),
+        searchWithPrefix('PLAYLIST', PLAYLIST_PREFIX_QMUSIC),
+        searchWithPrefix('PLAYLIST', PLAYLIST_PREFIX_EARBUMP),
+        searchWithPrefix('DOCUMENT', VIDEO_PREFIX),
+        searchWithPrefix('VIDEO', VIDEO_PREFIX),
+        searchWithPrefix('DOCUMENT', PODCAST_PREFIX),
+        searchWithPrefix('DOCUMENT', REQUEST_PREFIX),
       ]);
 
       // if a newer search started, abandon mapping work
       if (currentVersion !== requestVersionRef._[versionKey]) {
+        dispatch(setIsLoadingGlobal(false));
         return { songs: [], playlists: [], videos: [], podcasts: [], requests: [] };
       }
 
-      const songs = songResults.filter((song: any) => !shouldHideQdnResource(song)).map((song: any): SongMeta => ({
-        title: song?.metadata?.title,
-        description: song?.metadata?.description,
-        created: song.created,
-        updated: song.updated,
-        name: song.name,
-        id: song.identifier,
-        status: song?.status,
-      }));
+      const songs = songResults
+        .filter((song: any) =>
+          matchesQuery(
+            song?.identifier,
+            song?.name,
+            song?.metadata?.title,
+            song?.metadata?.description,
+            (song?.metadata?.author as string) || undefined,
+          ),
+        )
+        .map((song: any): SongMeta => ({
+          title: song?.metadata?.title,
+          description: song?.metadata?.description,
+          created: song.created,
+          updated: song.updated,
+          name: song.name,
+          id: song.identifier,
+          status: song?.status,
+          service: 'AUDIO',
+        }));
 
-      const playlists = [...playlistResultsQmusic, ...playlistResultsEarbump].filter((playlist: any) => !shouldHideQdnResource(playlist)).map((playlist: any): PlayList => ({
+      const playlists = [...playlistResultsQmusic, ...playlistResultsEarbump]
+        .filter((playlist: any) =>
+          matchesQuery(
+            playlist?.identifier,
+            playlist?.name,
+            playlist?.metadata?.title,
+            playlist?.metadata?.description,
+            playlist?.metadata?.category,
+            playlist?.metadata?.categoryName,
+            Array.isArray(playlist?.metadata?.tags) ? playlist.metadata.tags.join(' ') : undefined,
+          ),
+        )
+        .map((playlist: any): PlayList => ({
         title: playlist?.metadata?.title,
         category: playlist?.metadata?.category,
         categoryName: playlist?.metadata?.categoryName,
@@ -145,21 +166,44 @@ export const useSearch = () => {
         songs: [],
         id: playlist.identifier,
       }));
-      
-      const videos = videoResults.filter((video: any) => !shouldHideQdnResource(video)).map((video: any): Video => ({
-        id: video.identifier,
-        title: video?.metadata?.title,
-        description: video?.metadata?.description,
-        created: video.created,
-        updated: video.updated,
-        publisher: video.name,
-        status: video.status,
-        service: 'VIDEO',
-        size: video.size,
-        type: video.metadata?.type || video.mimeType || video.contentType,
-      }));
 
-      const podcasts = podcastResults.filter((podcast: any) => !shouldHideQdnResource(podcast)).map((podcast: any): Podcast => ({
+      const rawVideos = [...videoDocumentResults, ...videoBinaryResults];
+      const videoMap = new Map<string, Video>();
+      rawVideos.forEach((entry: any) => {
+        if (
+          !matchesQuery(
+            entry?.identifier,
+            entry?.name,
+            entry?.metadata?.title,
+            entry?.metadata?.description,
+          )
+        ) {
+          return;
+        }
+        const meta = buildVideoMeta(entry);
+        if (!meta) return;
+        const existing = videoMap.get(meta.id);
+        if (!existing) {
+          videoMap.set(meta.id, meta);
+          return;
+        }
+        if (!existing.title && meta.title) {
+          videoMap.set(meta.id, { ...existing, ...meta });
+        }
+      });
+      const videos = Array.from(videoMap.values());
+
+      const podcasts = podcastResults
+        .filter((podcast: any) =>
+          matchesQuery(
+            podcast?.identifier,
+            podcast?.name,
+            podcast?.metadata?.title,
+            podcast?.metadata?.description,
+            podcast?.metadata?.category,
+          ),
+        )
+        .map((podcast: any): Podcast => ({
         id: podcast.identifier,
         title: podcast?.metadata?.title,
         description: podcast?.metadata?.description,
@@ -172,7 +216,17 @@ export const useSearch = () => {
         type: podcast.metadata?.type || podcast.mimeType || podcast.contentType,
       }));
 
-      const requests = requestResults.filter((request: any) => !shouldHideQdnResource(request)).map((request: any): SongRequest => ({
+      const requests = requestResults
+        .filter((request: any) =>
+          matchesQuery(
+            request?.identifier,
+            request?.name,
+            request?.metadata?.title,
+            request?.metadata?.artist,
+            request?.metadata?.description,
+          ),
+        )
+        .map((request: any): SongRequest => ({
         id: request.identifier,
         title: request.metadata?.title,
         artist: request.metadata?.artist,
@@ -184,15 +238,15 @@ export const useSearch = () => {
 
       // if a newer search started during mapping, drop this result
       if (currentVersion !== requestVersionRef._[versionKey]) {
+        dispatch(setIsLoadingGlobal(false));
         return { songs: [], playlists: [], videos: [], podcasts: [], requests: [] };
       }
 
+      dispatch(setIsLoadingGlobal(false));
       return { songs, playlists, videos, podcasts, requests };
     } catch (err) {
       setError('Failed to perform search. Please try again.');
       return { songs: [], playlists: [], videos: [], podcasts: [], requests: [] };
-    } finally {
-      dispatch(setIsLoadingGlobal(false));
     }
   }, [dispatch]);
 

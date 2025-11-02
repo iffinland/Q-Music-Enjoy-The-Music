@@ -10,6 +10,7 @@ interface SortControlsProps {
   selectedCategory: string;
   onCategoryChange: (category: string) => void;
   className?: string;
+  showOrderButtons?: boolean;
 }
 
 const baseButtonClasses =
@@ -24,6 +25,7 @@ const SortControls: React.FC<SortControlsProps> = ({
   selectedCategory,
   onCategoryChange,
   className,
+  showOrderButtons = true,
 }) => {
   return (
     <div
@@ -32,28 +34,30 @@ const SortControls: React.FC<SortControlsProps> = ({
         className,
       )}
     >
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => onSortOrderChange('desc')}
-          className={twMerge(
-            baseButtonClasses,
-            sortOrder === 'desc' && activeButtonClasses,
-          )}
-        >
-          Newest
-        </button>
-        <button
-          type="button"
-          onClick={() => onSortOrderChange('asc')}
-          className={twMerge(
-            baseButtonClasses,
-            sortOrder === 'asc' && activeButtonClasses,
-          )}
-        >
-          Oldest
-        </button>
-      </div>
+      {showOrderButtons && (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onSortOrderChange('desc')}
+            className={twMerge(
+              baseButtonClasses,
+              sortOrder === 'desc' && activeButtonClasses,
+            )}
+          >
+            Newest
+          </button>
+          <button
+            type="button"
+            onClick={() => onSortOrderChange('asc')}
+            className={twMerge(
+              baseButtonClasses,
+              sortOrder === 'asc' && activeButtonClasses,
+            )}
+          >
+            Oldest
+          </button>
+        </div>
+      )}
 
       <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-sky-300/80">
         Category

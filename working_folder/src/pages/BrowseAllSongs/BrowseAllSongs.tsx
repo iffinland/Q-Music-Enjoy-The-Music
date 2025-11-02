@@ -10,6 +10,8 @@ import { setImageCoverHash, SongMeta } from "../../state/features/globalSlice";
 import { CircularProgress } from "@mui/material";
 import { searchQdnResources } from "../../utils/qortalApi";
 import { shouldHideQdnResource } from "../../utils/qdnResourceFilters";
+import SortControls from "../../components/common/SortControls";
+import { MUSIC_CATEGORIES } from "../../constants/categories";
 
 type SourceKey = "ALL" | "QMUSIC" | "EARBUMP";
 type AlphabetKey = "ALL" | string;
@@ -39,10 +41,22 @@ const buildSongMeta = (song: any): SongMeta => {
     const [rawKey, rawValue] = pair.split("=");
     if (!rawKey || !rawValue) continue;
 
-    const key = rawKey.trim();
-    if (key !== "title" && key !== "author") continue;
+    const key = rawKey.trim().toLowerCase();
+    const value = rawValue.trim();
+    if (!value) continue;
 
-    metadataFromDescription[key] = rawValue.trim();
+    if (
+      key === "title" ||
+      key === "author" ||
+      key === "genre" ||
+      key === "category" ||
+      key === "categoryname" ||
+      key === "mood" ||
+      key === "language" ||
+      key === "notes"
+    ) {
+      metadataFromDescription[key] = value;
+    }
   }
 
   const fallbackTitle =
@@ -61,7 +75,23 @@ const buildSongMeta = (song: any): SongMeta => {
     id: song?.identifier,
     status: song?.status,
     service: song?.service || "AUDIO",
-    ...metadataFromDescription,
+    author: metadataFromDescription.author || song?.metadata?.author,
+    genre: metadataFromDescription.genre || song?.metadata?.genre,
+    mood: metadataFromDescription.mood || song?.metadata?.mood,
+    language: metadataFromDescription.language || song?.metadata?.language,
+    notes: metadataFromDescription.notes || song?.metadata?.notes,
+    category:
+      metadataFromDescription.category ||
+      song?.metadata?.category ||
+      metadataFromDescription.categoryname ||
+      song?.metadata?.categoryName ||
+      null,
+    categoryName:
+      metadataFromDescription.categoryname ||
+      song?.metadata?.categoryName ||
+      metadataFromDescription.category ||
+      song?.metadata?.category ||
+      null,
   };
 };
 
@@ -78,6 +108,7 @@ const BrowseAllSongs: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   useEffect(() => {
     imageCoverHashRef.current = imageCoverHash;
@@ -201,6 +232,7 @@ const BrowseAllSongs: React.FC = () => {
 
       setSongs(sortedSongs);
       setCurrentPage(1);
+      setActiveLetter("ALL");
     } catch (err) {
       console.error(err);
       setSongs([]);
@@ -219,6 +251,7 @@ const BrowseAllSongs: React.FC = () => {
     setActiveSource(source);
     setActiveLetter("ALL");
     setCurrentPage(1);
+    setSelectedCategory('ALL');
   };
 
   const handleLetterChange = (letter: AlphabetKey) => {
@@ -227,12 +260,32 @@ const BrowseAllSongs: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const getSongCategory = useCallback((song: SongMeta): string | null => {
+    const candidate =
+      (song as any)?.category ??
+      (song as any)?.categoryName ??
+      (song as any)?.genre ??
+      (song as any)?.mood ??
+      null;
+    if (!candidate || typeof candidate !== 'string') return null;
+    const trimmed = candidate.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }, []);
+
+  const categoryFilteredSongs = useMemo(() => {
+    if (selectedCategory === 'ALL') return songs;
+    return songs.filter((song) => {
+      const category = getSongCategory(song) ?? 'Uncategorized';
+      return category.toLowerCase() === selectedCategory.toLowerCase();
+    });
+  }, [songs, selectedCategory, getSongCategory]);
+
   const filteredSongs = useMemo(() => {
     if (activeLetter === "ALL") {
-      return songs;
+      return categoryFilteredSongs;
     }
 
-    return songs.filter((song) => {
+    return categoryFilteredSongs.filter((song) => {
       const titleFirstLetter = (song.title || "")
         .trim()
         .charAt(0)
@@ -246,12 +299,20 @@ const BrowseAllSongs: React.FC = () => {
         titleFirstLetter === activeLetter || authorFirstLetter === activeLetter
       );
     });
-  }, [songs, activeLetter]);
+  }, [categoryFilteredSongs, activeLetter]);
 
   const totalPages = Math.max(
     1,
     Math.ceil(filteredSongs.length / PAGE_SIZE)
   );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeLetter, songs, selectedCategory]);
+
+  useEffect(() => {
+    setActiveLetter('ALL');
+  }, [selectedCategory]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -338,6 +399,35 @@ const BrowseAllSongs: React.FC = () => {
       </Header>
 
       <div className="px-6 py-6">
+        {!isLoading && !error && (
+          <div className="mb-6">
+            <SortControls
+              sortOrder={'desc'}
+              onSortOrderChange={() => {}}
+              categories={(() => {
+                const normalized = new Set<string>();
+                songs.forEach((song) => {
+                  const category = getSongCategory(song);
+                  if (!category) {
+                    normalized.add('Uncategorized');
+                  } else {
+                    normalized.add(category);
+                  }
+                });
+                const base: string[] = [...MUSIC_CATEGORIES];
+                normalized.forEach((category) => {
+                  if (!base.includes(category)) {
+                    base.push(category);
+                  }
+                });
+                return base;
+              })()}
+              selectedCategory={selectedCategory}
+              onCategoryChange={setSelectedCategory}
+              showOrderButtons={false}
+            />
+          </div>
+        )}
         {isLoading ? (
           <div className="flex justify-center py-10">
             <CircularProgress />

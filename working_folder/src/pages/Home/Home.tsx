@@ -66,9 +66,7 @@ const HomeHero = () => (
   <section className="rounded-2xl border border-sky-900/60 bg-gradient-to-br from-sky-950/85 via-sky-900/60 to-sky-950/80 p-6 shadow-lg">
     <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
       <div className="max-w-2xl space-y-4">
-        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-wide text-sky-300/90">
-          <span>The app is not yet optimized for mobile use</span>
-        </div>
+        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-wide text-sky-300/90" />
         <h1 className="text-3xl font-bold text-white md:text-4xl">
           <span className="inline-flex items-center gap-3">
             <img src={logoUrl} alt="Q-Music logo" className="h-12 w-12" />

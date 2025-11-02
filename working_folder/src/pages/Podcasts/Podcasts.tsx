@@ -29,9 +29,12 @@ import {
   unlikePodcast,
 } from '../../services/podcastLikes';
 import { objectToBase64 } from '../../utils/toBase64';
+import { PODCAST_CATEGORIES } from '../../constants/categories';
+import SortControls from '../../components/common/SortControls';
 
 const PAGE_SIZE = 15;
 const SLOGAN = 'Catch the latest community shows and rediscover timeless episodes.';
+const PODCAST_UNCATEGORIZED = 'Uncategorized';
 
 const favoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites',
@@ -57,6 +60,7 @@ const Podcasts: React.FC = () => {
   const navigate = useNavigate();
   const [sharedPodcastId, setSharedPodcastId] = useState<string | null>(null);
   const [highlightedPodcastId, setHighlightedPodcastId] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const sharedHandledRef = useRef<boolean>(false);
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [likedByUser, setLikedByUser] = useState<Record<string, boolean>>({});
@@ -188,7 +192,18 @@ const Podcasts: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeLetter, sortOrder]);
+  }, [activeLetter, sortOrder, selectedCategory]);
+
+  useEffect(() => {
+    setActiveLetter('ALL');
+  }, [selectedCategory]);
+
+  const getPodcastCategory = useCallback((podcast: Podcast): string | null => {
+    const category = podcast.category;
+    if (!category || typeof category !== 'string') return null;
+    const trimmed = category.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }, []);
 
   const sortedPodcasts = useMemo(() => {
     const collection = [...podcasts];
@@ -207,18 +222,26 @@ const Podcasts: React.FC = () => {
     return collection;
   }, [podcasts, sortOrder]);
 
+  const categoryFilteredPodcasts = useMemo(() => {
+    if (selectedCategory === 'ALL') return sortedPodcasts;
+    return sortedPodcasts.filter((podcast) => {
+      const category = getPodcastCategory(podcast) ?? PODCAST_UNCATEGORIZED;
+      return category.toLowerCase() === selectedCategory.toLowerCase();
+    });
+  }, [sortedPodcasts, selectedCategory, getPodcastCategory]);
+
   const filteredPodcasts = useMemo(() => {
     if (activeLetter === 'ALL') {
-      return sortedPodcasts;
+      return categoryFilteredPodcasts;
     }
 
-    return sortedPodcasts.filter((podcast) =>
+    return categoryFilteredPodcasts.filter((podcast) =>
       (podcast.title || '')
         .trim()
         .toUpperCase()
         .startsWith(activeLetter.toUpperCase())
     );
-  }, [sortedPodcasts, activeLetter]);
+  }, [categoryFilteredPodcasts, activeLetter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPodcasts.length / PAGE_SIZE));
 
@@ -743,6 +766,34 @@ const Podcasts: React.FC = () => {
           <PodcastAlphabetFilter
             activeLetter={activeLetter}
             onLetterSelect={handleSelectLetter}
+          />
+        </Box>
+
+        <Box className="p-4">
+          <SortControls
+            sortOrder={sortOrder === 'newest' ? 'desc' : 'asc'}
+            onSortOrderChange={(order) => setSortOrder(order === 'desc' ? 'newest' : 'oldest')}
+            categories={(() => {
+              const normalized = new Set<string>();
+              sortedPodcasts.forEach((podcast) => {
+                const category = getPodcastCategory(podcast);
+                if (!category) {
+                  normalized.add(PODCAST_UNCATEGORIZED);
+                } else {
+                  normalized.add(category);
+                }
+              });
+              const base: string[] = [...PODCAST_CATEGORIES];
+              normalized.forEach((category) => {
+                if (!base.includes(category)) {
+                  base.push(category);
+                }
+              });
+              return base;
+            })()}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            showOrderButtons={false}
           />
         </Box>
 

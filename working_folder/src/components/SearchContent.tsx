@@ -5,6 +5,7 @@ import { AddToPlaylistButton } from "./AddToPlayistButton";
 import LikeButton from "./LikeButton";
 import MediaItem from "./MediaItem";
 import SortControls from "./common/SortControls";
+import { MUSIC_CATEGORIES } from "../constants/categories";
 
 const ALL_CATEGORIES_VALUE = "ALL";
 const UNCATEGORIZED_LABEL = "Uncategorized";
@@ -44,30 +45,29 @@ const SearchContent: React.FC<SearchContentProps> = ({
   );
 
   const availableCategories = useMemo(() => {
-    const bucket = new Set<string>();
-    let hasUncategorized = false;
+    const normalizedSet = new Set<string>();
     songs.forEach((song) => {
       const category = getSongCategory(song);
-      if (category) {
-        bucket.add(category);
+      if (!category) {
+        normalizedSet.add(UNCATEGORIZED_LABEL);
       } else {
-        hasUncategorized = true;
+        normalizedSet.add(category);
       }
     });
-    const sorted = Array.from(bucket).sort((a, b) =>
-      a.localeCompare(b, undefined, { sensitivity: "base" }),
-    );
-    if (hasUncategorized) {
-      sorted.push(UNCATEGORIZED_LABEL);
-    }
-    return sorted;
+    const base: string[] = [...MUSIC_CATEGORIES];
+    normalizedSet.forEach((category) => {
+      if (!base.includes(category)) {
+        base.push(category);
+      }
+    });
+    return base;
   }, [songs]);
 
   const displaySongs = useMemo(() => {
     const filtered = songs.filter((song) => {
       if (selectedCategory === ALL_CATEGORIES_VALUE) return true;
       const category = getSongCategory(song) ?? UNCATEGORIZED_LABEL;
-      return category === selectedCategory;
+      return category.toLowerCase() === selectedCategory.toLowerCase();
     });
 
     return filtered

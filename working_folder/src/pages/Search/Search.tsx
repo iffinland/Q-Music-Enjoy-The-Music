@@ -15,18 +15,24 @@ import useOnPlay from '../../hooks/useOnPlay';
 export const Search = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<SearchResults | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const { search, error } = useSearch();
-  const isLoading = useSelector((state: RootState) => state.global.isLoadingGlobal);
   const onPlay = useOnPlay(results?.songs || []);
 
   const handleSearch = async () => {
     if (!searchTerm) return;
     const searchResults = await search(searchTerm);
-    setResults(searchResults);
+    setIsSearching(true);
+    try {
+      const searchResults = await search(searchTerm);
+      setResults(searchResults);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const renderContent = () => {
-    if (isLoading) {
+    if (isSearching) {
       return <div className="flex justify-center py-10"><CircularProgress /></div>;
     }
 
@@ -51,7 +57,7 @@ export const Search = () => {
         {songs.length > 0 && (
           <div>
             <h2 className="text-white text-2xl font-semibold mb-4">Songs</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8 gap-4 mt-4">
+            <div className="mt-4 flex flex-wrap gap-4">
               {songs.map((song) => (
                 <SongItem key={song.id} onClick={(id) => onPlay(id)} data={song} />
               ))}
@@ -61,7 +67,7 @@ export const Search = () => {
         {playlists.length > 0 && (
           <div>
             <h2 className="text-white text-2xl font-semibold mb-4">Playlists</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8 gap-4 mt-4">
+            <div className="mt-4 flex flex-wrap gap-4">
               {playlists.map((playlist) => (
                 <PlaylistCard key={playlist.id} data={playlist} />
               ))}
@@ -71,7 +77,7 @@ export const Search = () => {
         {videos.length > 0 && (
           <div>
             <h2 className="text-white text-2xl font-semibold mb-4">Videos</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
               {videos.map((video) => (
                 <VideoCard key={video.id} video={video} />
               ))}
@@ -81,7 +87,7 @@ export const Search = () => {
         {podcasts.length > 0 && (
           <div>
             <h2 className="text-white text-2xl font-semibold mb-4">Podcasts</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
               {podcasts.map((podcast) => (
                 <PodcastCard key={podcast.id} podcast={podcast} />
               ))}

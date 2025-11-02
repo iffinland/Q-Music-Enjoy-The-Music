@@ -88,6 +88,12 @@ export interface SongMeta {
   status?: Status
   author?: string;
   service?: string;
+  genre?: string;
+  mood?: string;
+  language?: string;
+  notes?: string;
+  category?: string | null;
+  categoryName?: string | null;
 }
 
 export interface FavSong {

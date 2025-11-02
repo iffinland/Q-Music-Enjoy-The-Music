@@ -35,9 +35,12 @@ import {
   likeVideo as publishVideoLike,
   unlikeVideo,
 } from '../../services/videoLikes';
+import { MUSIC_CATEGORIES } from '../../constants/categories';
+import SortControls from '../../components/common/SortControls';
 
 const PAGE_SIZE = 24;
 const SLOGAN = 'Discover community-created videos and share new stories.';
+const VIDEO_UNCATEGORIZED = 'Uncategorized';
 
 const favoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites',
@@ -54,6 +57,7 @@ const Videos: React.FC = () => {
   const [activeLetter, setActiveLetter] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [highlightedVideoId, setHighlightedVideoId] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const uploadVideoModal = useUploadVideoModal();
   const location = useLocation();
   const navigate = useNavigate();
@@ -160,7 +164,23 @@ const Videos: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeLetter, sortOrder]);
+  }, [activeLetter, sortOrder, selectedCategory]);
+
+  useEffect(() => {
+    setActiveLetter('ALL');
+  }, [selectedCategory]);
+
+  const getVideoCategory = useCallback((video: Video): string | null => {
+    const candidate =
+      video.genre ||
+      (video as any)?.category ||
+      (video as any)?.categoryName ||
+      video.mood ||
+      null;
+    if (!candidate || typeof candidate !== 'string') return null;
+    const trimmed = candidate.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }, []);
 
   const sortedVideos = useMemo(() => {
     const collection = [...videos];
@@ -179,18 +199,26 @@ const Videos: React.FC = () => {
     return collection;
   }, [videos, sortOrder]);
 
+  const categoryFilteredVideos = useMemo(() => {
+    if (selectedCategory === 'ALL') return sortedVideos;
+    return sortedVideos.filter((video) => {
+      const category = getVideoCategory(video) ?? VIDEO_UNCATEGORIZED;
+      return category.toLowerCase() === selectedCategory.toLowerCase();
+    });
+  }, [sortedVideos, selectedCategory, getVideoCategory]);
+
   const filteredVideos = useMemo(() => {
     if (activeLetter === 'ALL') {
-      return sortedVideos;
+      return categoryFilteredVideos;
     }
 
-    return sortedVideos.filter((video) =>
+    return categoryFilteredVideos.filter((video) =>
       (video.title || '')
         .trim()
         .toUpperCase()
         .startsWith(activeLetter.toUpperCase())
     );
-  }, [sortedVideos, activeLetter]);
+  }, [categoryFilteredVideos, activeLetter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredVideos.length / PAGE_SIZE));
 
@@ -587,6 +615,34 @@ const Videos: React.FC = () => {
           <VideoAlphabetFilter
             activeLetter={activeLetter}
             onLetterSelect={handleSelectLetter}
+          />
+        </Box>
+
+        <Box className="p-4">
+          <SortControls
+            sortOrder={sortOrder === 'newest' ? 'desc' : 'asc'}
+            onSortOrderChange={(order) => setSortOrder(order === 'desc' ? 'newest' : 'oldest')}
+            categories={(() => {
+              const normalized = new Set<string>();
+              sortedVideos.forEach((video) => {
+                const category = getVideoCategory(video);
+                if (!category) {
+                  normalized.add(VIDEO_UNCATEGORIZED);
+                } else {
+                  normalized.add(category);
+                }
+              });
+              const base: string[] = [...MUSIC_CATEGORIES];
+              normalized.forEach((category) => {
+                if (!base.includes(category)) {
+                  base.push(category);
+                }
+              });
+              return base;
+            })()}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            showOrderButtons={false}
           />
         </Box>
 

@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header';
 import Button from '../../components/Button';
+import Box from '../../components/Box';
 import { RootState } from '../../state/store';
 import {
   setRequestsLoading,
@@ -136,6 +137,12 @@ const Requests: React.FC = () => {
           </div>
         </div>
       </Header>
+
+      <Box className="border border-amber-600/40 bg-amber-900/30 p-4 text-sm text-amber-100 shadow-lg shadow-amber-900/20">
+        <p className="font-semibold uppercase tracking-wide text-amber-200">
+          Earn QRRTs by fulfilling every request (coming soon)
+        </p>
+      </Box>
 
       {error && (
         <div className="rounded-md border border-red-700 bg-red-900/60 px-4 py-3 text-sm text-red-200">
