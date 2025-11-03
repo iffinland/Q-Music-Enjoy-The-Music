@@ -71,6 +71,132 @@ const sanitizeMetadataValue = (value?: string) => {
   return value.replace(/[;=]/g, ' ').trim();
 };
 
+const stripDiacritics = (value: string): string => {
+  if (!value) return '';
+  try {
+    const noMarks = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const transliterationMap: Record<string, string> = {
+      А: 'A',
+      Б: 'B',
+      В: 'V',
+      Г: 'G',
+      Д: 'D',
+      Е: 'E',
+      Ё: 'E',
+      Ж: 'Zh',
+      З: 'Z',
+      И: 'I',
+      Й: 'I',
+      К: 'K',
+      Л: 'L',
+      М: 'M',
+      Н: 'N',
+      О: 'O',
+      П: 'P',
+      Р: 'R',
+      С: 'S',
+      Т: 'T',
+      У: 'U',
+      Ф: 'F',
+      Х: 'Kh',
+      Ц: 'Ts',
+      Ч: 'Ch',
+      Ш: 'Sh',
+      Щ: 'Shch',
+      Ы: 'Y',
+      Ь: '',
+      Ъ: '',
+      Э: 'E',
+      Ю: 'Yu',
+      Я: 'Ya',
+      а: 'a',
+      б: 'b',
+      в: 'v',
+      г: 'g',
+      д: 'd',
+      е: 'e',
+      ё: 'e',
+      ж: 'zh',
+      з: 'z',
+      и: 'i',
+      й: 'i',
+      к: 'k',
+      л: 'l',
+      м: 'm',
+      н: 'n',
+      о: 'o',
+      п: 'p',
+      р: 'r',
+      с: 's',
+      т: 't',
+      у: 'u',
+      ф: 'f',
+      х: 'kh',
+      ц: 'ts',
+      ч: 'ch',
+      ш: 'sh',
+      щ: 'shch',
+      ы: 'y',
+      ь: '',
+      ъ: '',
+      э: 'e',
+      ю: 'yu',
+      я: 'ya',
+    };
+    return noMarks.replace(/[\u0400-\u04FF]/g, (char) => transliterationMap[char] ?? '');
+  } catch {
+    return value;
+  }
+};
+
+const sanitizeFilename = (raw: string, fallbackBase: string, fallbackExtension: string) => {
+  const normalized = stripDiacritics(raw);
+  const cleaned = normalized
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 80);
+
+  const ensureExtension = (name: string) => {
+    if (!fallbackExtension) return name;
+    if (name.toLowerCase().endsWith(fallbackExtension.toLowerCase())) {
+      return name;
+    }
+    const withoutTrailingDot = name.replace(/\.+$/, '');
+    return `${withoutTrailingDot}${fallbackExtension.startsWith('.') ? '' : '.'}${fallbackExtension}`;
+  };
+
+  if (cleaned) {
+    return ensureExtension(cleaned);
+  }
+
+  const fallbackCleaned = stripDiacritics(fallbackBase || '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 60) || 'video';
+
+  return ensureExtension(fallbackCleaned);
+};
+
+const resolveSafeVideoFilename = (file: File, cleanTitle?: string, uniqueId?: string) => {
+  const fallbackBase = cleanTitle && cleanTitle.length > 0 ? cleanTitle : uniqueId || 'video';
+  const fallbackExtension = '.video';
+
+  const originalName = file.name || '';
+  const lastDotIndex = originalName.lastIndexOf('.');
+  const base =
+    lastDotIndex > 0 ? originalName.slice(0, lastDotIndex) : originalName || fallbackBase;
+  const extension =
+    lastDotIndex > 0
+      ? originalName.slice(lastDotIndex)
+      : file.type && file.type.includes('mp4')
+        ? '.mp4'
+        : fallbackExtension;
+
+  return sanitizeFilename(`${base}${extension}`, fallbackBase, extension || fallbackExtension);
+};
+
 const parseMetadataFromVideo = (video?: Video | null) => ({
   author: video?.author || '',
   genre: video?.genre || '',
@@ -192,8 +318,10 @@ const UploadVideoModal: React.FC = () => {
       return;
     }
 
-    const title = (values.title as string)?.trim() || '';
-    const description = (values.description as string)?.trim() || '';
+    const rawTitle = (values.title as string)?.trim() || '';
+    const rawDescription = (values.description as string)?.trim() || '';
+    const title = rawTitle;
+    const description = rawDescription;
     const coverFile = (values.cover as FileList)?.[0];
     const videoFile = (values.video as FileList)?.[0];
     const author = sanitizeMetadataValue(values.author as string);
@@ -201,6 +329,9 @@ const UploadVideoModal: React.FC = () => {
     const mood = sanitizeMetadataValue(values.mood as string);
     const language = sanitizeMetadataValue(values.language as string);
     const notes = sanitizeMetadataValue(values.notes as string);
+    const safeResourceTitle = stripDiacritics(title) || 'Untitled video';
+    const safeResourceDescription = stripDiacritics(description) || description;
+    const safeResourceAuthor = stripDiacritics(author) || author;
 
     clearErrors('title');
 
@@ -270,10 +401,19 @@ const UploadVideoModal: React.FC = () => {
           : `enjoymusic_video_${cleanTitle || uniqueId}_${uniqueId}`;
       const identifier = baseIdentifier;
 
-      const videoFilename =
-        videoFile?.name ||
-        editingVideo?.videoFilename ||
-        `${cleanTitle || uniqueId}.video`;
+      const videoFilename = videoFile
+        ? resolveSafeVideoFilename(videoFile, cleanTitle, uniqueId)
+        : editingVideo?.videoFilename
+          ? sanitizeFilename(
+              editingVideo.videoFilename,
+              cleanTitle || uniqueId || 'video',
+              '.video',
+            )
+          : sanitizeFilename(
+              `${cleanTitle || uniqueId}.video`,
+              cleanTitle || uniqueId || 'video',
+              '.video',
+            );
 
       const videoMimeType =
         videoFile?.type?.trim() ||
@@ -285,27 +425,36 @@ const UploadVideoModal: React.FC = () => {
           : now;
 
       const metadata: Record<string, string> = {};
-      if (author) metadata.author = author;
-      if (genre) metadata.genre = genre;
-      if (mood) metadata.mood = mood;
-      if (language) metadata.language = language;
-      if (notes) metadata.notes = notes;
+      if (safeResourceAuthor) metadata.author = safeResourceAuthor;
+      if (genre) metadata.genre = stripDiacritics(genre) || genre;
+      if (mood) metadata.mood = stripDiacritics(mood) || mood;
+      if (language) metadata.language = stripDiacritics(language) || language;
+      if (notes) metadata.notes = stripDiacritics(notes) || notes;
 
       const documentPayload: Record<string, unknown> = {
         id: identifier,
-        title,
-        description,
+        title: safeResourceTitle,
+        description: safeResourceDescription,
         created: createdTimestamp,
         updated: now,
         publisher: username,
         identifier,
         version: 1,
       };
+      if (safeResourceTitle !== title) {
+        documentPayload.originalTitle = title;
+      }
+      if (safeResourceDescription !== description) {
+        documentPayload.originalDescription = description;
+      }
 
       if (Object.keys(metadata).length > 0) {
         documentPayload.metadata = metadata;
         if (metadata.author) {
           documentPayload.author = metadata.author;
+          if (safeResourceAuthor !== author && author) {
+            (documentPayload as Record<string, unknown>).originalAuthor = author;
+          }
         }
       }
 
@@ -320,7 +469,7 @@ const UploadVideoModal: React.FC = () => {
         documentPayload.coverImage = editingVideo.coverImage;
       }
 
-      const descriptionSnippet = description.slice(0, 4000);
+      const descriptionSnippet = safeResourceDescription.slice(0, 4000);
       const filenameBase = cleanTitle || uniqueId;
       const documentData64 = await objectToBase64(documentPayload);
 
@@ -331,7 +480,7 @@ const UploadVideoModal: React.FC = () => {
           data64: documentData64,
           identifier,
           filename: `${filenameBase}.json`,
-          title: `Video: ${title}`.slice(0, 55),
+          title: safeResourceTitle.slice(0, 55),
           description: descriptionSnippet,
         },
       ];
@@ -343,7 +492,7 @@ const UploadVideoModal: React.FC = () => {
           file: videoFile,
           identifier,
           filename: videoFilename,
-          title: title.slice(0, 55),
+          title: safeResourceTitle.slice(0, 55),
           description: descriptionSnippet,
         });
       }
