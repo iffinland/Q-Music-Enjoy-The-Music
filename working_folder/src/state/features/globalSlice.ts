@@ -124,7 +124,7 @@ const initialState: GlobalState = {
   favorites: null,
   favoriteList: [],
   nowPlayingPlaylist: [],
-  volume: 0.5,
+  volume: 0.75,
   newPlayList: null,
   playlists: [],
   myPlaylists: [],

@@ -79,7 +79,7 @@ export const likePodcast = async (username: string, podcast: Podcast): Promise<v
     data64,
     encoding: 'base64',
     title: `Like: ${podcast.title || podcast.id}`.slice(0, 55),
-    description: `Podcast like for ${podcast.publisher}/${podcast.id}`.slice(0, 120),
+    description: `Podcast like for ${podcast.publisher}/${podcast.id}`.slice(0, 4000),
   });
 };
 

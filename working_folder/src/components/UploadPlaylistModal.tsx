@@ -39,7 +39,8 @@ const UploadPlaylistModal = () => {
     handleSubmit,
     reset,
     watch,
-    setValue
+    setValue,
+    formState: { errors },
   } = useForm<FieldValues>({
     defaultValues: {
       description: newPlaylist?.description,
@@ -173,7 +174,7 @@ const UploadPlaylistModal = () => {
         const titleSlice = titleToLowercase.slice(0,25)
         const cleanTitle = removeTrailingUnderscore(titleSlice)
         const identifier = newPlaylist?.id ? newPlaylist.id : `enjoymusic_playlist_${cleanTitle}_${id}`
-        const descriptionSnipped = description.slice(0, 140)
+        const descriptionSnipped = description.slice(0, 4000)
        
         // const fileExtension = imageFile?.name?.split('.')?.pop()
         const fileTitle = title?.replace(/ /g, '_')?.slice(0, 20)
@@ -333,9 +334,21 @@ const UploadPlaylistModal = () => {
         <Textarea
           id="description"
           disabled={isLoading}
-          {...register('description', { required: true })}
+          maxLength={4000}
+          {...register('description', {
+            required: 'Description is required',
+            maxLength: {
+              value: 4000,
+              message: 'Description must be 4000 characters or fewer',
+            },
+          })}
           placeholder="Describe your playlist"
         />
+        {errors?.description && (
+          <p className="text-xs text-red-300">
+            {String(errors.description.message)}
+          </p>
+        )}
         <div>
           <div className="pb-1">
             Select an image for the playlist

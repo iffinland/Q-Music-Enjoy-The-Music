@@ -99,7 +99,7 @@ export const likeVideo = async (username: string, video: Video): Promise<void> =
     data64,
     encoding: 'base64',
     title: `Like: ${video.title || video.id}`.slice(0, 55),
-    description: `Video like for ${video.publisher}/${video.id}`.slice(0, 120),
+    description: `Video like for ${video.publisher}/${video.id}`.slice(0, 4000),
   });
 };
 

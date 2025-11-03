@@ -254,7 +254,7 @@ const UploadPodcastModal: React.FC = () => {
 
       documentPayload.version = 1;
 
-      const descriptionSnippet = description.slice(0, 140);
+      const descriptionSnippet = description.slice(0, 4000);
       const filenameBase = cleanTitle || uniqueId;
       const documentData64 = await objectToBase64(documentPayload);
 

@@ -194,7 +194,7 @@ const AddSongToPlaylistModal: React.FC = () => {
           service: 'PLAYLIST',
           data64: playlistToBase64,
           title: normalizedTitle.slice(0, 55),
-          description: normalizedDescription.slice(0, 140),
+          description: normalizedDescription.slice(0, 4000),
           identifier,
           filename: `${safeFilenameTitle}.json`,
         },
@@ -417,7 +417,8 @@ const AddSongToPlaylistModal: React.FC = () => {
                 id="description"
                 placeholder="Playlist description"
                 disabled={isCreating}
-                {...register('description', { maxLength: 280 })}
+                maxLength={4000}
+                {...register('description', { maxLength: 4000 })}
               />
               <div>
                 <p className="pb-1 text-xs text-sky-300/70">Optional cover image</p>

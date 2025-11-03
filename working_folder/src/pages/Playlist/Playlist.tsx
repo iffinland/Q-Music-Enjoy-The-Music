@@ -265,7 +265,7 @@ export const Playlist = () => {
             identifier: reportId,
             filename: `${reportId}.json`,
             title: `Playlist report ${playlistId}`.slice(0, 55),
-            description: (reason || 'Reported without comment').slice(0, 120),
+            description: (reason || 'Reported without comment').slice(0, 4000),
             encoding: 'base64',
           },
         ],

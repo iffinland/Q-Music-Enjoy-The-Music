@@ -289,7 +289,7 @@ const UploadModal = () => {
           service: 'PLAYLIST',
           data64: playlistToBase64,
           title: (title || '').slice(0, 55),
-          description: (description || '').slice(0, 140),
+          description: (description || '').slice(0, 4000),
           identifier,
           filename: `${filenameBase}.json`,
         },
@@ -762,10 +762,21 @@ const UploadModal = () => {
         <Textarea
           id="notes"
           disabled={isLoading}
-          {...register('notes')}
+          maxLength={4000}
+          {...register('notes', {
+            maxLength: {
+              value: 4000,
+              message: 'Additional notes can be at most 4000 characters',
+            },
+          })}
           placeholder="Additional notes, instruments, credits…"
           className="h-24 resize-none"
         />
+        {errors?.notes && (
+          <p className="mt-1 text-xs text-red-300">
+            {String(errors.notes.message)}
+          </p>
+        )}
         {username && (
           <div className="rounded-md border border-sky-900/60 bg-sky-950/60 p-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">

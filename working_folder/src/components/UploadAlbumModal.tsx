@@ -453,7 +453,7 @@ const UploadAlbumModal: React.FC = () => {
               service: 'PLAYLIST',
               data64: playlistBase64,
               title: effectiveAlbumTitle.slice(0, 55),
-              description: description.slice(0, 140),
+              description: description.slice(0, 4000),
               identifier: playlistId,
               filename: `${removeTrailingUnderscore(
                 effectiveAlbumTitle.replace(/\s+/g, '_').slice(0, 20),
@@ -577,18 +577,20 @@ const UploadAlbumModal: React.FC = () => {
               />
               <Textarea
                 value={notes}
-                onChange={(event) => setNotes(event.target.value)}
+                onChange={(event) => setNotes(event.target.value.slice(0, 4000))}
                 placeholder="Notes / credits (optional)"
                 disabled={isSubmitting}
+                maxLength={4000}
                 className="md:col-span-2 h-24 resize-none"
               />
             </div>
 
             <Textarea
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={(event) => setDescription(event.target.value.slice(0, 4000))}
               placeholder="Album description"
               disabled={isSubmitting}
+              maxLength={4000}
               className="h-24 resize-none"
             />
 

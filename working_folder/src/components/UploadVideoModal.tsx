@@ -320,7 +320,7 @@ const UploadVideoModal: React.FC = () => {
         documentPayload.coverImage = editingVideo.coverImage;
       }
 
-      const descriptionSnippet = description.slice(0, 140);
+      const descriptionSnippet = description.slice(0, 4000);
       const filenameBase = cleanTitle || uniqueId;
       const documentData64 = await objectToBase64(documentPayload);
 
@@ -530,8 +530,19 @@ const UploadVideoModal: React.FC = () => {
           disabled={isLoading}
           placeholder="Additional notes, credits, cast…"
           className="h-24 resize-none"
-          {...register('notes')}
+          maxLength={4000}
+          {...register('notes', {
+            maxLength: {
+              value: 4000,
+              message: 'Additional notes can be at most 4000 characters',
+            },
+          })}
         />
+        {errors?.notes && (
+          <p className="mt-1 text-xs text-orange-300" role="alert">
+            {errors.notes.message}
+          </p>
+        )}
 
         <div>
           <div className="pb-1 text-sm font-semibold text-sky-200/80">

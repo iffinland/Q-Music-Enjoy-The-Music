@@ -79,7 +79,7 @@ export const likePlaylist = async (username: string, playlist: PlayList): Promis
     data64,
     encoding: 'base64',
     title: `Like: ${playlist.title || playlist.id}`.slice(0, 55),
-    description: `Playlist like for ${playlist.user}/${playlist.id}`.slice(0, 120),
+    description: `Playlist like for ${playlist.user}/${playlist.id}`.slice(0, 4000),
   });
 };
 

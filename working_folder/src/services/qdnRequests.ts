@@ -153,7 +153,7 @@ export const reportRequest = async (
         identifier: reportIdentifier,
         filename: `${reportIdentifier}.json`,
         title: `Request report ${requestId}`.slice(0, 55),
-        description: reason.slice(0, 120),
+        description: reason.slice(0, 4000),
         encoding: 'base64',
       },
     ],

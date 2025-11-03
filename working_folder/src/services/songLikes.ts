@@ -82,7 +82,7 @@ export const likeSong = async (username: string, song: LikeableSong): Promise<vo
     data64,
     encoding: 'base64',
     title: `Like: ${song.title || song.id}`.slice(0, 55),
-    description: `Song like for ${song.name}/${song.id}`.slice(0, 120),
+    description: `Song like for ${song.name}/${song.id}`.slice(0, 4000),
   });
 };
 
