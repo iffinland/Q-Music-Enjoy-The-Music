@@ -23,6 +23,7 @@ import {
   SongMeta,
   setAddToDownloads,
   setCurrentSong,
+  setImageCoverHash,
   setVolumePlayer,
   upsertNowPlayingPlaylist,
 } from '../state/features/globalSlice';
@@ -43,6 +44,7 @@ type DownloadEntry = Song & {
   identifier?: string;
   url?: string;
   status?: DownloadStatus;
+  coverImage?: string | null;
 };
 
 type PlaylistSong = SongReference & { status?: Status; id?: string; url?: string; artist?: string };
@@ -50,14 +52,12 @@ type PlaylistSong = SongReference & { status?: Status; id?: string; url?: string
 interface PlayerPlaybackProps {
   song: DownloadEntry;
   songUrl: string;
-  onCollapse: () => void;
   onPlaybackStateChange: (isPlaying: boolean) => void;
 }
 
 interface PlayerLoadingProps {
   song: DownloadEntry;
   percentLoaded: number;
-  onCollapse: () => void;
 }
 
 interface QuickActionsProps {
@@ -73,6 +73,8 @@ interface QuickActionsProps {
   isProcessingLike: boolean;
   isOwner: boolean;
   onEdit?: () => void;
+  className?: string;
+  compact?: boolean;
 }
 
 interface SongDetails {
@@ -111,7 +113,7 @@ const resolveAuthorName = (entry?: PlaylistSong | Song) => {
 };
 
 const actionButtonClass =
-  'flex h-10 w-10 items-center justify-center rounded-full border border-sky-900/60 bg-sky-950/40 text-sky-100 transition hover:border-sky-700 hover:bg-sky-900/50 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70';
+  'flex h-9 w-9 items-center justify-center rounded-md border border-sky-900/50 bg-sky-950/30 text-sky-100 transition hover:border-sky-700 hover:bg-sky-900/50 hover:text-white focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-400/70';
 
 const useSongDetails = (song?: Song): SongDetails => {
   const imageCoverHash = useSelector((state: RootState) => state.global.imageCoverHash);
@@ -373,41 +375,28 @@ const useSongActions = (song?: Song) => {
 const SongHeader: React.FC<{
   details: SongDetails;
   onOpenDetails: () => void;
-  onCollapse?: () => void;
-}> = ({ details, onOpenDetails, onCollapse }) => (
-  <div className="flex items-start justify-between gap-3 sm:gap-4">
-    <div className="flex items-center gap-3 sm:gap-4">
-      <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-sky-900/50 bg-sky-950/40 sm:h-20 sm:w-20">
-        <img
-          src={details.coverImage}
-          alt={details.title}
-          className="absolute inset-0 h-full w-full object-cover"
-          loading="lazy"
-        />
-      </div>
-      <div className="min-w-0">
-        <button
-          type="button"
-          onClick={onOpenDetails}
-          className="w-full truncate text-left text-base font-semibold text-white hover:text-sky-200 transition"
-          title="Open song detail info page"
-        >
-          {details.title}
-        </button>
-        <p className="truncate text-sm text-sky-200/80">{details.author}</p>
-      </div>
+  className?: string;
+}> = ({ details, onOpenDetails, className }) => (
+  <div className={`flex items-center gap-3 sm:gap-4 ${className ?? ''}`}>
+    <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md border border-sky-900/50 bg-sky-950/40 sm:h-14 sm:w-14">
+      <img
+        src={details.coverImage}
+        alt={details.title}
+        className="absolute inset-0 h-full w-full object-cover"
+        loading="lazy"
+      />
     </div>
-    {onCollapse && (
+    <div className="min-w-0">
       <button
         type="button"
-        onClick={onCollapse}
-        className={`${actionButtonClass} !h-9 !w-9`}
-        title="Hide player"
-        aria-label="Hide player"
+        onClick={onOpenDetails}
+        className="w-full truncate text-left text-sm font-semibold text-white transition hover:text-sky-200 sm:text-base"
+        title="Open song detail info page"
       >
-        <FiMinimize2 size={16} />
+        {details.title}
       </button>
-    )}
+      <p className="truncate text-xs text-sky-200/80 sm:text-sm">{details.author}</p>
+    </div>
   </div>
 );
 
@@ -424,14 +413,24 @@ const QuickActions: React.FC<QuickActionsProps> = ({
   isProcessingLike,
   isOwner,
   onEdit,
-}) => (
-  <div className="flex flex-col gap-2">
-    <div className="flex flex-wrap gap-2">
-      <button
-        type="button"
-        onClick={onOpenDetails}
-        className={actionButtonClass}
-        title="Open song detail info page"
+  className,
+  compact = false,
+}) => {
+  const containerClass = compact
+    ? 'flex flex-wrap items-center gap-2'
+    : 'flex flex-col gap-2';
+  const rowClass = compact
+    ? 'flex flex-wrap items-center gap-2'
+    : 'flex flex-wrap gap-2';
+
+  return (
+    <div className={`${containerClass}${className ? ` ${className}` : ''}`}>
+      <div className={rowClass}>
+        <button
+          type="button"
+          onClick={onOpenDetails}
+          className={actionButtonClass}
+          title="Open song detail info page"
         aria-label="Open song detail info page"
       >
         <FiInfo size={18} />
@@ -465,7 +464,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({
         <span className="ml-1 text-xs font-semibold">{songLikeCount ?? '—'}</span>
       </button>
     </div>
-    <div className="flex flex-wrap gap-2">
+    <div className={rowClass}>
       <button
         type="button"
         onClick={onCopyLink}
@@ -506,39 +505,43 @@ const QuickActions: React.FC<QuickActionsProps> = ({
       )}
     </div>
   </div>
-);
+  );
+};
 
 const VolumeControl: React.FC<{
   volume: number;
   onVolumeChange: (value: number) => void;
   onToggleMute: () => void;
-}> = ({ volume, onVolumeChange, onToggleMute }) => {
+  className?: string;
+}> = ({ volume, onVolumeChange, onToggleMute, className }) => {
   const VolumeIcon = volume === 0 ? HiSpeakerXMark : HiSpeakerWave;
   const volumePercent = Math.round(volume * 100);
 
   return (
-    <div className="flex flex-col gap-2 rounded-md bg-sky-900/20 px-3 py-2 sm:flex-row sm:items-center sm:gap-3">
+    <div
+      className={`flex items-center gap-2 rounded-md border border-sky-900/40 bg-sky-950/30 px-2.5 py-1.5 text-sky-100 ${className ?? ''}`}
+    >
       <button
         type="button"
         onClick={onToggleMute}
-        className="flex items-center gap-2 text-sky-100/80 transition hover:text-white"
+        className="flex items-center gap-1.5 text-sky-100/80 transition hover:text-white"
         title={volume === 0 ? 'Unmute' : 'Mute'}
         aria-label={volume === 0 ? 'Unmute' : 'Mute'}
       >
-        <VolumeIcon size={28} />
-        <span className="text-xs font-semibold uppercase tracking-wide">
+        <VolumeIcon size={18} />
+        <span className="hidden text-[11px] font-semibold uppercase tracking-wide md:inline">
           {volume === 0 ? 'Unmute' : 'Mute'}
         </span>
       </button>
-      <div className="flex flex-1 items-center gap-3">
+      <div className="flex min-w-[140px] flex-1 items-center gap-2">
         <Slider
           value={volume}
           onChange={(value) => onVolumeChange(clamp(value))}
           step={0.05}
           ariaLabel="Volume"
-          styles={{ padding: '12px 0' }}
+          styles={{ padding: '4px 0' }}
         />
-        <span className="text-xs font-semibold text-sky-200/70 tabular-nums">{volumePercent}%</span>
+        <span className="text-[11px] font-semibold text-sky-200/70 tabular-nums">{volumePercent}%</span>
       </div>
     </div>
   );
@@ -547,7 +550,6 @@ const VolumeControl: React.FC<{
 const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   song,
   songUrl,
-  onCollapse,
   onPlaybackStateChange,
 }) => {
   const dispatch = useDispatch();
@@ -783,27 +785,15 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-      <div className="flex flex-col gap-4 md:w-2/5 lg:w-1/3">
-        <SongHeader details={details} onOpenDetails={handleOpenDetails} onCollapse={onCollapse} />
-        <QuickActions
-          song={song}
-          favoriteSongData={favoriteSongData}
-          onOpenDetails={handleOpenDetails}
-          onCopyLink={handleCopyLink}
-          onDownload={handleDownload}
-          onSendTip={handleSendTip}
-          onToggleSongLike={handleToggleSongLike}
-          songLikeCount={songLikeCount}
-          hasSongLike={hasSongLike}
-          isProcessingLike={isProcessingLike}
-          isOwner={isOwner}
-          onEdit={handleEdit}
-        />
-      </div>
-      <div className="flex flex-1 flex-col gap-4">
-        <div className="flex flex-col gap-3 rounded-lg border border-sky-900/50 bg-sky-950/40 p-3">
-          <div className="flex items-center justify-center gap-4 sm:gap-6">
+    <div className="flex flex-col gap-3">
+      <div className="rounded-lg border border-sky-900/40 bg-sky-950/35 p-3 md:p-3.5">
+        <div className="flex flex-wrap items-center gap-3 md:gap-4">
+          <SongHeader
+            details={details}
+            onOpenDetails={handleOpenDetails}
+            className="order-1 flex min-w-[200px] flex-1 md:min-w-[220px] md:flex-none"
+          />
+          <div className="order-2 flex items-center justify-center gap-2 md:order-3 md:flex-none">
             <button
               type="button"
               onClick={() => handlePlaylistNavigation('previous')}
@@ -811,24 +801,24 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
               title="Previous song"
               aria-label="Previous song"
             >
-              <AiFillStepBackward size={22} />
+              <AiFillStepBackward size={18} />
             </button>
             <button
               type="button"
               onClick={handlePlayPause}
-              className={`${actionButtonClass} !h-14 !w-14 !bg-white !text-black hover:!bg-sky-100`}
+              className={`${actionButtonClass} !h-12 !w-12 !bg-white !text-black hover:!bg-sky-100`}
               title={isPlaying ? 'Pause' : 'Play'}
               aria-label={isPlaying ? 'Pause' : 'Play'}
               disabled={!isLoaded}
             >
               {isLoaded ? (
                 isPlaying ? (
-                  <BsPauseFill size={28} />
+                  <BsPauseFill size={22} />
                 ) : (
-                  <BsPlayFill size={28} />
+                  <BsPlayFill size={22} />
                 )
               ) : (
-                <CircularProgress size={26} />
+                <CircularProgress size={22} />
               )}
             </button>
             <button
@@ -838,32 +828,53 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
               title="Next song"
               aria-label="Next song"
             >
-              <AiFillStepForward size={22} />
+              <AiFillStepForward size={18} />
             </button>
           </div>
-          <div className="flex flex-col gap-2">
-            <Slider
-              value={progress}
-              onChange={handleProgressChange}
-              step={0.01}
-              ariaLabel="Playback position"
-              disabled={!isLoaded || duration <= 0}
-              styles={{ padding: '4px 0 0' }}
-            />
-            <div className="flex items-center justify-between text-xs font-semibold text-sky-200/70 tabular-nums">
-              <span>Total {total}</span>
-              <span>Elapsed {elapsed}</span>
-              <span>-{remaining}</span>
-            </div>
+          <QuickActions
+            song={song}
+            favoriteSongData={favoriteSongData}
+            onOpenDetails={handleOpenDetails}
+            onCopyLink={handleCopyLink}
+            onDownload={handleDownload}
+            onSendTip={handleSendTip}
+            onToggleSongLike={handleToggleSongLike}
+            songLikeCount={songLikeCount}
+            hasSongLike={hasSongLike}
+            isProcessingLike={isProcessingLike}
+            isOwner={isOwner}
+            onEdit={handleEdit}
+            compact
+            className="order-3 flex w-full flex-wrap justify-start gap-2 md:order-2 md:w-auto md:flex-1 md:justify-center"
+          />
+          <VolumeControl
+            volume={volume}
+            onVolumeChange={setVolume}
+            onToggleMute={toggleMute}
+            className="order-4 w-full md:order-4 md:ml-auto md:w-auto md:flex-shrink-0"
+          />
+        </div>
+        <div className="mt-3 flex flex-col gap-2">
+          <Slider
+            value={progress}
+            onChange={handleProgressChange}
+            step={0.01}
+            ariaLabel="Playback position"
+            disabled={!isLoaded || duration <= 0}
+            styles={{ padding: '4px 0 0' }}
+          />
+          <div className="flex items-center justify-between text-[11px] font-semibold text-sky-200/70 tabular-nums sm:text-xs">
+            <span>Total {total}</span>
+            <span>Elapsed {elapsed}</span>
+            <span>-{remaining}</span>
           </div>
-          <VolumeControl volume={volume} onVolumeChange={setVolume} onToggleMute={toggleMute} />
         </div>
       </div>
     </div>
   );
 };
 
-const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded, onCollapse }) => {
+const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded }) => {
   const volume = useSelector((state: RootState) => state.global.volume);
   const dispatch = useDispatch();
 
@@ -898,39 +909,56 @@ const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded, onCo
   };
 
   return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-      <div className="flex flex-col gap-4 md:w-2/5 lg:w-1/3">
-        <SongHeader details={details} onOpenDetails={handleOpenDetails} onCollapse={onCollapse} />
-        <QuickActions
-          song={song}
-          favoriteSongData={favoriteSongData}
-          onOpenDetails={handleOpenDetails}
-          onCopyLink={handleCopyLink}
-          onDownload={handleDownload}
-          onSendTip={handleSendTip}
-          onToggleSongLike={handleToggleSongLike}
-          songLikeCount={songLikeCount}
-          hasSongLike={hasSongLike}
-          isProcessingLike={isProcessingLike}
-          isOwner={isOwner}
-          onEdit={handleEdit}
-        />
-      </div>
-      <div className="flex flex-1 flex-col gap-4">
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-sky-900/50 bg-sky-950/40 p-4 text-center text-sky-200/80">
-          <CircularProgress size={32} />
-          <p className="text-sm font-semibold uppercase tracking-wide">
-            Preparing audio… {Math.max(0, percentLoaded)}%
-          </p>
+    <div className="flex flex-col gap-3">
+      <div className="rounded-lg border border-sky-900/40 bg-sky-950/35 p-3 md:p-3.5">
+        <div className="flex flex-wrap items-center gap-3 md:gap-4">
+          <SongHeader
+            details={details}
+            onOpenDetails={handleOpenDetails}
+            className="order-1 flex min-w-[200px] flex-1 md:min-w-[220px] md:flex-none"
+          />
+          <div className="order-2 flex items-center gap-2 text-sky-200/70 md:order-3">
+            <CircularProgress size={18} />
+            <span className="text-[11px] font-semibold uppercase tracking-wide">Loading</span>
+          </div>
+          <QuickActions
+            song={song}
+            favoriteSongData={favoriteSongData}
+            onOpenDetails={handleOpenDetails}
+            onCopyLink={handleCopyLink}
+            onDownload={handleDownload}
+            onSendTip={handleSendTip}
+            onToggleSongLike={handleToggleSongLike}
+            songLikeCount={songLikeCount}
+            hasSongLike={hasSongLike}
+            isProcessingLike={isProcessingLike}
+            isOwner={isOwner}
+            onEdit={handleEdit}
+            compact
+            className="order-3 flex w-full flex-wrap justify-start gap-2 md:order-2 md:w-auto md:flex-1 md:justify-center"
+          />
+          <VolumeControl
+            volume={volume}
+            onVolumeChange={setVolume}
+            onToggleMute={toggleMute}
+            className="order-4 w-full md:order-4 md:ml-auto md:w-auto md:flex-shrink-0"
+          />
         </div>
-        <div className="flex flex-col gap-3 rounded-lg border border-sky-900/50 bg-sky-950/40 p-3">
+        <div className="mt-3 flex flex-col gap-2">
           <Slider value={0} disabled ariaLabel="Playback position" styles={{ padding: '4px 0 0' }} />
-          <div className="flex items-center justify-between text-xs font-semibold text-sky-200/70 tabular-nums">
+          <div className="flex items-center justify-between text-[11px] font-semibold text-sky-200/70 tabular-nums sm:text-xs">
             <span>Total --:--</span>
             <span>Elapsed --:--</span>
             <span>- --:--</span>
           </div>
-          <VolumeControl volume={volume} onVolumeChange={setVolume} onToggleMute={toggleMute} />
+        </div>
+      </div>
+      <div className="rounded-lg border border-sky-900/40 bg-sky-950/30 p-3 text-sky-200/80">
+        <div className="flex items-center gap-2">
+          <CircularProgress size={20} />
+          <p className="text-xs font-semibold uppercase tracking-wide">
+            Preparing audio… {Math.max(0, percentLoaded)}%
+          </p>
         </div>
       </div>
     </div>
@@ -938,6 +966,7 @@ const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded, onCo
 };
 
 const Player = () => {
+  const dispatch = useDispatch();
   const hasRedownloaded = useRef(false);
   const currentSongId = useSelector((state: RootState) => state.global.currentSong);
   const downloads = useSelector(
@@ -1014,29 +1043,80 @@ const Player = () => {
     }
   }, [status, songItem, refetch]);
 
+  useEffect(() => {
+    if (!songItem?.name) return;
+    const candidateIds = [songItem.identifier, songItem.id].filter(
+      (value): value is string => Boolean(value),
+    );
+
+    const hasCover = candidateIds.some((id) => imageCoverHash[id]) || Boolean(songItem.coverImage);
+    if (hasCover) return;
+
+    let isCancelled = false;
+
+    const loadCover = async () => {
+      const identifier = songItem.identifier ?? songItem.id;
+      if (!identifier) return;
+
+      try {
+        const url = await getQdnResourceUrl('THUMBNAIL', songItem.name, identifier);
+        if (
+          !isCancelled &&
+          typeof url === 'string' &&
+          url.trim().length > 0 &&
+          url !== 'Resource does not exist'
+        ) {
+          dispatch(setImageCoverHash({ id: identifier, url }));
+          if (songItem.id && songItem.id !== identifier) {
+            dispatch(setImageCoverHash({ id: songItem.id, url }));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load cover image', error);
+      }
+    };
+
+    void loadCover();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [dispatch, imageCoverHash, songItem]);
+
   if (!songItem) return null;
 
   const percentLoaded = Math.round(songItem?.status?.percentLoaded ?? 0);
-  const coverImage = (songItem?.id && imageCoverHash[songItem.id]) || radioImg;
+  const coverImage =
+    (songItem?.id && imageCoverHash[songItem.id]) ||
+    (songItem?.identifier && imageCoverHash[songItem.identifier]) ||
+    (songItem?.coverImage ?? null) ||
+    radioImg;
 
   return (
     <>
       <div className={`${isCollapsed ? 'hidden' : ''} fixed bottom-0 left-0 right-0 z-40`}>
         <div className="border-t border-sky-900/60 bg-sky-950/25 backdrop-blur-lg">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:px-6">
+          <div className="mx-auto w-full max-w-6xl px-4 pb-3 pt-2 sm:px-6">
+            <div className="mb-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsCollapsed(true)}
+                className="flex items-center gap-2 rounded-full bg-amber-400 px-3 py-1.5 text-sm font-semibold text-slate-900 shadow hover:bg-amber-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+                title="Hide player"
+                aria-label="Hide player"
+              >
+                <FiMinimize2 size={16} />
+                <span className="hidden sm:inline">Collapse</span>
+              </button>
+            </div>
             {songUrl ? (
               <PlayerPlayback
                 song={songItem}
                 songUrl={songUrl}
-                onCollapse={() => setIsCollapsed(true)}
                 onPlaybackStateChange={setIsAudioPlaying}
               />
             ) : (
-              <PlayerLoading
-                song={songItem}
-                percentLoaded={percentLoaded}
-                onCollapse={() => setIsCollapsed(true)}
-              />
+              <PlayerLoading song={songItem} percentLoaded={percentLoaded} />
             )}
           </div>
         </div>

@@ -1,6 +1,6 @@
 import ShortUniqueId from 'short-unique-id';
-import React, { useEffect, useRef, useState } from 'react';
 import Compressor from 'compressorjs';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FieldValues, SubmitHandler, useForm } from 'react-hook-form';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-hot-toast';
@@ -13,8 +13,9 @@ import useUploadPodcastModal from '../hooks/useUploadPodcastModal';
 import { RootState } from '../state/store';
 import { objectToBase64, toBase64 } from '../utils/toBase64';
 import { removeTrailingUnderscore } from '../utils/extra';
-import { Podcast } from '../types';
+import { stripDiacritics } from '../utils/stringHelpers';
 import { PODCAST_CATEGORIES } from '../constants/categories';
+import { Podcast } from '../types';
 
 const uid = new ShortUniqueId();
 
@@ -22,11 +23,19 @@ interface UploadPodcastFormValues {
   title: string;
   description: string;
   category: string;
-  cover: FileList;
-  audio: FileList;
+  cover: FileList | null;
+  audio: FileList | null;
 }
 
-const compressImage = async (file: File) => {
+const DEFAULT_VALUES: UploadPodcastFormValues = {
+  title: '',
+  description: '',
+  category: '',
+  cover: null,
+  audio: null,
+};
+
+const compressImage = async (file: File): Promise<string | null> => {
   try {
     let compressedFile: File | undefined;
 
@@ -57,9 +66,15 @@ const compressImage = async (file: File) => {
     const [, base64] = dataURI.split(',');
     return base64 || null;
   } catch (error) {
-    console.error(error);
+    console.error('Failed to compress image', error);
     return null;
   }
+};
+
+const sanitizeTitleForIdentifier = (value: string) => {
+  if (!value) return '';
+  const underscored = value.replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase();
+  return removeTrailingUnderscore(underscored);
 };
 
 const UploadPodcastModal: React.FC = () => {
@@ -67,8 +82,10 @@ const UploadPodcastModal: React.FC = () => {
   const uploadPodcastModal = useUploadPodcastModal();
   const isEditMode = uploadPodcastModal.mode === 'edit';
   const editingPodcast = uploadPodcastModal.podcast;
-  const [isLoading, setIsLoading] = useState(false);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [selectedAudioName, setSelectedAudioName] = useState<string | null>(null);
   const successTimeoutRef = useRef<number | null>(null);
 
   const {
@@ -80,11 +97,7 @@ const UploadPodcastModal: React.FC = () => {
     clearErrors,
     formState: { errors },
   } = useForm<UploadPodcastFormValues>({
-    defaultValues: {
-      title: '',
-      description: '',
-      category: '',
-    },
+    defaultValues: DEFAULT_VALUES,
   });
 
   useEffect(() => {
@@ -97,14 +110,9 @@ const UploadPodcastModal: React.FC = () => {
 
   useEffect(() => {
     if (!uploadPodcastModal.isOpen) {
-      reset({
-        title: '',
-        description: '',
-        category: '',
-        cover: undefined,
-        audio: undefined,
-      });
+      reset(DEFAULT_VALUES);
       setCoverPreview(null);
+      setSelectedAudioName(null);
       return;
     }
 
@@ -113,34 +121,59 @@ const UploadPodcastModal: React.FC = () => {
         title: editingPodcast.title || '',
         description: editingPodcast.description || '',
         category: editingPodcast.category || '',
-        cover: undefined,
-        audio: undefined,
+        cover: null,
+        audio: null,
       });
+      setCoverPreview(editingPodcast.coverImage || null);
+      setSelectedAudioName(editingPodcast.audioFilename || null);
     } else {
-      reset({
-        title: '',
-        description: '',
-        category: '',
-        cover: undefined,
-        audio: undefined,
-      });
+      reset(DEFAULT_VALUES);
+      setCoverPreview(null);
+      setSelectedAudioName(null);
     }
-    setCoverPreview(null);
   }, [uploadPodcastModal.isOpen, isEditMode, editingPodcast, reset]);
 
-  const onChange = (open: boolean) => {
-    if (!open) {
-      reset({
-        title: '',
-        description: '',
-        category: '',
-        cover: undefined,
-        audio: undefined,
-      });
-      setCoverPreview(null);
-      uploadPodcastModal.onClose();
-    }
-  };
+  useEffect(() => {
+    const subscription = watch((value) => {
+      const coverFile = value.cover?.[0] || null;
+      if (coverFile) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            setCoverPreview(reader.result);
+          }
+        };
+        reader.readAsDataURL(coverFile);
+      } else if (!isEditMode) {
+        setCoverPreview(null);
+      }
+
+      const audioFile = value.audio?.[0] || null;
+      if (audioFile) {
+        setSelectedAudioName(audioFile.name);
+      } else if (!isEditMode) {
+        setSelectedAudioName(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [watch, isEditMode]);
+
+  const handleClose = useCallback(() => {
+    reset(DEFAULT_VALUES);
+    setCoverPreview(null);
+    setSelectedAudioName(null);
+    uploadPodcastModal.onClose();
+  }, [reset, uploadPodcastModal]);
+
+  const onChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        handleClose();
+      }
+    },
+    [handleClose],
+  );
 
   const onSubmit: SubmitHandler<FieldValues> = async (values) => {
     if (!username) {
@@ -148,28 +181,38 @@ const UploadPodcastModal: React.FC = () => {
       return;
     }
 
-    if (isEditMode && !editingPodcast) {
-      toast.error('Unable to load the selected podcast for editing.');
+    if (isSubmitting) return;
+
+    const rawTitle = (values.title as string | undefined) ?? '';
+    const rawDescription = (values.description as string | undefined) ?? '';
+    const rawCategory = (values.category as string | undefined) ?? '';
+    const coverFile = (values.cover as FileList | null)?.[0] || null;
+    const audioFile = (values.audio as FileList | null)?.[0] || null;
+
+    const title = rawTitle.trim();
+    const description = rawDescription.trim();
+    const category = rawCategory.trim();
+
+    if (!title) {
+      setError('title', { type: 'manual', message: 'Podcast title is required' });
+      toast.error('Podcast title is required');
       return;
     }
-
-    const title = (values.title as string)?.trim() || '';
-    const description = (values.description as string)?.trim() || '';
-    const coverFile = (values.cover as FileList)?.[0];
-    const audioFile = (values.audio as FileList)?.[0];
-    const category = (values.category as string) || '';
-
-    clearErrors('title');
-
     if (title.length > 200) {
-      setError('title', { type: 'manual', message: 'Podcast name can be at most 200 characters' });
-      toast.error('Podcast name can be at most 200 characters');
+      setError('title', { type: 'manual', message: 'Podcast title can be at most 200 characters' });
+      toast.error('Podcast title can be at most 200 characters');
       return;
     }
+    clearErrors('title');
 
     if (!description) {
       setError('description', { type: 'manual', message: 'Podcast description is required' });
       toast.error('Podcast description is required');
+      return;
+    }
+    if (description.length > 4000) {
+      setError('description', { type: 'manual', message: 'Podcast description can be at most 4000 characters' });
+      toast.error('Podcast description can be at most 4000 characters');
       return;
     }
     clearErrors('description');
@@ -181,12 +224,6 @@ const UploadPodcastModal: React.FC = () => {
     }
     clearErrors('category');
 
-    if (description.length > 4000) {
-      setError('description', { type: 'manual', message: 'Podcast description can be at most 4000 characters' });
-      toast.error('Podcast description can be at most 4000 characters');
-      return;
-    }
-
     if (!audioFile && !isEditMode) {
       setError('audio', { type: 'manual', message: 'Please select a podcast file' });
       toast.error('Please select a podcast file');
@@ -194,44 +231,39 @@ const UploadPodcastModal: React.FC = () => {
     }
     clearErrors('audio');
 
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
-      let compressedImg: string | null = null;
-      if (coverFile) {
-        compressedImg = await compressImage(coverFile);
-        if (!compressedImg) {
-          toast.error('Image compression failed');
-          setIsLoading(false);
-          return;
-        }
-      }
-
       const now = Date.now();
       const uniqueId = uid(8);
-      const underscored = title.replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase();
-      const sliced = underscored.slice(0, 32);
-      const cleanTitle = removeTrailingUnderscore(sliced);
-      const baseIdentifier =
+      const sanitizedForIdentifier = sanitizeTitleForIdentifier(
+        stripDiacritics(title) || title,
+      );
+      const identifier =
         isEditMode && editingPodcast?.id
           ? editingPodcast.id
-          : `enjoymusic_podcast_${cleanTitle || uniqueId}_${uniqueId}`;
-      const identifier = baseIdentifier;
+          : `enjoymusic_podcast_${sanitizedForIdentifier || uniqueId}_${uniqueId}`;
 
       const audioFilename =
         audioFile?.name ||
         editingPodcast?.audioFilename ||
-        `${cleanTitle || uniqueId}.audio`;
-
-      const audioMimeType =
-        audioFile?.type?.trim() ||
-        editingPodcast?.audioMimeType;
-      const audioSize = audioFile?.size ?? editingPodcast?.size ?? null;
+        `${sanitizedForIdentifier || uniqueId}.audio`;
+      const audioMimeType = audioFile?.type?.trim() || editingPodcast?.audioMimeType || '';
+      const audioSize =
+        (typeof audioFile?.size === 'number' && audioFile.size > 0
+          ? audioFile.size
+          : editingPodcast?.size) ?? null;
 
       const createdTimestamp =
-        isEditMode && editingPodcast?.created
+        isEditMode && typeof editingPodcast?.created === 'number'
           ? editingPodcast.created
           : now;
+
+      const safeMetadataTitleSource = stripDiacritics(title).trim() || title;
+      const safeMetadataDescriptionSource =
+        stripDiacritics(description).trim() || description;
+      const metadataTitle = (safeMetadataTitleSource || 'Untitled podcast').slice(0, 55);
+      const metadataDescription = (safeMetadataDescriptionSource || description).slice(0, 512);
 
       const documentPayload: Record<string, unknown> = {
         id: identifier,
@@ -242,6 +274,7 @@ const UploadPodcastModal: React.FC = () => {
         updated: now,
         publisher: username,
         identifier,
+        version: 1,
       };
 
       if (audioFilename) {
@@ -252,11 +285,21 @@ const UploadPodcastModal: React.FC = () => {
         };
       }
 
-      documentPayload.version = 1;
-
-      const descriptionSnippet = description.slice(0, 4000);
-      const filenameBase = cleanTitle || uniqueId;
       const documentData64 = await objectToBase64(documentPayload);
+
+      const audioResource: Record<string, unknown> | null = audioFile
+        ? {
+            name: username,
+            service: 'AUDIO',
+            file: audioFile,
+            identifier,
+            filename: audioFilename,
+            title: metadataTitle,
+            description: metadataDescription,
+            ...(audioMimeType ? { mimeType: audioMimeType } : {}),
+            ...(typeof audioSize === 'number' && audioSize > 0 ? { size: audioSize } : {}),
+          }
+        : null;
 
       const resources: any[] = [
         {
@@ -264,30 +307,33 @@ const UploadPodcastModal: React.FC = () => {
           service: 'DOCUMENT',
           data64: documentData64,
           identifier,
-          filename: `${filenameBase}.json`,
-          title: `Podcast: ${title}`.slice(0, 55),
-          description: descriptionSnippet,
+          filename: `${sanitizedForIdentifier || uniqueId}.json`,
+          title: metadataTitle,
+          description: metadataDescription,
+          encoding: 'base64',
+          mimeType: 'application/json',
         },
       ];
 
-      if (audioFile) {
-        resources.unshift({
-          name: username,
-          service: 'AUDIO',
-          file: audioFile,
-          identifier,
-          filename: audioFilename,
-          title: title.slice(0, 55),
-          description: descriptionSnippet,
-        });
+      if (audioResource) {
+        resources.unshift(audioResource);
       }
 
-      if (compressedImg) {
+      if (coverFile) {
+        const compressedImg = await compressImage(coverFile);
+        if (!compressedImg) {
+          toast.error('Image compression failed');
+          setIsSubmitting(false);
+          return;
+        }
         resources.push({
           name: username,
           service: 'THUMBNAIL',
           data64: compressedImg,
           identifier,
+          filename: 'cover.webp',
+          encoding: 'base64',
+          mimeType: 'image/webp',
         });
       }
 
@@ -302,16 +348,18 @@ const UploadPodcastModal: React.FC = () => {
         description,
         created: createdTimestamp,
         updated: now,
-        publisher: username ?? '',
+        publisher: username,
         service: 'AUDIO',
         coverImage: coverPreview || editingPodcast?.coverImage,
         audioFilename,
         audioMimeType,
         size: audioSize ?? undefined,
         category,
+        status: editingPodcast?.status,
       };
 
       toast.success(isEditMode ? 'Podcast updated successfully!' : 'Podcast published successfully!');
+
       window.dispatchEvent(
         new CustomEvent('podcasts:refresh', {
           detail: {
@@ -323,15 +371,7 @@ const UploadPodcastModal: React.FC = () => {
       window.dispatchEvent(new CustomEvent('statistics:refresh'));
 
       successTimeoutRef.current = window.setTimeout(() => {
-        reset({
-          title: '',
-          description: '',
-          category: '',
-          cover: undefined,
-          audio: undefined,
-        });
-        setCoverPreview(null);
-        uploadPodcastModal.onClose();
+        handleClose();
         successTimeoutRef.current = null;
       }, 400);
     } catch (error: unknown) {
@@ -352,35 +392,11 @@ const UploadPodcastModal: React.FC = () => {
       }
       toast.error(message);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  useEffect(() => {
-    const subscription = watch((value) => {
-      const file = value.cover?.[0];
-      if (!file) {
-        setCoverPreview(null);
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setCoverPreview(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [watch]);
-
-  const displayedCoverPreview =
-    coverPreview || (isEditMode ? editingPodcast?.coverImage || null : null);
-  const selectedAudioFiles = watch('audio');
-  const hasSelectedAudio =
-    !!selectedAudioFiles && selectedAudioFiles.length > 0;
+  const selectedCategoryOptions = useMemo(() => PODCAST_CATEGORIES, []);
 
   return (
     <Modal
@@ -393,134 +409,135 @@ const UploadPodcastModal: React.FC = () => {
       isOpen={uploadPodcastModal.isOpen}
       onChange={onChange}
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-y-5">
         <div>
-          <div className="pb-1 text-sm font-semibold text-sky-200/80">Podcast name</div>
+          <div className="pb-1 text-sm font-semibold text-sky-200/80">
+            Podcast title <span className="text-orange-300">*</span>
+          </div>
           <Input
-            id="title"
-            disabled={isLoading}
-            placeholder="Podcast name"
+            id="podcast-title"
+            placeholder="Podcast title"
+            disabled={isSubmitting}
             maxLength={200}
             aria-invalid={errors.title ? 'true' : 'false'}
-            {...register('title', {
-              maxLength: {
-                value: 200,
-                message: 'Podcast name can be at most 200 characters',
-              },
-            })}
+            {...register('title', { required: true, maxLength: 200 })}
           />
           {errors.title && (
             <p className="mt-1 text-xs text-orange-300" role="alert">
-              {errors.title.message}
+              {errors.title.message || 'Podcast title is required'}
             </p>
           )}
         </div>
+
         <div>
           <div className="pb-1 text-sm font-semibold text-sky-200/80">
-            Podcast description <span className="text-orange-300">*</span>
+            Description <span className="text-orange-300">*</span>
           </div>
           <Textarea
-            id="description"
-            disabled={isLoading}
-            placeholder="Podcast description"
+            id="podcast-description"
+            placeholder="Add a detailed description (max 4000 characters)"
+            disabled={isSubmitting}
             className="h-40 resize-none"
             maxLength={4000}
             aria-invalid={errors.description ? 'true' : 'false'}
-            {...register('description', {
-              required: 'Podcast description is required',
-              maxLength: {
-                value: 4000,
-                message: 'Podcast description can be at most 4000 characters',
-              },
-            })}
+            {...register('description', { required: true, maxLength: 4000 })}
           />
           {errors.description && (
             <p className="mt-1 text-xs text-orange-300" role="alert">
-              {errors.description.message}
+              {errors.description.message || 'Podcast description is required'}
             </p>
           )}
         </div>
+
         <div>
           <div className="pb-1 text-sm font-semibold text-sky-200/80">
             Category <span className="text-orange-300">*</span>
           </div>
           <select
-            id="category"
-            disabled={isLoading}
+            id="podcast-category"
+            disabled={isSubmitting}
+            className="w-full rounded-md border border-sky-900/60 bg-sky-950/70 px-3 py-3 text-sm text-sky-100 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             defaultValue=""
-            className="w-full rounded-md bg-sky-950/70 border border-sky-900/60 px-3 py-3 text-sm text-sky-100 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             aria-invalid={errors.category ? 'true' : 'false'}
-            {...register('category', { required: 'Please choose a category' })}
+            {...register('category', { required: true })}
           >
             <option value="" disabled>
               Select a category
             </option>
-            {PODCAST_CATEGORIES.map((category) => (
-              <option key={category} value={category}>
-                {category}
+            {selectedCategoryOptions.map((categoryOption) => (
+              <option key={categoryOption} value={categoryOption}>
+                {categoryOption}
               </option>
             ))}
           </select>
           {errors.category && (
             <p className="mt-1 text-xs text-orange-300" role="alert">
-              {errors.category.message}
+              {errors.category.message || 'Please choose a category'}
             </p>
           )}
         </div>
+
         <div>
           <div className="pb-1 text-sm font-semibold text-sky-200/80">
             {isEditMode ? 'Select a new cover image (optional)' : 'Select a cover image'}{' '}
             <span className="text-xs font-medium uppercase text-sky-400">(optional)</span>
           </div>
           <Input
-            placeholder="Upload cover"
-            disabled={isLoading}
+            id="podcast-cover"
             type="file"
             accept="image/*"
-            id="cover"
+            disabled={isSubmitting}
             {...register('cover')}
           />
-          {isEditMode && !coverPreview && editingPodcast?.coverImage && (
-            <p className="mt-1 text-xs text-sky-300/80">
-              Current cover will be kept if you do not upload a new image.
-            </p>
-          )}
-          {displayedCoverPreview && (
+          {coverPreview && (
             <div className="mt-3 overflow-hidden rounded-lg border border-sky-900/60">
               <img
-                src={displayedCoverPreview}
+                src={coverPreview}
                 alt="Selected cover"
                 className="h-36 w-full object-cover"
               />
             </div>
           )}
+          {!coverPreview && isEditMode && editingPodcast?.coverImage && (
+            <p className="mt-1 text-xs text-sky-300/80">
+              Current cover will be kept if you do not upload a new image.
+            </p>
+          )}
         </div>
+
         <div>
           <div className="pb-1 text-sm font-semibold text-sky-200/80">
             {isEditMode ? 'Select a new podcast file (optional)' : 'Select a podcast file'}{' '}
             {!isEditMode && <span className="text-orange-300">*</span>}
           </div>
           <Input
-            placeholder="Upload podcast"
-            disabled={isLoading}
+            id="podcast-audio"
             type="file"
             accept="audio/*"
-            id="audio"
-            {...register('audio', { required: !isEditMode })}
+            disabled={isSubmitting}
+            {...register('audio')}
           />
           {errors.audio && (
             <p className="mt-1 text-xs text-orange-300" role="alert">
-              Please select a podcast file
+              {errors.audio.message || 'Please select a podcast file'}
             </p>
           )}
-          {isEditMode && !hasSelectedAudio && editingPodcast?.audioFilename && (
+          {selectedAudioName && (
+            <p className="mt-1 text-xs text-sky-300/80">Selected file: {selectedAudioName}</p>
+          )}
+          {!selectedAudioName && isEditMode && editingPodcast?.audioFilename && (
             <p className="mt-1 text-xs text-sky-300/80">
               Current audio: {editingPodcast.audioFilename}
             </p>
           )}
         </div>
-        <Button disabled={isLoading} type="submit" className="bg-orange-500 hover:bg-orange-400">
-          {isEditMode ? 'Save Changes' : 'Publish Podcast'}
+
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className="bg-orange-500 hover:bg-orange-400"
+        >
+          {isEditMode ? 'Save changes' : 'Publish podcast'}
         </Button>
       </form>
     </Modal>
