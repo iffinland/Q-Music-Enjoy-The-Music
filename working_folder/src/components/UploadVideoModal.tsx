@@ -617,11 +617,11 @@ const UploadVideoModal: React.FC = () => {
         </div>
 
         <div>
-          <div className="pb-1 text-sm font-semibold text-sky-200/80">Video creator</div>
+          <div className="pb-1 text-sm font-semibold text-sky-200/80">Artist or band</div>
           <Input
             id="author"
             disabled={isLoading}
-            placeholder="Producer / Creator"
+            placeholder="Artist or band"
             aria-invalid={errors.author ? 'true' : 'false'}
             {...register('author')}
           />

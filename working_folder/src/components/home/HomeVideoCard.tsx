@@ -290,11 +290,25 @@ export const HomeVideoCard: React.FC<HomeVideoCardProps> = ({ video }) => {
           <HomeCardHoverDetails title="Video details" entries={hoverEntries} />
         </div>
         <div className="mt-3 space-y-1 text-left">
-          <p className="text-sm font-semibold text-white" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          {(video.author || video.publisher) && (
+            <p
+              className="text-sm font-semibold text-white"
+              style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+            >
+              {video.author || video.publisher}
+            </p>
+          )}
+          <p
+            className="text-sm font-medium text-sky-200"
+            style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+          >
             {video.title || 'Untitled video'}
           </p>
           {video.publisher && (
-            <p className="text-xs font-medium text-sky-300" style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            <p
+              className="text-xs font-medium text-sky-400"
+              style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+            >
               {video.publisher}
             </p>
           )}

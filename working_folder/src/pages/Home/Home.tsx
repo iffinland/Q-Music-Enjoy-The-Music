@@ -88,11 +88,31 @@ export const Home = () => {
   const playlists = data?.playlists ?? [];
   const podcasts = data?.podcasts ?? [];
   const videos = data?.videos ?? [];
+  const filteredVideos = React.useMemo(
+    () =>
+      videos.filter((video) => {
+        if (!video) return false;
+        const identifier = (video.id || '').toLowerCase();
+        if (!identifier) return false;
+        if (identifier.startsWith('video_like_')) return false;
+
+        const normalizedTitle = (video.title || '').trim();
+        if (normalizedTitle.length === 0) return false;
+        if (/^like[:\s]/i.test(normalizedTitle)) return false;
+        if (/video\s+like\s+for/i.test(normalizedTitle)) return false;
+
+        const normalizedDescription = (video.description || '').toLowerCase();
+        if (normalizedDescription.includes('video like for')) return false;
+
+        return Boolean(video.publisher);
+      }),
+    [videos],
+  );
 
   const showSongSkeleton = isLoading && songs.length === 0;
   const showPlaylistSkeleton = isLoading && playlists.length === 0;
   const showPodcastSkeleton = isLoading && podcasts.length === 0;
-  const showVideoSkeleton = isLoading && videos.length === 0;
+  const showVideoSkeleton = isLoading && filteredVideos.length === 0;
 
   const hasAnyData = songs.length + playlists.length + podcasts.length + videos.length > 0;
   const shouldShowError = !isLoading && error && !hasAnyData;
@@ -147,13 +167,13 @@ export const Home = () => {
           </HomeSection>
         )}
 
-        {(showVideoSkeleton || videos.length > 0) && (
+        {(showVideoSkeleton || filteredVideos.length > 0) && (
           <HomeSection title="Newest videos" viewAllTo="/videos" viewAllLabel="All Videos">
             {showVideoSkeleton ? (
               <SectionSkeleton variant="compact" />
             ) : (
               <HorizontalScroll>
-                {videos.map((video) => (
+                {filteredVideos.map((video) => (
                   <HomeVideoCard key={video.id} video={video} />
                 ))}
               </HorizontalScroll>

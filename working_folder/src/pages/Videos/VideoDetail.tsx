@@ -50,6 +50,11 @@ const VideoDetail: React.FC = () => {
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [likeCount, setLikeCount] = useState<number>(0);
   const [isLiked, setIsLiked] = useState<boolean>(false);
+  const artistOrBand = useMemo(() => {
+    if (!video) return null;
+    const fromAuthor = typeof video.author === 'string' ? video.author.trim() : '';
+    return fromAuthor.length > 0 ? fromAuthor : null;
+  }, [video]);
 
   useEffect(() => {
     const loadVideo = async () => {
@@ -321,9 +326,21 @@ const VideoDetail: React.FC = () => {
               </div>
 
               <div className="flex flex-1 flex-col gap-4">
-                <div>
-                  <h2 className="text-2xl font-semibold text-white">{video.title}</h2>
-                  <p className="mt-1 text-sm font-medium uppercase tracking-wide text-sky-400">
+                <div className="space-y-2">
+                  {artistOrBand && (
+                    <>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-sky-400">
+                        Artist / Band
+                      </p>
+                      <p className="text-xl font-semibold text-white">
+                        {artistOrBand}
+                      </p>
+                    </>
+                  )}
+                  <h2 className="text-2xl font-semibold text-sky-100">
+                    {video.title}
+                  </h2>
+                  <p className="text-sm font-medium uppercase tracking-wide text-sky-400">
                     Published {moment(video.updated ?? video.created).format('MMM D, YYYY • HH:mm')} by {video.publisher}
                   </p>
                 </div>
@@ -342,7 +359,7 @@ const VideoDetail: React.FC = () => {
                     <div className="mt-3 grid gap-3 md:grid-cols-2">
                       {video.author && (
                         <div>
-                          <p className="text-xs font-medium uppercase text-sky-400">Creator</p>
+                          <p className="text-xs font-medium uppercase text-sky-400">Esitaja või bänd</p>
                           <p className="text-sm text-sky-100/90">{video.author}</p>
                         </div>
                       )}

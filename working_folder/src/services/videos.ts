@@ -64,7 +64,145 @@ export const buildVideoMeta = (item: any): Video | null => {
   };
 };
 
-export const fetchVideos = async (): Promise<Video[]> => {
+const applyDocumentMetadata = (video: Video, parsedDocument: any) => {
+  if (!parsedDocument || typeof parsedDocument !== 'object') return;
+
+  const metadata =
+    parsedDocument.metadata && typeof parsedDocument.metadata === 'object'
+      ? parsedDocument.metadata
+      : {};
+
+  const originalTitle =
+    typeof parsedDocument.originalTitle === 'string'
+      ? parsedDocument.originalTitle.trim()
+      : '';
+  const documentTitle =
+    typeof parsedDocument.title === 'string'
+      ? stripVideoLabel(parsedDocument.title)
+      : '';
+  if (originalTitle) {
+    video.title = originalTitle;
+  } else if (documentTitle) {
+    video.title = documentTitle;
+  }
+
+  const originalDescription =
+    typeof parsedDocument.originalDescription === 'string'
+      ? parsedDocument.originalDescription.trim()
+      : '';
+  const documentDescription =
+    typeof parsedDocument.description === 'string'
+      ? parsedDocument.description.trim()
+      : '';
+  if (originalDescription) {
+    video.description = originalDescription;
+  } else if (documentDescription) {
+    video.description = documentDescription;
+  }
+
+  const originalAuthor =
+    typeof parsedDocument.originalAuthor === 'string'
+      ? parsedDocument.originalAuthor.trim()
+      : '';
+  const metadataAuthor =
+    typeof (metadata as any).author === 'string'
+      ? (metadata as any).author.trim()
+      : '';
+  if (originalAuthor) {
+    video.author = originalAuthor;
+  } else if (metadataAuthor) {
+    video.author = metadataAuthor;
+  }
+
+  if (typeof (metadata as any).genre === 'string') {
+    video.genre = (metadata as any).genre;
+  }
+
+  if (typeof (metadata as any).mood === 'string') {
+    video.mood = (metadata as any).mood;
+  }
+
+  if (typeof (metadata as any).language === 'string') {
+    video.language = (metadata as any).language;
+  }
+
+  if (typeof (metadata as any).notes === 'string') {
+    video.notes = (metadata as any).notes;
+  }
+
+  if (
+    parsedDocument.video &&
+    typeof parsedDocument.video === 'object' &&
+    parsedDocument.video
+  ) {
+    if (typeof parsedDocument.video.filename === 'string' && !video.videoFilename) {
+      video.videoFilename = parsedDocument.video.filename;
+    }
+    if (typeof parsedDocument.video.mimeType === 'string' && !video.videoMimeType) {
+      video.videoMimeType = parsedDocument.video.mimeType;
+    }
+  }
+
+  if (typeof parsedDocument.coverImage === 'string' && parsedDocument.coverImage.trim().length > 0 && !video.coverImage) {
+    video.coverImage = parsedDocument.coverImage.trim();
+  }
+
+  if (typeof parsedDocument.durationSeconds === 'number') {
+    video.durationSeconds = parsedDocument.durationSeconds;
+  }
+};
+
+const hydrateVideoFromDocument = async (video: Video) => {
+  try {
+    const document = await fetchQdnResource({
+      name: video.publisher,
+      service: 'DOCUMENT',
+      identifier: video.id,
+    }).catch(() => null);
+    if (!document) return;
+
+    let parsed = document;
+    if (typeof document === 'string') {
+      try {
+        parsed = JSON.parse(document);
+      } catch (error) {
+        console.error('Failed to parse video document', error);
+        return;
+      }
+    }
+
+    applyDocumentMetadata(video, parsed);
+  } catch (error) {
+    console.error('Failed to hydrate video document', error);
+  }
+};
+
+const hydrateVideos = async (videos: Video[], concurrency = 6) => {
+  const queue = [...videos];
+  const workers: Promise<void>[] = [];
+
+  for (let i = 0; i < concurrency; i += 1) {
+    workers.push(
+      (async () => {
+        while (queue.length > 0) {
+          const next = queue.shift();
+          if (!next) break;
+          await hydrateVideoFromDocument(next);
+        }
+      })(),
+    );
+  }
+
+  await Promise.all(workers);
+};
+
+export interface FetchVideosOptions {
+  hydrate?: boolean;
+  hydrateCount?: number;
+}
+
+export const fetchVideos = async (options: FetchVideosOptions = {}): Promise<Video[]> => {
+  const { hydrate = true, hydrateCount = 32 } = options;
   const aggregated: Video[] = [];
   const seen = new Set<string>();
 
@@ -114,10 +252,19 @@ export const fetchVideos = async (): Promise<Video[]> => {
     batches += 1;
   }
 
+  if (hydrate && aggregated.length > 0 && hydrateCount > 0) {
+    const subset = aggregated.slice(0, Math.min(hydrateCount, aggregated.length));
+    await hydrateVideos(subset, 3);
+  }
   return aggregated;
 };
 
 export const enjoyMusicVideoIdentifier = VIDEO_IDENTIFIER_PREFIX;
+
+export const enrichVideosWithDocuments = async (videos: Video[], concurrency = 6, maxItems?: number) => {
+  const target = typeof maxItems === 'number' ? videos.slice(0, maxItems) : videos;
+  await hydrateVideos(target, concurrency);
+};
 
 export const fetchVideoByIdentifier = async (
   publisher: string,
@@ -175,80 +322,7 @@ export const fetchVideoByIdentifier = async (
     }
 
     if (parsedDocument && typeof parsedDocument === 'object') {
-      const metadata =
-        parsedDocument.metadata && typeof parsedDocument.metadata === 'object'
-          ? parsedDocument.metadata
-          : {};
-
-      const originalTitle =
-        typeof parsedDocument.originalTitle === 'string'
-          ? parsedDocument.originalTitle.trim()
-          : '';
-      const documentTitle =
-        typeof parsedDocument.title === 'string'
-          ? stripVideoLabel(parsedDocument.title)
-          : '';
-      if (originalTitle) {
-        meta.title = originalTitle;
-      } else if (documentTitle) {
-        meta.title = documentTitle;
-      }
-
-      const originalDescription =
-        typeof parsedDocument.originalDescription === 'string'
-          ? parsedDocument.originalDescription.trim()
-          : '';
-      const documentDescription =
-        typeof parsedDocument.description === 'string'
-          ? parsedDocument.description.trim()
-          : '';
-      if (originalDescription) {
-        meta.description = originalDescription;
-      } else if (documentDescription) {
-        meta.description = documentDescription;
-      }
-
-      const videoInfo =
-        parsedDocument.video && typeof parsedDocument.video === 'object'
-          ? parsedDocument.video
-          : undefined;
-
-      if (videoInfo?.filename) {
-        meta.videoFilename = videoInfo.filename;
-      }
-
-      if (videoInfo?.mimeType) {
-        meta.videoMimeType = videoInfo.mimeType;
-      }
-
-      if (typeof parsedDocument.coverImage === 'string' && parsedDocument.coverImage.trim().length > 0) {
-        meta.coverImage = parsedDocument.coverImage.trim();
-      }
-
-      if (typeof parsedDocument.durationSeconds === 'number') {
-        meta.durationSeconds = parsedDocument.durationSeconds;
-      }
-
-      if (metadata && typeof metadata === 'object') {
-        if (typeof (metadata as any).author === 'string') {
-          meta.author = (metadata as any).author;
-        }
-        if (typeof parsedDocument.originalAuthor === 'string' && parsedDocument.originalAuthor.trim().length > 0) {
-          meta.author = parsedDocument.originalAuthor.trim();
-        }
-        if (typeof (metadata as any).genre === 'string') {
-          meta.genre = (metadata as any).genre;
-        }
-        if (typeof (metadata as any).mood === 'string') {
-          meta.mood = (metadata as any).mood;
-        }
-        if (typeof (metadata as any).language === 'string') {
-          meta.language = (metadata as any).language;
-        }
-        if (typeof (metadata as any).notes === 'string') {
-          meta.notes = (metadata as any).notes;
-        }
-      }
+      applyDocumentMetadata(meta, parsedDocument);
     }
 
     return meta;

@@ -3,6 +3,7 @@ import { parseSongMeta } from './songs';
 import { searchQdnResources, SearchQdnResourcesParams } from '../utils/qortalApi';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { Podcast, Video } from '../types';
+import { enrichVideosWithDocuments } from './videos';
 
 type Resource = Record<string, unknown> & {
   identifier?: string;
@@ -14,6 +15,7 @@ const SONG_PREFIXES = ['enjoymusic_song_', 'earbump_song_'] as const;
 const PLAYLIST_PREFIXES = ['enjoymusic_playlist_', 'earbump_playlist_'] as const;
 const PODCAST_PREFIXES = ['enjoymusic_podcast_', 'earbump_podcast_'] as const;
 const VIDEO_PREFIXES = ['enjoymusic_video_', 'earbump_video_'] as const;
+const VIDEO_LIKE_IDENTIFIER_PREFIX = 'video_like_';
 
 const isFulfilled = <T,>(input: PromiseSettledResult<T>): input is PromiseFulfilledResult<T> => input.status === 'fulfilled';
 
@@ -78,6 +80,29 @@ const humanizeIdentifier = (identifier: string, prefixes: readonly string[]): st
   return trimmed.replace(/[_-]+/g, ' ').trim();
 };
 
+const stripVideoLabel = (value?: string): string => {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (trimmed.toLowerCase().startsWith('video:')) {
+    return trimmed.slice(6).trim();
+  }
+  return trimmed;
+};
+
+const isVideoLikeArtifact = (resource: any): boolean => {
+  const identifier = typeof resource?.identifier === 'string' ? resource.identifier.toLowerCase() : '';
+  if (identifier.startsWith(VIDEO_LIKE_IDENTIFIER_PREFIX)) return true;
+
+  const title = typeof resource?.metadata?.title === 'string' ? resource.metadata.title.trim().toLowerCase() : '';
+  if (title.startsWith('like:')) return true;
+
+  const description =
+    typeof resource?.metadata?.description === 'string' ? resource.metadata.description.trim().toLowerCase() : '';
+  if (description.includes('video like for')) return true;
+
+  return false;
+};
+
 const mapPodcastResource = (resource: any): Podcast | null => {
   const id = typeof resource?.identifier === 'string' ? resource.identifier : '';
   if (!id) return null;
@@ -104,7 +129,8 @@ const mapVideoResource = (resource: any): Video | null => {
   const id = typeof resource?.identifier === 'string' ? resource.identifier : '';
   if (!id) return null;
 
-  const titleFromMeta = typeof resource?.metadata?.title === 'string' ? resource.metadata.title.trim() : '';
+  const titleFromMeta =
+    typeof resource?.metadata?.title === 'string' ? stripVideoLabel(resource.metadata.title) : '';
   const descriptionFromMeta = typeof resource?.metadata?.description === 'string' ? resource.metadata.description : undefined;
 
   return {
@@ -220,8 +246,12 @@ export const fetchLatestVideos = async (options: FetchLatestVideosOptions = {}):
     includeStatus: false,
   }));
 
-  const filtered = filterResources(combined).slice(0, limit) as any[];
-  return filtered.map(mapVideoResource).filter(Boolean) as Video[];
+  const filtered = filterResources(combined)
+    .filter((item) => !isVideoLikeArtifact(item))
+    .slice(0, limit) as any[];
+  const mapped = filtered.map(mapVideoResource).filter(Boolean) as Video[];
+  await enrichVideosWithDocuments(mapped, 4, limit);
+  return mapped;
 };
 
 export interface HomeFeedData {

@@ -86,9 +86,6 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   likeCount = 0,
 }) => {
   const navigate = useNavigate();
-  const description =
-    video.description?.trim() ||
-    'No description was provided for this video yet.';
   const coverImage =
     video.coverImage && video.coverImage.trim().length > 0
       ? video.coverImage
@@ -105,6 +102,10 @@ export const VideoCard: React.FC<VideoCardProps> = ({
     service: video.service || 'VIDEO',
     status: video.status,
   }), [video.author, video.id, video.publisher, video.service, video.status, video.title]);
+  const artistOrBand = useMemo(() => {
+    const trimmedAuthor = typeof video.author === 'string' ? video.author.trim() : '';
+    return trimmedAuthor.length > 0 ? trimmedAuthor : null;
+  }, [video.author]);
 
   return (
     <div
@@ -143,18 +144,40 @@ export const VideoCard: React.FC<VideoCardProps> = ({
         </div>
 
         <div className="flex flex-1 flex-col gap-3">
-          <div>
-            <h3 className="text-xl font-semibold text-white">{video.title}</h3>
-            <p className="mt-1 text-xs font-medium uppercase tracking-wide text-sky-400">
+          <div className="space-y-1">
+            {artistOrBand && (
+              <>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-sky-400">
+                  Artist / Band
+                </p>
+                <p
+                  className="text-base font-semibold text-white"
+                  style={{
+                    display: '-webkit-box',
+                    WebkitLineClamp: 1,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {artistOrBand}
+                </p>
+              </>
+            )}
+            <h3
+              className="text-lg font-semibold text-sky-100"
+              style={{
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
+              {video.title}
+            </h3>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-sky-400">
               {formatPublishedLabel(video)}
             </p>
-            {video.author && (
-              <p className="mt-1 text-sm font-medium text-sky-200/90">
-                By {video.author}
-              </p>
-            )}
           </div>
-          <p className="text-sm text-sky-200/90">{description}</p>
         </div>
       </div>
 

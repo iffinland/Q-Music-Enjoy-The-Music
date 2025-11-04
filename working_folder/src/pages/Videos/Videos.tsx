@@ -12,7 +12,7 @@ import { VideoToolbar, VideoSortOrder } from '../../components/videos/VideoToolb
 import VideoAlphabetFilter from '../../components/videos/VideoAlphabetFilter';
 import VideoCard from '../../components/videos/VideoCard';
 import VideoPlayerOverlay from '../../components/videos/VideoPlayerOverlay';
-import { fetchVideos } from '../../services/videos';
+import { enrichVideosWithDocuments, fetchVideos } from '../../services/videos';
 import { Song, Video } from '../../types';
 import { CircularProgress } from '@mui/material';
 import useUploadVideoModal from '../../hooks/useUploadVideoModal';
@@ -82,17 +82,47 @@ const Videos: React.FC = () => {
     }
   }, []);
 
+  const hydrationRunRef = useRef(0);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const loadVideos = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    const runId = hydrationRunRef.current + 1;
+    hydrationRunRef.current = runId;
 
     try {
-      const data = await fetchVideos();
+      const data = await fetchVideos({ hydrate: false });
+
+      if (!isMountedRef.current || hydrationRunRef.current !== runId) {
+        return;
+      }
+
       setVideos(data);
+      setIsLoading(false);
+
+      enrichVideosWithDocuments(data, 6, 48)
+        .then(() => {
+          if (!isMountedRef.current || hydrationRunRef.current !== runId) {
+            return;
+          }
+          setVideos((prev) => [...prev]);
+        })
+        .catch((error) => {
+          console.error('Failed to hydrate videos', error);
+        });
     } catch (err) {
       console.error(err);
+      if (!isMountedRef.current || hydrationRunRef.current !== runId) {
+        return;
+      }
       setError('Failed to load videos. Please try again in a moment.');
-    } finally {
       setIsLoading(false);
     }
   }, []);
@@ -234,10 +264,23 @@ const Videos: React.FC = () => {
     return filteredVideos.slice(startIndex, endIndex);
   }, [filteredVideos, currentPage]);
 
-  useEffect(() => {
-    if (videos.length === 0) return;
+  const lastVideoIdsKeyRef = useRef<string | null>(null);
 
-    const videoIds = videos.map(video => video.id);
+  useEffect(() => {
+    if (videos.length === 0) {
+      lastVideoIdsKeyRef.current = null;
+      setLikeCounts({});
+      setLikedByUser({});
+      return;
+    }
+
+    const videoIds = videos.map((video) => video.id);
+    const videoIdsKey = `${videoIds.join('|')}::${username ?? ''}`;
+    if (lastVideoIdsKeyRef.current === videoIdsKey) {
+      return;
+    }
+
+    lastVideoIdsKeyRef.current = videoIdsKey;
 
     const loadLikes = async () => {
       try {

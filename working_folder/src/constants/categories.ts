@@ -18,8 +18,10 @@ export const MUSIC_CATEGORIES = [
 
 export const PODCAST_CATEGORIES = [
   'Arts & Culture',
+  'Alternative Views',
   'Business & Finance',
   'Comedy',
+  'Conspiracy',
   'Education',
   'Health & Wellness',
   'Lifestyle & Relationships',
