@@ -988,7 +988,7 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
                 <button
                   type="button"
                   onClick={onPlayPause}
-                  className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400 text-slate-900 transition hover:bg-emerald-300 disabled:opacity-50"
+                  className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-400 text-slate-900 transition hover:bg-amber-300 disabled:opacity-50"
                   disabled={!isLoaded || !onPlayPause}
                   title={isPlaying ? 'Pause' : 'Play'}
                   aria-label={isPlaying ? 'Pause' : 'Play'}
@@ -1035,7 +1035,7 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
             </div>
           </div>
         </div>
-        <div className="flex w-12 flex-col items-center gap-3 rounded-lg bg-amber-400 px-2 py-3 text-slate-900 shadow transition hover:bg-amber-300 focus-within:outline-none focus-within:ring-2 focus-within:ring-amber-200">
+        <div className="flex w-12 flex-col items-center gap-3 rounded-lg px-2 py-3 text-slate-200 focus-within:outline-none focus-within:ring-2 focus-within:ring-amber-200/60">
           <button
             type="button"
             onClick={onToggleMute}
@@ -1045,7 +1045,7 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
           >
             <VolumeIcon size={22} />
           </button>
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-h-[96px] w-full">
             <Slider
               orientation="vertical"
               value={isMuted ? 0 : volume}
