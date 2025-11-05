@@ -1,14 +1,14 @@
-import { Podcast } from '../types';
+import { Audiobook } from '../types';
 import { deleteQdnResource, fetchQdnResource, searchQdnResources } from '../utils/qortalApi';
 import { objectToBase64 } from '../utils/toBase64';
 
-const PODCAST_LIKE_PREFIX = 'podcast_like_';
+const AUDIOBOOK_LIKE_PREFIX = 'audiobook_like_';
 const LIKE_FETCH_LIMIT = 50;
 
-export const buildPodcastLikeIdentifier = (podcastId: string): string =>
-  `${PODCAST_LIKE_PREFIX}${podcastId}`;
+export const buildAudiobookLikeIdentifier = (audiobookId: string): string =>
+  `${AUDIOBOOK_LIKE_PREFIX}${audiobookId}`;
 
-export const fetchPodcastLikeCount = async (podcastId: string): Promise<number> => {
+export const fetchAudiobookLikeCount = async (audiobookId: string): Promise<number> => {
   let offset = 0;
   let total = 0;
 
@@ -17,7 +17,7 @@ export const fetchPodcastLikeCount = async (podcastId: string): Promise<number> 
       const results = await searchQdnResources({
         mode: 'ALL',
         service: 'DOCUMENT',
-        identifier: buildPodcastLikeIdentifier(podcastId),
+        identifier: buildAudiobookLikeIdentifier(audiobookId),
         limit: LIKE_FETCH_LIMIT,
         offset,
         includeMetadata: false,
@@ -38,14 +38,14 @@ export const fetchPodcastLikeCount = async (podcastId: string): Promise<number> 
       offset += LIKE_FETCH_LIMIT;
     }
   } catch (error) {
-    console.error('Failed to fetch podcast like count', error);
+    console.error('Failed to fetch audiobook like count', error);
   }
 
   return total;
 };
 
-export const fetchPodcastLikeUsers = async (
-  podcastId: string,
+export const fetchAudiobookLikeUsers = async (
+  audiobookId: string,
   limit = 25,
 ): Promise<string[]> => {
   const users = new Set<string>();
@@ -56,7 +56,7 @@ export const fetchPodcastLikeUsers = async (
       const results = await searchQdnResources({
         mode: 'ALL',
         service: 'DOCUMENT',
-        identifier: buildPodcastLikeIdentifier(podcastId),
+        identifier: buildAudiobookLikeIdentifier(audiobookId),
         limit: LIKE_FETCH_LIMIT,
         offset,
         includeMetadata: false,
@@ -81,21 +81,21 @@ export const fetchPodcastLikeUsers = async (
       offset += LIKE_FETCH_LIMIT;
     }
   } catch (error) {
-    console.error('Failed to fetch podcast like users', error);
+    console.error('Failed to fetch audiobook like users', error);
   }
 
   return Array.from(users).slice(0, limit);
 };
 
-export const hasUserLikedPodcast = async (
+export const hasUserLikedAudiobook = async (
   username: string,
-  podcastId: string,
+  audiobookId: string,
 ): Promise<boolean> => {
   try {
     await fetchQdnResource({
       name: username,
       service: 'DOCUMENT',
-      identifier: buildPodcastLikeIdentifier(podcastId),
+      identifier: buildAudiobookLikeIdentifier(audiobookId),
     });
     return true;
   } catch (error) {
@@ -103,12 +103,12 @@ export const hasUserLikedPodcast = async (
   }
 };
 
-export const likePodcast = async (username: string, podcast: Podcast): Promise<void> => {
-  const identifier = buildPodcastLikeIdentifier(podcast.id);
+export const likeAudiobook = async (username: string, audiobook: Audiobook): Promise<void> => {
+  const identifier = buildAudiobookLikeIdentifier(audiobook.id);
   const payload = {
-    podcastId: podcast.id,
-    podcastPublisher: podcast.publisher,
-    title: podcast.title,
+    audiobookId: audiobook.id,
+    audiobookPublisher: audiobook.publisher,
+    title: audiobook.title,
     likedAt: Date.now(),
   };
 
@@ -121,15 +121,15 @@ export const likePodcast = async (username: string, podcast: Podcast): Promise<v
     identifier,
     data64,
     encoding: 'base64',
-    title: `Like: ${podcast.title || podcast.id}`.slice(0, 55),
-    description: `Podcast like for ${podcast.publisher}/${podcast.id}`.slice(0, 4000),
+    title: `Like: ${audiobook.title || audiobook.id}`.slice(0, 55),
+    description: `Audiobook like for ${audiobook.publisher}/${audiobook.id}`.slice(0, 4000),
   });
 };
 
-export const unlikePodcast = async (username: string, podcastId: string): Promise<void> => {
+export const unlikeAudiobook = async (username: string, audiobookId: string): Promise<void> => {
   await deleteQdnResource({
     name: username,
     service: 'DOCUMENT',
-    identifier: buildPodcastLikeIdentifier(podcastId),
+    identifier: buildAudiobookLikeIdentifier(audiobookId),
   });
 };

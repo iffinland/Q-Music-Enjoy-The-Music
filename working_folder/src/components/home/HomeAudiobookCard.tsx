@@ -17,19 +17,19 @@ import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
 import HomeActionButton from './HomeActionButton';
 import HomeCardHoverDetails from './HomeCardHoverDetails';
 import radioImg from '../../assets/img/enjoy-music.jpg';
-import { Podcast } from '../../types';
+import { Audiobook } from '../../types';
 import { RootState } from '../../state/store';
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
-import { buildPodcastShareUrl } from '../../utils/qortalLinks';
-import { fetchPodcastLikeCount, fetchPodcastLikeUsers, hasUserLikedPodcast, likePodcast, unlikePodcast } from '../../services/podcastLikes';
+import { buildAudiobookShareUrl } from '../../utils/qortalLinks';
+import { fetchAudiobookLikeCount, fetchAudiobookLikeUsers, hasUserLikedAudiobook, likeAudiobook, unlikeAudiobook } from '../../services/audiobookLikes';
 import { setAddToDownloads, setCurrentSong } from '../../state/features/globalSlice';
 import useSendTipModal from '../../hooks/useSendTipModal';
 import { RiHandCoinLine } from 'react-icons/ri';
 import { formatDateTime } from '../../utils/metadata';
 
-const podcastFavoritesStorage = localforage.createInstance({
-  name: 'ear-bump-podcast-favorites',
+const audiobookFavoritesStorage = localforage.createInstance({
+  name: 'ear-bump-audiobook-favorites',
 });
 
 const truncate = (value: string, max = 200) => {
@@ -38,11 +38,11 @@ const truncate = (value: string, max = 200) => {
   return `${value.slice(0, max).trimEnd()}...`;
 };
 
-interface HomePodcastCardProps {
-  podcast: Podcast;
+interface HomeAudiobookCardProps {
+  audiobook: Audiobook;
 }
 
-export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => {
+export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook }) => {
   const dispatch = useDispatch();
   const { downloadVideo } = useContext(MyContext);
   const username = useSelector((state: RootState) => state.auth.user?.name);
@@ -60,113 +60,12 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
   const [isLikePopoverOpen, setIsLikePopoverOpen] = useState(false);
   const likeUsersLoadedRef = useRef(false);
 
-  const coverImage = podcast.coverImage && podcast.coverImage.trim().length > 0 ? podcast.coverImage : radioImg;
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const count = await fetchPodcastLikeCount(podcast.id);
-        if (!cancelled) setLikeCount(count);
-      } catch (error) {
-        if (!cancelled) setLikeCount(0);
-      }
-
-      if (username) {
-        try {
-          const liked = await hasUserLikedPodcast(username, podcast.id);
-          if (!cancelled) setHasLiked(liked);
-        } catch (error) {
-          if (!cancelled) setHasLiked(false);
-        }
-      }
-
-      try {
-        const existing = (await podcastFavoritesStorage.getItem<string[]>('favorites')) || [];
-        if (!cancelled) setIsFavorited(existing.includes(podcast.id));
-      } catch (error) {
-        if (!cancelled) setIsFavorited(false);
-      }
-    };
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [podcast.id, username]);
-
-  const handlePlay = useCallback(async () => {
-    try {
-      const downloadEntry = downloads[podcast.id];
-      const isReady = downloadEntry?.status?.status === 'READY' || podcast.status?.status === 'READY';
-
-      if (isReady) {
-        const resolvedUrl = downloadEntry?.url || (await getQdnResourceUrl('AUDIO', podcast.publisher, podcast.id));
-        dispatch(setAddToDownloads({
-          name: podcast.publisher,
-          service: 'AUDIO',
-          id: podcast.id,
-          identifier: podcast.id,
-          url: resolvedUrl ?? undefined,
-          status: podcast.status,
-          title: podcast.title || '',
-          author: podcast.publisher,
-        }));
-      } else {
-        downloadVideo({
-          name: podcast.publisher,
-          service: 'AUDIO',
-          identifier: podcast.id,
-          title: podcast.title || '',
-          author: podcast.publisher,
-          id: podcast.id,
-        });
-      }
-
-      dispatch(setCurrentSong(podcast.id));
-    } catch (error) {
-      toast.error('Podcasti esitamine ebaõnnestus.');
-    }
-  }, [dispatch, downloadVideo, downloads, podcast]);
-
-  const handleDownload = useCallback(async () => {
-    try {
-      const directUrl = await getQdnResourceUrl('AUDIO', podcast.publisher, podcast.id);
-      if (!directUrl) {
-        toast.error('Fail pole veel saadaval.');
-        return;
-      }
-
-      const anchor = document.createElement('a');
-      anchor.href = directUrl;
-      anchor.download = `${podcast.title?.replace(/\s+/g, '_') || podcast.id}.audio`;
-      anchor.rel = 'noopener';
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-
-      dispatch(setAddToDownloads({
-        name: podcast.publisher,
-        service: 'AUDIO',
-        id: podcast.id,
-        identifier: podcast.id,
-        url: directUrl,
-        status: podcast.status,
-        title: podcast.title || '',
-        author: podcast.publisher,
-      }));
-    } catch (error) {
-      toast.error('Podcasti allalaadimine ebaõnnestus.');
-    }
-  }, [dispatch, podcast]);
-
   const handleLikePopover = useCallback(
     (open: boolean) => {
       setIsLikePopoverOpen(open);
       if (open && !likeUsersLoadedRef.current) {
         setLikeUsersLoading(true);
-        fetchPodcastLikeUsers(podcast.id)
+        fetchAudiobookLikeUsers(audiobook.id)
           .then((users) => {
             setLikeUsers(users);
             likeUsersLoadedRef.current = true;
@@ -179,8 +78,109 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
           });
       }
     },
-    [podcast.id],
+    [audiobook.id],
   );
+
+  const coverImage = audiobook.coverImage && audiobook.coverImage.trim().length > 0 ? audiobook.coverImage : radioImg;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const count = await fetchAudiobookLikeCount(audiobook.id);
+        if (!cancelled) setLikeCount(count);
+      } catch (error) {
+        if (!cancelled) setLikeCount(0);
+      }
+
+      if (username) {
+        try {
+          const liked = await hasUserLikedAudiobook(username, audiobook.id);
+          if (!cancelled) setHasLiked(liked);
+        } catch (error) {
+          if (!cancelled) setHasLiked(false);
+        }
+      }
+
+      try {
+        const existing = (await audiobookFavoritesStorage.getItem<string[]>('favorites')) || [];
+        if (!cancelled) setIsFavorited(existing.includes(audiobook.id));
+      } catch (error) {
+        if (!cancelled) setIsFavorited(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [audiobook.id, username]);
+
+  const handlePlay = useCallback(async () => {
+    try {
+      const downloadEntry = downloads[audiobook.id];
+      const isReady = downloadEntry?.status?.status === 'READY' || audiobook.status?.status === 'READY';
+
+      if (isReady) {
+        const resolvedUrl = downloadEntry?.url || (await getQdnResourceUrl('AUDIO', audiobook.publisher, audiobook.id));
+        dispatch(setAddToDownloads({
+          name: audiobook.publisher,
+          service: 'AUDIO',
+          id: audiobook.id,
+          identifier: audiobook.id,
+          url: resolvedUrl ?? undefined,
+          status: audiobook.status,
+          title: audiobook.title || '',
+          author: audiobook.publisher,
+        }));
+      } else {
+        downloadVideo({
+          name: audiobook.publisher,
+          service: 'AUDIO',
+          identifier: audiobook.id,
+          title: audiobook.title || '',
+          author: audiobook.publisher,
+          id: audiobook.id,
+        });
+      }
+
+      dispatch(setCurrentSong(audiobook.id));
+    } catch (error) {
+      toast.error('Audiobooki esitamine ebaõnnestus.');
+    }
+  }, [dispatch, downloadVideo, downloads, audiobook]);
+
+  const handleDownload = useCallback(async () => {
+    try {
+      const directUrl = await getQdnResourceUrl('AUDIO', audiobook.publisher, audiobook.id);
+      if (!directUrl) {
+        toast.error('Fail pole veel saadaval.');
+        return;
+      }
+
+      const anchor = document.createElement('a');
+      anchor.href = directUrl;
+      anchor.download = `${audiobook.title?.replace(/\s+/g, '_') || audiobook.id}.audio`;
+      anchor.rel = 'noopener';
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+
+      dispatch(setAddToDownloads({
+        name: audiobook.publisher,
+        service: 'AUDIO',
+        id: audiobook.id,
+        identifier: audiobook.id,
+        url: directUrl,
+        status: audiobook.status,
+        title: audiobook.title || '',
+        author: audiobook.publisher,
+      }));
+    } catch (error) {
+      toast.error('Audiobooki allalaadimine ebaõnnestus.');
+    }
+  }, [dispatch, audiobook]);
 
   const handleLike = useCallback(async (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -195,11 +195,11 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
     try {
       setLikeBusy(true);
       if (hasLiked) {
-        await unlikePodcast(username, podcast.id);
+        await unlikeAudiobook(username, audiobook.id);
         setHasLiked(false);
         setLikeCount((prev) => Math.max(0, (prev ?? 1) - 1));
       } else {
-        await likePodcast(username, podcast);
+        await likeAudiobook(username, audiobook);
         setHasLiked(true);
         setLikeCount((prev) => (prev ?? 0) + 1);
       }
@@ -208,21 +208,21 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
     } finally {
       setLikeBusy(false);
     }
-  }, [username, likeBusy, hasLiked, podcast]);
+  }, [username, likeBusy, hasLiked, audiobook]);
 
   const handleFavorite = useCallback(async () => {
     if (favBusy) return;
 
     try {
       setFavBusy(true);
-      const existing = (await podcastFavoritesStorage.getItem<string[]>('favorites')) || [];
+      const existing = (await audiobookFavoritesStorage.getItem<string[]>('favorites')) || [];
       if (isFavorited) {
-        const updated = existing.filter((id) => id !== podcast.id);
-        await podcastFavoritesStorage.setItem('favorites', updated);
+        const updated = existing.filter((id) => id !== audiobook.id);
+        await audiobookFavoritesStorage.setItem('favorites', updated);
         setIsFavorited(false);
       } else {
-        const updated = [podcast.id, ...existing.filter((id) => id !== podcast.id)];
-        await podcastFavoritesStorage.setItem('favorites', updated);
+        const updated = [audiobook.id, ...existing.filter((id) => id !== audiobook.id)];
+        await audiobookFavoritesStorage.setItem('favorites', updated);
         setIsFavorited(true);
       }
     } catch (error) {
@@ -230,16 +230,16 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
     } finally {
       setFavBusy(false);
     }
-  }, [isFavorited, podcast.id, favBusy]);
+  }, [isFavorited, audiobook.id, favBusy]);
 
   const handleShare = useCallback(async () => {
-    if (!podcast.publisher) {
+    if (!audiobook.publisher) {
       toast.error('Avaldaja puudu.');
       return;
     }
 
     try {
-      const link = buildPodcastShareUrl(podcast.publisher, podcast.id);
+      const link = buildAudiobookShareUrl(audiobook.publisher, audiobook.id);
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(link);
       } else {
@@ -253,52 +253,52 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
         document.execCommand('copy');
         document.body.removeChild(ta);
       }
-      toast.success('Podcasti link kopeeritud!');
+      toast.success('Audiobooki link kopeeritud!');
     } catch (error) {
       toast.error('Linki ei saanud kopeerida.');
     }
-  }, [podcast]);
+  }, [audiobook]);
 
   const handleTip = useCallback(() => {
     if (!username) {
       toast.error('Logi sisse, et tippida.');
       return;
     }
-    if (!podcast.publisher) {
+    if (!audiobook.publisher) {
       toast.error('Autor puudub.');
       return;
     }
-    sendTipModal.open(podcast.publisher);
-  }, [podcast.publisher, sendTipModal, username]);
+    sendTipModal.open(audiobook.publisher);
+  }, [audiobook.publisher, sendTipModal, username]);
 
   const FavoriteIcon = isFavorited ? AiFillHeart : AiOutlineHeart;
 
-  const encodedPublisher = podcast.publisher ? encodeURIComponent(podcast.publisher) : '';
-  const encodedIdentifier = encodeURIComponent(podcast.id);
+  const encodedPublisher = audiobook.publisher ? encodeURIComponent(audiobook.publisher) : '';
+  const encodedIdentifier = encodeURIComponent(audiobook.id);
 
   const hoverEntries = useMemo(() => {
     const entries: { label: string; value: string }[] = [];
 
     entries.push({
       label: 'Publisher',
-      value: podcast.publisher || 'Unknown',
+      value: audiobook.publisher || 'Unknown',
     });
 
-    if (podcast.category) {
+    if (audiobook.category) {
       entries.push({
         label: 'Category',
-        value: podcast.category,
+        value: audiobook.category,
       });
     }
 
-    if (podcast.description) {
+    if (audiobook.description) {
       entries.push({
         label: 'Summary',
-        value: truncate(podcast.description, 240),
+        value: truncate(audiobook.description, 240),
       });
     }
 
-    const published = formatDateTime(podcast.updated || podcast.created);
+    const published = formatDateTime(audiobook.updated || audiobook.created);
     if (published) {
       entries.push({
         label: 'Updated',
@@ -307,21 +307,21 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
     }
 
     return entries;
-  }, [podcast.category, podcast.created, podcast.description, podcast.publisher, podcast.updated]);
+  }, [audiobook.category, audiobook.created, audiobook.description, audiobook.publisher, audiobook.updated]);
 
   return (
     <div
       role="button"
       tabIndex={0}
       onKeyDown={(event) => {
-        if ((event.key === 'Enter' || event.key === ' ') && podcast.publisher) {
+        if ((event.key === 'Enter' || event.key === ' ') && audiobook.publisher) {
           event.preventDefault();
-          navigate(`/podcasts/${encodedPublisher}/${encodedIdentifier}`);
+          navigate(`/audiobooks/${encodedPublisher}/${encodedIdentifier}`);
         }
       }}
       onClick={() => {
-        if (podcast.publisher) {
-          navigate(`/podcasts/${encodedPublisher}/${encodedIdentifier}`);
+        if (audiobook.publisher) {
+          navigate(`/audiobooks/${encodedPublisher}/${encodedIdentifier}`);
         }
       }}
       className="group relative flex min-w-[200px] max-w-[200px] items-stretch gap-3 rounded-xl border border-sky-900/60 bg-sky-950/70 p-3 shadow hover:border-sky-700/70 hover:bg-sky-950/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 focus-visible:ring-offset-1 focus-visible:ring-offset-sky-950/80"
@@ -329,16 +329,16 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
       <div className="flex flex-1 flex-col">
         <div className="relative h-28 w-full group/card">
           <div className="h-full w-full overflow-hidden rounded-lg border border-sky-900/60 bg-sky-900/40">
-            <img src={coverImage} alt={podcast.title || 'Podcast cover'} className="h-full w-full object-cover" loading="lazy" />
+            <img src={coverImage} alt={audiobook.title || 'Audiobook cover'} className="h-full w-full object-cover" loading="lazy" />
           </div>
-          <HomeCardHoverDetails title="Podcast details" entries={hoverEntries} />
+          <HomeCardHoverDetails title="Audiobook details" entries={hoverEntries} />
         </div>
         <div className="mt-3 space-y-1 text-left">
           <p className="text-sm font-semibold text-white" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-            {podcast.title || 'Untitled podcast'}
+            {audiobook.title || 'Untitled audiobook'}
           </p>
           <p className="text-xs font-medium text-sky-300" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-            {podcast.publisher || 'Avaldaja teadmata'}
+            {audiobook.publisher || 'Avaldaja teadmata'}
           </p>
         </div>
       </div>
@@ -346,7 +346,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
         {(() => {
           const actionNodes: ReactNode[] = [
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handlePlay(); }} title="Esita" aria-label="Play podcast">
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handlePlay(); }} title="Esita" aria-label="Play audiobook">
                 <FiPlay size={14} />
               </HomeActionButton>
             ),
@@ -399,12 +399,12 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
               </HomeActionButton>
             ),
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleShare(); }} title="Jaga" aria-label="Share podcast">
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleShare(); }} title="Jaga" aria-label="Share audiobook">
                 <FiShare2 size={14} />
               </HomeActionButton>
             ),
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleDownload(); }} title="Lae alla" aria-label="Download podcast">
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleDownload(); }} title="Lae alla" aria-label="Download audiobook">
                 <FiDownload size={14} />
               </HomeActionButton>
             ),
@@ -420,7 +420,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
           }
 
           return actionNodes.map((node, index) => (
-            <div key={`podcast-action-${podcast.id}-${index}`} className="flex h-8 w-8 items-center justify-center">
+            <div key={`audiobook-action-${audiobook.id}-${index}`} className="flex h-8 w-8 items-center justify-center">
               {node}
             </div>
           ));
@@ -430,4 +430,4 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
   );
 };
 
-export default HomePodcastCard;
+export default HomeAudiobookCard;

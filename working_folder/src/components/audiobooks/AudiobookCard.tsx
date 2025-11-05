@@ -3,23 +3,23 @@ import moment from 'moment';
 import { FiDownload, FiEdit2, FiPlay, FiShare2, FiThumbsUp } from 'react-icons/fi';
 import { RiHandCoinLine } from 'react-icons/ri';
 import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
-import { Podcast, Song } from '../../types';
-import { fetchPodcastLikeUsers } from '../../services/podcastLikes';
+import { Audiobook, Song } from '../../types';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import { useNavigate } from 'react-router-dom';
 import { MdPlaylistAdd } from 'react-icons/md';
+import { fetchAudiobookLikeUsers } from '../../services/audiobookLikes';
 
-interface PodcastCardProps {
-  podcast: Podcast;
-  onPlay?: (podcast: Podcast) => void;
-  onLike?: (podcast: Podcast) => void;
-  onAddFavorite?: (podcast: Podcast) => void;
+interface AudiobookCardProps {
+  audiobook: Audiobook;
+  onPlay?: (audiobook: Audiobook) => void;
+  onLike?: (audiobook: Audiobook) => void;
+  onAddFavorite?: (audiobook: Audiobook) => void;
   onAddToPlaylist?: (songData: Song) => void;
-  onDownload?: (podcast: Podcast) => void;
-  onCopyLink?: (podcast: Podcast) => void;
-  onSendTips?: (podcast: Podcast) => void;
+  onDownload?: (audiobook: Audiobook) => void;
+  onCopyLink?: (audiobook: Audiobook) => void;
+  onSendTips?: (audiobook: Audiobook) => void;
   isHighlighted?: boolean;
-  onEdit?: (podcast: Podcast) => void;
+  onEdit?: (audiobook: Audiobook) => void;
   isFavorite?: boolean;
   isLiked?: boolean;
   likeCount?: number;
@@ -42,17 +42,17 @@ const formatFileSize = (size?: number): string | null => {
   return `${displayValue} ${units[index]}`;
 };
 
-const formatPublishedLabel = (podcast: Podcast): string => {
-  const baseTimestamp = podcast.updated ?? podcast.created;
-  const sizeLabel = formatFileSize(podcast.size);
+const formatPublishedLabel = (audiobook: Audiobook): string => {
+  const baseTimestamp = audiobook.updated ?? audiobook.created;
+  const sizeLabel = formatFileSize(audiobook.size);
 
   const publishedPrefix = baseTimestamp
     ? `Published ${moment(baseTimestamp).format('MMM D, YYYY • HH:mm')}`
     : 'Published';
 
   const sizeSegment = sizeLabel ? ` | Size: ${sizeLabel}` : '';
-  const publisherSegment = podcast.publisher
-    ? ` | by ${podcast.publisher}`
+  const publisherSegment = audiobook.publisher
+    ? ` | by ${audiobook.publisher}`
     : '';
 
   return `${publishedPrefix}${sizeSegment}${publisherSegment}`;
@@ -87,8 +87,8 @@ const ActionIcon: React.FC<{
   );
 };
 
-export const PodcastCard: React.FC<PodcastCardProps> = ({
-  podcast,
+export const AudiobookCard: React.FC<AudiobookCardProps> = ({
+  audiobook,
   onPlay,
   onLike,
   onAddFavorite,
@@ -104,24 +104,24 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
 }) => {
   const navigate = useNavigate();
   const description =
-    podcast.description?.trim() ||
-    'No description was provided for this podcast yet.';
+    audiobook.description?.trim() ||
+    'No description was provided for this audiobook yet.';
   const coverImage =
-    podcast.coverImage && podcast.coverImage.trim().length > 0
-      ? podcast.coverImage
+    audiobook.coverImage && audiobook.coverImage.trim().length > 0
+      ? audiobook.coverImage
       : radioImg;
   const handleNavigate = useCallback(() => {
-    if (!podcast.publisher || !podcast.id) return;
-    navigate(`/podcasts/${encodeURIComponent(podcast.publisher)}/${encodeURIComponent(podcast.id)}`);
-  }, [navigate, podcast.publisher, podcast.id]);
+    if (!audiobook.publisher || !audiobook.id) return;
+    navigate(`/audiobooks/${encodeURIComponent(audiobook.publisher)}/${encodeURIComponent(audiobook.id)}`);
+  }, [navigate, audiobook.publisher, audiobook.id]);
   const playlistSongData = useMemo<Song>(() => ({
-    id: podcast.id,
-    title: podcast.title,
-    name: podcast.publisher,
-    author: podcast.publisher,
-    service: podcast.service || 'PODCAST',
-    status: podcast.status,
-  }), [podcast.id, podcast.publisher, podcast.service, podcast.status, podcast.title]);
+    id: audiobook.id,
+    title: audiobook.title,
+    name: audiobook.publisher,
+    author: audiobook.publisher,
+    service: audiobook.service || 'AUDIO',
+    status: audiobook.status,
+  }), [audiobook.id, audiobook.publisher, audiobook.service, audiobook.status, audiobook.title]);
 
   const [isLikePopoverOpen, setIsLikePopoverOpen] = useState(false);
   const [likeUsers, setLikeUsers] = useState<string[]>([]);
@@ -133,7 +133,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
       setIsLikePopoverOpen(open);
       if (open && !likeUsersLoadedRef.current) {
         setIsLoadingLikeUsers(true);
-        fetchPodcastLikeUsers(podcast.id)
+        fetchAudiobookLikeUsers(audiobook.id)
           .then((users) => {
             setLikeUsers(users);
             likeUsersLoadedRef.current = true;
@@ -146,7 +146,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
           });
       }
     },
-    [podcast.id],
+    [audiobook.id],
   );
 
   return (
@@ -170,16 +170,16 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
         <div className="flex-shrink-0 overflow-hidden rounded-xl border border-sky-900/60 bg-sky-900/40 shadow-inner">
           <img
             src={coverImage}
-            alt={`Cover art for ${podcast.title}`}
+            alt={`Cover art for ${audiobook.title}`}
             className="h-28 w-28 object-cover md:h-32 md:w-32"
             loading="lazy"
           />
         </div>
         <div className="flex flex-1 flex-col justify-between gap-2">
           <div>
-            <h3 className="text-lg font-semibold text-white md:text-xl">{podcast.title}</h3>
+            <h3 className="text-lg font-semibold text-white md:text-xl">{audiobook.title}</h3>
             <p className="mt-1 text-xs font-medium text-sky-300">
-              {formatPublishedLabel(podcast)}
+              {formatPublishedLabel(audiobook)}
             </p>
           </div>
           <div className="text-sm text-sky-200/90 md:text-base">
@@ -198,7 +198,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:w-40 md:justify-items-center">
-        <ActionIcon title="Play" onClick={() => onPlay?.(podcast)}>
+        <ActionIcon title="Play" onClick={() => onPlay?.(audiobook)}>
           <FiPlay size={16} />
         </ActionIcon>
         <div
@@ -210,7 +210,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
         >
           <ActionIcon
             title="Like It"
-            onClick={() => onLike?.(podcast)}
+            onClick={() => onLike?.(audiobook)}
             isActive={isLiked}
           >
             <div className="flex items-center gap-1">
@@ -239,7 +239,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
         </div>
         <ActionIcon
           title="Add Favorites"
-          onClick={() => onAddFavorite?.(podcast)}
+          onClick={() => onAddFavorite?.(audiobook)}
           isActive={isFavorite}
         >
           {isFavorite ? <AiFillHeart size={16} /> : <AiOutlineHeart size={16} />}
@@ -251,24 +251,24 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
         )}
         <ActionIcon
           title="Download"
-          onClick={() => onDownload?.(podcast)}
+          onClick={() => onDownload?.(audiobook)}
         >
           <FiDownload size={16} />
         </ActionIcon>
         <ActionIcon
           title="Copy link & Share It"
-          onClick={() => onCopyLink?.(podcast)}
+          onClick={() => onCopyLink?.(audiobook)}
         >
           <FiShare2 size={16} />
         </ActionIcon>
         <ActionIcon
           title="Send Tips to Publisher"
-          onClick={() => onSendTips?.(podcast)}
+          onClick={() => onSendTips?.(audiobook)}
         >
           <RiHandCoinLine size={16} />
         </ActionIcon>
         {onEdit && (
-          <ActionIcon title="Edit" onClick={() => onEdit?.(podcast)}>
+          <ActionIcon title="Edit" onClick={() => onEdit?.(audiobook)}>
             <FiEdit2 />
           </ActionIcon>
         )}

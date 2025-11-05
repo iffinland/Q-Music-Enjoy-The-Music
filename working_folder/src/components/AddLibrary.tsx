@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../state/store";
 import { BsMusicNoteList, BsMusicNote } from "react-icons/bs";
 import { setNewPlayList } from "../state/features/globalSlice";
-import { FaVideo, FaPodcast } from "react-icons/fa";
+import { FaVideo, FaPodcast, FaBookOpen } from "react-icons/fa";
 import { BiListPlus } from "react-icons/bi";
 import { useNavigate } from "react-router-dom";
 
@@ -80,6 +80,10 @@ export const AddLibrary: React.FC<LibraryProps> = ({
     navigate('/podcasts');
   }
 
+  const onClickAudiobooks = () => {
+    navigate('/audiobooks');
+  }
+
 
   return (
     <>
@@ -125,6 +129,14 @@ export const AddLibrary: React.FC<LibraryProps> = ({
           <FaPodcast className="text-current" size={18} />
           <span>Listen & Add New Podcast</span>
         </button>
+        <button
+          type="button"
+          onClick={onClickAudiobooks}
+          className="flex w-full items-center gap-x-4 text-sky-200/80 hover:text-white font-medium text-sm transition focus:outline-none"
+        >
+          <FaBookOpen className="text-current" size={18} />
+          <span>Listen & Add New Audiobooks</span>
+        </button>
         <hr className="my-4 border-t border-sky-800" />
         <div className="flex flex-col gap-y-2">
           <p className="text-sky-200/80 text-lg uppercase font-bold">little statistics</p>
@@ -135,6 +147,7 @@ export const AddLibrary: React.FC<LibraryProps> = ({
           <p className="text-sky-200/80 font-medium text-sm">Ear Bump songs: {formatStat(statsData?.earbumpSongs)}</p>
           <p className="text-sky-200/80 font-medium text-sm">Ear Bump playlists: {formatStat(statsData?.earbumpPlaylists)}</p>
           <p className="text-sky-200/80 font-medium text-sm">Total Podcasts: {formatStat(statsData?.totalPodcasts)}</p>
+          <p className="text-sky-200/80 font-medium text-sm">Total Audiobooks: {formatStat(statsData?.totalAudiobooks)}</p>
           <p className="text-sky-200/80 font-medium text-sm">Music Videos: {formatStat(statsData?.musicVideos)}</p>
           <p className="text-sky-200/80 font-medium text-sm">Open Requests: {formatStat(statsData?.openRequests)}</p>
           <p className="text-sky-200/80 font-medium text-sm">Filled Requests: {formatStat(statsData?.filledRequests)}</p>

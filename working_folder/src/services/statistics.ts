@@ -12,7 +12,7 @@ type ResourcePrefixConfig = {
   service: 'AUDIO' | 'PLAYLIST' | 'DOCUMENT' | 'VIDEO';
 };
 
-const TRACKED_PODCAST_PREFIXES = ['enjoymusic', 'earbump'];
+const TRACKED_AUDIO_SERIES_PREFIXES = ['enjoymusic', 'earbump'];
 
 const RESOURCE_PREFIXES: ResourcePrefixConfig[] = [
   { key: 'enjoymusic_song', service: 'AUDIO' },
@@ -21,6 +21,8 @@ const RESOURCE_PREFIXES: ResourcePrefixConfig[] = [
   { key: 'earbump_playlist', service: 'PLAYLIST' },
   { key: 'enjoymusic_podcast', service: 'AUDIO' },
   { key: 'earbump_podcast', service: 'AUDIO' },
+  { key: 'enjoymusic_audiobooks', service: 'AUDIO' },
+  { key: 'earbump_audiobooks', service: 'AUDIO' },
   { key: 'enjoymusic_video', service: 'VIDEO' },
 ];
 
@@ -55,9 +57,10 @@ const fetchResourceSummary = async (
         return false;
       }
 
-      if (service === 'AUDIO' && prefix.includes('podcast')) {
+      if (service === 'AUDIO' && (prefix.includes('podcast') || prefix.includes('audiobooks'))) {
         const identifier = typeof item?.identifier === 'string' ? item.identifier : '';
-        return TRACKED_PODCAST_PREFIXES.some((p) => identifier.startsWith(`${p}_podcast_`));
+        const suffix = prefix.includes('audiobooks') ? 'audiobooks' : 'podcast';
+        return TRACKED_AUDIO_SERIES_PREFIXES.some((p) => identifier.startsWith(`${p}_${suffix}_`));
       }
 
       return true;
@@ -91,6 +94,7 @@ export interface StatisticsSnapshot {
   earbumpSongs: number;
   earbumpPlaylists: number;
   totalPodcasts: number;
+  totalAudiobooks: number;
   musicVideos: number;
   totalPublishers: number;
   openRequests: number;
@@ -114,6 +118,9 @@ export const fetchStatisticsSnapshot = async (): Promise<StatisticsSnapshot> => 
   const qmusicPodcasts = prefixResults.get('enjoymusic_podcast')?.count ?? 0;
   const earbumpPodcasts = prefixResults.get('earbump_podcast')?.count ?? 0;
   const totalPodcasts = qmusicPodcasts + earbumpPodcasts;
+  const qmusicAudiobooks = prefixResults.get('enjoymusic_audiobooks')?.count ?? 0;
+  const earbumpAudiobooks = prefixResults.get('earbump_audiobooks')?.count ?? 0;
+  const totalAudiobooks = qmusicAudiobooks + earbumpAudiobooks;
   const musicVideos = prefixResults.get('enjoymusic_video')?.count ?? 0;
 
   const publisherSet = new Set<string>();
@@ -133,6 +140,7 @@ export const fetchStatisticsSnapshot = async (): Promise<StatisticsSnapshot> => 
     earbumpSongs,
     earbumpPlaylists,
     totalPodcasts,
+    totalAudiobooks,
     musicVideos,
     totalPublishers: publisherSet.size,
     openRequests,

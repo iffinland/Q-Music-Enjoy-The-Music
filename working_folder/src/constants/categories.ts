@@ -34,5 +34,23 @@ export const PODCAST_CATEGORIES = [
   'Other',
 ] as const;
 
+export const AUDIOBOOK_CATEGORIES = [
+  'Biographies & Memoirs',
+  'Business & Finance',
+  'Children & Family',
+  'Education & Self-Help',
+  'Fantasy',
+  'Historical',
+  'Mystery & Thriller',
+  'Romance',
+  'Science Fiction',
+  'Science & Technology',
+  'Spirituality',
+  'True Crime',
+  'Wellness',
+  'Other',
+] as const;
+
 export type MusicCategory = typeof MUSIC_CATEGORIES[number];
 export type PodcastCategory = typeof PODCAST_CATEGORIES[number];
+export type AudiobookCategory = typeof AUDIOBOOK_CATEGORIES[number];

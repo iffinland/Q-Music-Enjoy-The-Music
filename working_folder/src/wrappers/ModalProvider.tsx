@@ -4,6 +4,7 @@ import UploadModal from "../components/UploadModal";
 import UploadAlbumModal from "../components/UploadAlbumModal";
 import UploadPlaylistModal from "../components/UploadPlaylistModal";
 import UploadPodcastModal from "../components/UploadPodcastModal";
+import UploadAudiobookModal from "../components/UploadAudiobookModal";
 import UploadVideoModal from "../components/UploadVideoModal";
 import AddRequestModal from "../components/requests/AddRequestModal";
 import FillRequestModal from "../components/requests/FillRequestModal";
@@ -35,6 +36,7 @@ const ModalProvider: React.FC = () => {
       <AddRequestModal />
       <FillRequestModal />
       <UploadPodcastModal />
+      <UploadAudiobookModal />
       <UploadVideoModal />
       <AddSongToPlaylistModal />
       <SendTipModal />

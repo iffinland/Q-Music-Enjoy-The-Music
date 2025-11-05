@@ -9,19 +9,19 @@ import Modal from './Modal';
 import Input from './Input';
 import Textarea from './TextArea';
 import Button from './Button';
-import useUploadPodcastModal from '../hooks/useUploadPodcastModal';
+import useUploadAudiobookModal from '../hooks/useUploadAudiobookModal';
 import { RootState } from '../state/store';
 import { objectToBase64, toBase64 } from '../utils/toBase64';
 import { removeTrailingUnderscore } from '../utils/extra';
 import { stripDiacritics } from '../utils/stringHelpers';
-import { PODCAST_CATEGORIES } from '../constants/categories';
-import { Podcast } from '../types';
+import { AUDIOBOOK_CATEGORIES } from '../constants/categories';
+import { Audiobook } from '../types';
 
 const uid = new ShortUniqueId();
-const IDENTIFIER_PREFIX = 'enjoymusic_podcast_';
+const IDENTIFIER_PREFIX = 'enjoymusic_audiobooks_';
 const MAX_IDENTIFIER_LENGTH = 64;
 
-interface UploadPodcastFormValues {
+interface UploadAudiobookFormValues {
   title: string;
   description: string;
   category: string;
@@ -29,7 +29,7 @@ interface UploadPodcastFormValues {
   audio: FileList | null;
 }
 
-const DEFAULT_VALUES: UploadPodcastFormValues = {
+const DEFAULT_VALUES: UploadAudiobookFormValues = {
   title: '',
   description: '',
   category: '',
@@ -79,11 +79,11 @@ const sanitizeTitleForIdentifier = (value: string) => {
   return removeTrailingUnderscore(underscored);
 };
 
-const UploadPodcastModal: React.FC = () => {
+const UploadAudiobookModal: React.FC = () => {
   const username = useSelector((state: RootState) => state?.auth?.user?.name);
-  const uploadPodcastModal = useUploadPodcastModal();
-  const isEditMode = uploadPodcastModal.mode === 'edit';
-  const editingPodcast = uploadPodcastModal.podcast;
+  const uploadAudiobookModal = useUploadAudiobookModal();
+  const isEditMode = uploadAudiobookModal.mode === 'edit';
+  const editingAudiobook = uploadAudiobookModal.audiobook;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
@@ -98,7 +98,7 @@ const UploadPodcastModal: React.FC = () => {
     setError,
     clearErrors,
     formState: { errors },
-  } = useForm<UploadPodcastFormValues>({
+  } = useForm<UploadAudiobookFormValues>({
     defaultValues: DEFAULT_VALUES,
   });
 
@@ -111,29 +111,29 @@ const UploadPodcastModal: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!uploadPodcastModal.isOpen) {
+    if (!uploadAudiobookModal.isOpen) {
       reset(DEFAULT_VALUES);
       setCoverPreview(null);
       setSelectedAudioName(null);
       return;
     }
 
-    if (isEditMode && editingPodcast) {
+    if (isEditMode && editingAudiobook) {
       reset({
-        title: editingPodcast.title || '',
-        description: editingPodcast.description || '',
-        category: editingPodcast.category || '',
+        title: editingAudiobook.title || '',
+        description: editingAudiobook.description || '',
+        category: editingAudiobook.category || '',
         cover: null,
         audio: null,
       });
-      setCoverPreview(editingPodcast.coverImage || null);
-      setSelectedAudioName(editingPodcast.audioFilename || null);
+      setCoverPreview(editingAudiobook.coverImage || null);
+      setSelectedAudioName(editingAudiobook.audioFilename || null);
     } else {
       reset(DEFAULT_VALUES);
       setCoverPreview(null);
       setSelectedAudioName(null);
     }
-  }, [uploadPodcastModal.isOpen, isEditMode, editingPodcast, reset]);
+  }, [uploadAudiobookModal.isOpen, isEditMode, editingAudiobook, reset]);
 
   useEffect(() => {
     const subscription = watch((value) => {
@@ -165,8 +165,8 @@ const UploadPodcastModal: React.FC = () => {
     reset(DEFAULT_VALUES);
     setCoverPreview(null);
     setSelectedAudioName(null);
-    uploadPodcastModal.onClose();
-  }, [reset, uploadPodcastModal]);
+    uploadAudiobookModal.onClose();
+  }, [reset, uploadAudiobookModal]);
 
   const onChange = useCallback(
     (open: boolean) => {
@@ -196,25 +196,25 @@ const UploadPodcastModal: React.FC = () => {
     const category = rawCategory.trim();
 
     if (!title) {
-      setError('title', { type: 'manual', message: 'Podcast title is required' });
-      toast.error('Podcast title is required');
+      setError('title', { type: 'manual', message: 'Audiobook title is required' });
+      toast.error('Audiobook title is required');
       return;
     }
     if (title.length > 200) {
-      setError('title', { type: 'manual', message: 'Podcast title can be at most 200 characters' });
-      toast.error('Podcast title can be at most 200 characters');
+      setError('title', { type: 'manual', message: 'Audiobook title can be at most 200 characters' });
+      toast.error('Audiobook title can be at most 200 characters');
       return;
     }
     clearErrors('title');
 
     if (!description) {
-      setError('description', { type: 'manual', message: 'Podcast description is required' });
-      toast.error('Podcast description is required');
+      setError('description', { type: 'manual', message: 'Audiobook description is required' });
+      toast.error('Audiobook description is required');
       return;
     }
     if (description.length > 4000) {
-      setError('description', { type: 'manual', message: 'Podcast description can be at most 4000 characters' });
-      toast.error('Podcast description can be at most 4000 characters');
+      setError('description', { type: 'manual', message: 'Audiobook description can be at most 4000 characters' });
+      toast.error('Audiobook description can be at most 4000 characters');
       return;
     }
     clearErrors('description');
@@ -227,8 +227,8 @@ const UploadPodcastModal: React.FC = () => {
     clearErrors('category');
 
     if (!audioFile && !isEditMode) {
-      setError('audio', { type: 'manual', message: 'Please select a podcast file' });
-      toast.error('Please select a podcast file');
+      setError('audio', { type: 'manual', message: 'Please select an audiobook file' });
+      toast.error('Please select an audiobook file');
       return;
     }
     clearErrors('audio');
@@ -249,29 +249,29 @@ const UploadPodcastModal: React.FC = () => {
           : '';
       const identifierBase = trimmedSanitized.length > 0 ? trimmedSanitized : uniqueId;
       const identifier =
-        isEditMode && editingPodcast?.id
-          ? editingPodcast.id
+        isEditMode && editingAudiobook?.id
+          ? editingAudiobook.id
           : `${IDENTIFIER_PREFIX}${identifierBase}_${uniqueId}`;
 
       const audioFilename =
         audioFile?.name ||
-        editingPodcast?.audioFilename ||
+        editingAudiobook?.audioFilename ||
         `${identifierBase || uniqueId}.audio`;
-      const audioMimeType = audioFile?.type?.trim() || editingPodcast?.audioMimeType || '';
+      const audioMimeType = audioFile?.type?.trim() || editingAudiobook?.audioMimeType || '';
       const audioSize =
         (typeof audioFile?.size === 'number' && audioFile.size > 0
           ? audioFile.size
-          : editingPodcast?.size) ?? null;
+          : editingAudiobook?.size) ?? null;
 
       const createdTimestamp =
-        isEditMode && typeof editingPodcast?.created === 'number'
-          ? editingPodcast.created
+        isEditMode && typeof editingAudiobook?.created === 'number'
+          ? editingAudiobook.created
           : now;
 
       const safeMetadataTitleSource = stripDiacritics(title).trim() || title;
       const safeMetadataDescriptionSource =
         stripDiacritics(description).trim() || description;
-      const metadataTitle = (safeMetadataTitleSource || 'Untitled podcast').slice(0, 55);
+      const metadataTitle = (safeMetadataTitleSource || 'Untitled audiobook').slice(0, 55);
       const metadataDescription = (safeMetadataDescriptionSource || description).slice(0, 512);
 
       const documentPayload: Record<string, unknown> = {
@@ -420,7 +420,7 @@ const UploadPodcastModal: React.FC = () => {
         await publishIndividually();
       }
 
-      const optimisticPodcast: Podcast = {
+      const optimisticAudiobook: Audiobook = {
         id: identifier,
         title,
         description,
@@ -428,21 +428,21 @@ const UploadPodcastModal: React.FC = () => {
         updated: now,
         publisher: username,
         service: 'AUDIO',
-        coverImage: coverPreview || editingPodcast?.coverImage,
+        coverImage: coverPreview || editingAudiobook?.coverImage,
         audioFilename,
         audioMimeType,
         size: audioSize ?? undefined,
         category,
-        status: editingPodcast?.status,
+        status: editingAudiobook?.status,
       };
 
-      toast.success(isEditMode ? 'Podcast updated successfully!' : 'Podcast published successfully!');
+      toast.success(isEditMode ? 'Audiobook updated successfully!' : 'Audiobook published successfully!');
 
       window.dispatchEvent(
-        new CustomEvent('podcasts:refresh', {
+        new CustomEvent('audiobooks:refresh', {
           detail: {
             mode: isEditMode ? 'edit' : 'create',
-            podcast: optimisticPodcast,
+            audiobook: optimisticAudiobook,
           },
         }),
       );
@@ -453,8 +453,8 @@ const UploadPodcastModal: React.FC = () => {
         successTimeoutRef.current = null;
       }, 400);
     } catch (error: unknown) {
-      console.error('Failed to publish podcast', error);
-      let message = isEditMode ? 'Failed to update podcast' : 'Failed to publish podcast';
+      console.error('Failed to publish audiobook', error);
+      let message = isEditMode ? 'Failed to update audiobook' : 'Failed to publish audiobook';
       if (typeof error === 'string' && error) {
         message = error;
       } else if (typeof error === 'object' && error !== null) {
@@ -474,27 +474,27 @@ const UploadPodcastModal: React.FC = () => {
     }
   };
 
-  const selectedCategoryOptions = useMemo(() => PODCAST_CATEGORIES, []);
+  const selectedCategoryOptions = useMemo(() => AUDIOBOOK_CATEGORIES, []);
 
   return (
     <Modal
-      title={isEditMode ? 'Edit podcast' : 'Publish new podcast'}
+      title={isEditMode ? 'Edit audiobook' : 'Publish new audiobook'}
       description={
         isEditMode
-          ? 'Update your podcast episode details'
-          : 'Share a new podcast episode with listeners'
+          ? 'Update your audiobook episode details'
+          : 'Share a new audiobook episode with listeners'
       }
-      isOpen={uploadPodcastModal.isOpen}
+      isOpen={uploadAudiobookModal.isOpen}
       onChange={onChange}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-y-5">
         <div>
           <div className="pb-1 text-sm font-semibold text-sky-200/80">
-            Podcast title <span className="text-orange-300">*</span>
+            Audiobook title <span className="text-orange-300">*</span>
           </div>
           <Input
-            id="podcast-title"
-            placeholder="Podcast title"
+            id="audiobook-title"
+            placeholder="Audiobook title"
             disabled={isSubmitting}
             maxLength={200}
             aria-invalid={errors.title ? 'true' : 'false'}
@@ -502,7 +502,7 @@ const UploadPodcastModal: React.FC = () => {
           />
           {errors.title && (
             <p className="mt-1 text-xs text-orange-300" role="alert">
-              {errors.title.message || 'Podcast title is required'}
+              {errors.title.message || 'Audiobook title is required'}
             </p>
           )}
         </div>
@@ -512,7 +512,7 @@ const UploadPodcastModal: React.FC = () => {
             Description <span className="text-orange-300">*</span>
           </div>
           <Textarea
-            id="podcast-description"
+            id="audiobook-description"
             placeholder="Add a detailed description (max 4000 characters)"
             disabled={isSubmitting}
             className="h-40 resize-none"
@@ -522,7 +522,7 @@ const UploadPodcastModal: React.FC = () => {
           />
           {errors.description && (
             <p className="mt-1 text-xs text-orange-300" role="alert">
-              {errors.description.message || 'Podcast description is required'}
+              {errors.description.message || 'Audiobook description is required'}
             </p>
           )}
         </div>
@@ -532,7 +532,7 @@ const UploadPodcastModal: React.FC = () => {
             Category <span className="text-orange-300">*</span>
           </div>
           <select
-            id="podcast-category"
+            id="audiobook-category"
             disabled={isSubmitting}
             className="w-full rounded-md border border-sky-900/60 bg-sky-950/70 px-3 py-3 text-sm text-sky-100 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             defaultValue=""
@@ -561,7 +561,7 @@ const UploadPodcastModal: React.FC = () => {
             <span className="text-xs font-medium uppercase text-sky-400">(optional)</span>
           </div>
           <Input
-            id="podcast-cover"
+            id="audiobook-cover"
             type="file"
             accept="image/*"
             disabled={isSubmitting}
@@ -576,7 +576,7 @@ const UploadPodcastModal: React.FC = () => {
               />
             </div>
           )}
-          {!coverPreview && isEditMode && editingPodcast?.coverImage && (
+          {!coverPreview && isEditMode && editingAudiobook?.coverImage && (
             <p className="mt-1 text-xs text-sky-300/80">
               Current cover will be kept if you do not upload a new image.
             </p>
@@ -585,11 +585,11 @@ const UploadPodcastModal: React.FC = () => {
 
         <div>
           <div className="pb-1 text-sm font-semibold text-sky-200/80">
-            {isEditMode ? 'Select a new podcast file (optional)' : 'Select a podcast file'}{' '}
+            {isEditMode ? 'Select a new audiobook file (optional)' : 'Select an audiobook file'}{' '}
             {!isEditMode && <span className="text-orange-300">*</span>}
           </div>
           <Input
-            id="podcast-audio"
+            id="audiobook-audio"
             type="file"
             accept="audio/*"
             disabled={isSubmitting}
@@ -597,15 +597,15 @@ const UploadPodcastModal: React.FC = () => {
           />
           {errors.audio && (
             <p className="mt-1 text-xs text-orange-300" role="alert">
-              {errors.audio.message || 'Please select a podcast file'}
+              {errors.audio.message || 'Please select an audiobook file'}
             </p>
           )}
           {selectedAudioName && (
             <p className="mt-1 text-xs text-sky-300/80">Selected file: {selectedAudioName}</p>
           )}
-          {!selectedAudioName && isEditMode && editingPodcast?.audioFilename && (
+          {!selectedAudioName && isEditMode && editingAudiobook?.audioFilename && (
             <p className="mt-1 text-xs text-sky-300/80">
-              Current audio: {editingPodcast.audioFilename}
+              Current audio: {editingAudiobook.audioFilename}
             </p>
           )}
         </div>
@@ -615,11 +615,11 @@ const UploadPodcastModal: React.FC = () => {
           disabled={isSubmitting}
           className="bg-orange-500 hover:bg-orange-400"
         >
-          {isEditMode ? 'Save changes' : 'Publish podcast'}
+          {isEditMode ? 'Save changes' : 'Publish audiobook'}
         </Button>
       </form>
     </Modal>
   );
 };
 
-export default UploadPodcastModal;
+export default UploadAudiobookModal;

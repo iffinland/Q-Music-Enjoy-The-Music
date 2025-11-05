@@ -19,6 +19,8 @@ import Videos from "./pages/Videos/Videos";
 import VideoDetail from "./pages/Videos/VideoDetail";
 import Podcasts from "./pages/Podcasts/Podcasts";
 import PodcastDetail from "./pages/Podcasts/PodcastDetail";
+import Audiobooks from "./pages/Audiobooks/Audiobooks";
+import AudiobookDetail from "./pages/Audiobooks/AudiobookDetail";
 import Requests from "./pages/Requests/Requests";
 import SongDetail from "./pages/Song/SongDetail";
 
@@ -48,6 +50,8 @@ function App() {
             <Route path="/videos/:publisher/:identifier" element={<VideoDetail />} />
             <Route path="/podcasts" element={<Podcasts />} />
             <Route path="/podcasts/:publisher/:identifier" element={<PodcastDetail />} />
+            <Route path="/audiobooks" element={<Audiobooks />} />
+            <Route path="/audiobooks/:publisher/:identifier" element={<AudiobookDetail />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           </Layout>

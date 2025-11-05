@@ -34,6 +34,8 @@ export interface Podcast {
   category?: string;
 }
 
+export type Audiobook = Podcast;
+
 export interface Video {
   id: string;
   title: string;

@@ -6,6 +6,7 @@ import { useHomeFeed } from '../../hooks/useHomeFeed';
 import HomeSongCard from '../../components/home/HomeSongCard';
 import HomePlaylistCard from '../../components/home/HomePlaylistCard';
 import HomePodcastCard from '../../components/home/HomePodcastCard';
+import HomeAudiobookCard from '../../components/home/HomeAudiobookCard';
 import HomeVideoCard from '../../components/home/HomeVideoCard';
 
 const SectionSkeleton: React.FC<{ items?: number; variant?: 'default' | 'compact' }> = ({ items = 6, variant = 'default' }) => {
@@ -70,11 +71,11 @@ const HomeHero = () => (
         <h1 className="text-3xl font-bold text-white md:text-4xl">
           <span className="inline-flex items-center gap-3">
             <img src={logoUrl} alt="Q-Music logo" className="h-12 w-12" />
-            Enjoy and share music and podcasts with the Q-Music community
+            Enjoy and share music, podcasts, and audiobooks with the Q-Music community
           </span>
         </h1>
         <p className="text-base text-sky-200/85 md:text-lg">
-          Discover the latest community creations and keep your library fresh with new songs, playlists, podcasts and videos.
+          Discover the latest community creations and keep your library fresh with new songs, playlists, podcasts, audiobooks and videos.
         </p>
       </div>
     </div>
@@ -82,11 +83,18 @@ const HomeHero = () => (
 );
 
 export const Home = () => {
-  const { data, isLoading, error, refresh } = useHomeFeed({ songsLimit: 12, playlistsLimit: 12, podcastsLimit: 8, videosLimit: 8 });
+  const { data, isLoading, error, refresh } = useHomeFeed({
+    songsLimit: 12,
+    playlistsLimit: 12,
+    podcastsLimit: 8,
+    audiobooksLimit: 8,
+    videosLimit: 8,
+  });
 
   const songs = data?.songs ?? [];
   const playlists = data?.playlists ?? [];
   const podcasts = data?.podcasts ?? [];
+  const audiobooks = data?.audiobooks ?? [];
   const videos = data?.videos ?? [];
   const filteredVideos = React.useMemo(
     () =>
@@ -112,9 +120,10 @@ export const Home = () => {
   const showSongSkeleton = isLoading && songs.length === 0;
   const showPlaylistSkeleton = isLoading && playlists.length === 0;
   const showPodcastSkeleton = isLoading && podcasts.length === 0;
+  const showAudiobookSkeleton = isLoading && audiobooks.length === 0;
   const showVideoSkeleton = isLoading && filteredVideos.length === 0;
 
-  const hasAnyData = songs.length + playlists.length + podcasts.length + videos.length > 0;
+  const hasAnyData = songs.length + playlists.length + podcasts.length + audiobooks.length + videos.length > 0;
   const shouldShowError = !isLoading && error && !hasAnyData;
 
   return (
@@ -153,7 +162,7 @@ export const Home = () => {
           )}
         </HomeSection>
 
-        {(showPodcastSkeleton || podcasts.length > 0) && (
+        {(showPodcastSkeleton || podcasts.length > 0 || audiobooks.length > 0) && (
           <HomeSection title="Newest podcasts" viewAllTo="/podcasts" viewAllLabel="All Podcasts">
             {showPodcastSkeleton ? (
               <SectionSkeleton variant="compact" />
@@ -163,6 +172,29 @@ export const Home = () => {
                   <HomePodcastCard key={podcast.id} podcast={podcast} />
                 ))}
               </HorizontalScroll>
+            )}
+
+            {(showAudiobookSkeleton || audiobooks.length > 0) && (
+              <div className="mt-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-white md:text-xl">Newest audiobooks</h3>
+                  <Link
+                    to="/audiobooks"
+                    className="text-xs font-semibold uppercase tracking-wide text-sky-300 transition hover:text-sky-100"
+                  >
+                    All Audiobooks
+                  </Link>
+                </div>
+                {showAudiobookSkeleton ? (
+                  <SectionSkeleton variant="compact" />
+                ) : (
+                  <HorizontalScroll>
+                    {audiobooks.map((audiobook) => (
+                      <HomeAudiobookCard key={audiobook.id} audiobook={audiobook} />
+                    ))}
+                  </HorizontalScroll>
+                )}
+              </div>
             )}
           </HomeSection>
         )}

@@ -6,6 +6,7 @@ import Header from '../../components/Header';
 import Box from '../../components/Box';
 import LibrarySongList from '../../components/library/LibrarySongList';
 import LibraryPodcastCard from '../../components/library/LibraryPodcastCard';
+import LibraryAudiobookCard from '../../components/library/LibraryAudiobookCard';
 import LibraryVideoCard from '../../components/library/LibraryVideoCard';
 import VideoPlayerOverlay from '../../components/videos/VideoPlayerOverlay';
 import LazyLoad from '../../components/common/LazyLoad';
@@ -19,14 +20,19 @@ import { setAddToDownloads, setCurrentPlaylist, setCurrentSong } from '../../sta
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
 import likeImg from '../../assets/img/like-button.png';
-import { Podcast, Video } from '../../types';
+import { Audiobook, Podcast, Video } from '../../types';
 import { fetchPodcastsByPublisher, fetchPodcastByGlobalIdentifier } from '../../services/podcasts';
+import { fetchAudiobooksByPublisher, fetchAudiobookByGlobalIdentifier } from '../../services/audiobooks';
 import { fetchVideosByPublisher, fetchVideoByGlobalIdentifier } from '../../services/videos';
 import { SongRequest } from '../../state/features/requestsSlice';
 import { fetchRequestsByPublisher } from '../../services/qdnRequests';
 
 const podcastFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-podcast-favorites',
+});
+
+const audiobookFavoritesStorage = localforage.createInstance({
+  name: 'ear-bump-audiobook-favorites',
 });
 
 const videoFavoritesStorage = localforage.createInstance({
@@ -37,12 +43,15 @@ type LibraryView =
   | 'library-songs'
   | 'library-playlists'
   | 'library-podcasts'
+  | 'library-audiobooks'
   | 'library-videos'
   | 'library-requests'
   | 'favorite-songs'
   | 'favorite-podcasts'
+  | 'favorite-audiobooks'
   | 'favorite-videos'
-  | 'favorite-playlists';
+  | 'favorite-playlists'
+  | 'library-likes';
 
 const formatTimestamp = (value?: number): string => {
   if (!value) return '—';
@@ -81,21 +90,27 @@ export const Library: React.FC = () => {
   const [mode, setMode] = useState<LibraryView>('library-songs');
 
   const [userPodcasts, setUserPodcasts] = useState<Podcast[]>([]);
+  const [userAudiobooks, setUserAudiobooks] = useState<Audiobook[]>([]);
   const [userVideos, setUserVideos] = useState<Video[]>([]);
   const [userRequests, setUserRequests] = useState<SongRequest[]>([]);
   const [favoritePodcasts, setFavoritePodcasts] = useState<Podcast[]>([]);
+  const [favoriteAudiobooks, setFavoriteAudiobooks] = useState<Audiobook[]>([]);
   const [favoriteVideos, setFavoriteVideos] = useState<Video[]>([]);
 
   const [isLoadingPodcasts, setIsLoadingPodcasts] = useState(false);
+  const [isLoadingAudiobooks, setIsLoadingAudiobooks] = useState(false);
   const [isLoadingVideos, setIsLoadingVideos] = useState(false);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   const [isLoadingFavPodcasts, setIsLoadingFavPodcasts] = useState(false);
+  const [isLoadingFavAudiobooks, setIsLoadingFavAudiobooks] = useState(false);
   const [isLoadingFavVideos, setIsLoadingFavVideos] = useState(false);
 
   const [hasLoadedUserPodcasts, setHasLoadedUserPodcasts] = useState(false);
+  const [hasLoadedUserAudiobooks, setHasLoadedUserAudiobooks] = useState(false);
   const [hasLoadedUserVideos, setHasLoadedUserVideos] = useState(false);
   const [hasLoadedUserRequests, setHasLoadedUserRequests] = useState(false);
   const [hasLoadedFavPodcasts, setHasLoadedFavPodcasts] = useState(false);
+  const [hasLoadedFavAudiobooks, setHasLoadedFavAudiobooks] = useState(false);
   const [hasLoadedFavVideos, setHasLoadedFavVideos] = useState(false);
 
   const [playerVideo, setPlayerVideo] = useState<Video | null>(null);
@@ -132,9 +147,11 @@ export const Library: React.FC = () => {
 
   useEffect(() => {
     setUserPodcasts([]);
+    setUserAudiobooks([]);
     setUserVideos([]);
     setUserRequests([]);
     setHasLoadedUserPodcasts(false);
+    setHasLoadedUserAudiobooks(false);
     setHasLoadedUserVideos(false);
     setHasLoadedUserRequests(false);
   }, [username]);
@@ -152,6 +169,20 @@ export const Library: React.FC = () => {
       setIsLoadingPodcasts(false);
     }
   }, [username, isLoadingPodcasts]);
+
+  const loadUserAudiobooks = useCallback(async () => {
+    if (!username || isLoadingAudiobooks) return;
+    setIsLoadingAudiobooks(true);
+    try {
+      const data = await fetchAudiobooksByPublisher(username);
+      setUserAudiobooks(data);
+      setHasLoadedUserAudiobooks(true);
+    } catch (error) {
+      toast.error('Failed to load your audiobooks.');
+    } finally {
+      setIsLoadingAudiobooks(false);
+    }
+  }, [username, isLoadingAudiobooks]);
 
   const loadUserVideos = useCallback(async () => {
     if (!username || isLoadingVideos) return;
@@ -201,6 +232,27 @@ export const Library: React.FC = () => {
     }
   }, [isLoadingFavPodcasts]);
 
+  const loadFavoriteAudiobooks = useCallback(async () => {
+    if (isLoadingFavAudiobooks) return;
+    setIsLoadingFavAudiobooks(true);
+    try {
+      const ids = (await audiobookFavoritesStorage.getItem<string[]>('favorites')) || [];
+      if (ids.length === 0) {
+        setFavoriteAudiobooks([]);
+        setHasLoadedFavAudiobooks(true);
+        return;
+      }
+
+      const results = await Promise.all(ids.map((id) => fetchAudiobookByGlobalIdentifier(id)));
+      setFavoriteAudiobooks(results.filter((audiobook): audiobook is Audiobook => Boolean(audiobook)));
+      setHasLoadedFavAudiobooks(true);
+    } catch (error) {
+      toast.error('Failed to load favorite audiobooks.');
+    } finally {
+      setIsLoadingFavAudiobooks(false);
+    }
+  }, [isLoadingFavAudiobooks]);
+
   const loadFavoriteVideos = useCallback(async () => {
     if (isLoadingFavVideos) return;
     setIsLoadingFavVideos(true);
@@ -225,7 +277,10 @@ export const Library: React.FC = () => {
     if (mode === 'library-podcasts' && username && !hasLoadedUserPodcasts) {
       loadUserPodcasts();
     }
-  }, [mode, username, hasLoadedUserPodcasts, loadUserPodcasts]);
+    if (mode === 'library-audiobooks' && username && !hasLoadedUserAudiobooks) {
+      loadUserAudiobooks();
+    }
+  }, [mode, username, hasLoadedUserPodcasts, loadUserPodcasts, hasLoadedUserAudiobooks, loadUserAudiobooks]);
 
   useEffect(() => {
     if (mode === 'library-videos' && username && !hasLoadedUserVideos) {
@@ -240,13 +295,22 @@ export const Library: React.FC = () => {
   }, [mode, username, hasLoadedUserRequests, loadUserRequests]);
 
   useEffect(() => {
-    if (mode === 'favorite-podcasts' && !hasLoadedFavPodcasts) {
+    if ((mode === 'favorite-podcasts' || mode === 'library-likes') && !hasLoadedFavPodcasts) {
       loadFavoritePodcasts();
     }
-  }, [mode, hasLoadedFavPodcasts, loadFavoritePodcasts]);
+    if ((mode === 'favorite-audiobooks' || mode === 'library-likes') && !hasLoadedFavAudiobooks) {
+      loadFavoriteAudiobooks();
+    }
+  }, [
+    mode,
+    hasLoadedFavPodcasts,
+    loadFavoritePodcasts,
+    hasLoadedFavAudiobooks,
+    loadFavoriteAudiobooks,
+  ]);
 
   useEffect(() => {
-    if (mode === 'favorite-videos' && !hasLoadedFavVideos) {
+    if ((mode === 'favorite-videos' || mode === 'library-likes') && !hasLoadedFavVideos) {
       loadFavoriteVideos();
     }
   }, [mode, hasLoadedFavVideos, loadFavoriteVideos]);
@@ -263,6 +327,17 @@ export const Library: React.FC = () => {
       }
     };
 
+    const handleAudiobookRefresh = () => {
+      setHasLoadedUserAudiobooks(false);
+      setHasLoadedFavAudiobooks(false);
+      if (mode === 'library-audiobooks') {
+        loadUserAudiobooks();
+      }
+      if (mode === 'favorite-audiobooks') {
+        loadFavoriteAudiobooks();
+      }
+    };
+
     const handleVideoRefresh = () => {
       setHasLoadedUserVideos(false);
       setHasLoadedFavVideos(false);
@@ -275,12 +350,22 @@ export const Library: React.FC = () => {
     };
 
     window.addEventListener('podcasts:refresh', handlePodcastRefresh);
+    window.addEventListener('audiobooks:refresh', handleAudiobookRefresh);
     window.addEventListener('videos:refresh', handleVideoRefresh);
     return () => {
       window.removeEventListener('podcasts:refresh', handlePodcastRefresh);
+      window.removeEventListener('audiobooks:refresh', handleAudiobookRefresh);
       window.removeEventListener('videos:refresh', handleVideoRefresh);
     };
-  }, [mode, loadUserPodcasts, loadFavoritePodcasts, loadUserVideos, loadFavoriteVideos]);
+  }, [
+    mode,
+    loadUserPodcasts,
+    loadFavoritePodcasts,
+    loadUserAudiobooks,
+    loadFavoriteAudiobooks,
+    loadUserVideos,
+    loadFavoriteVideos,
+  ]);
 
   const handlePlayVideo = useCallback(async (video: Video) => {
     dismissVideoFetchToast();
@@ -369,6 +454,18 @@ export const Library: React.FC = () => {
   }, [dispatch, downloadVideo, downloads, favoriteList]);
 
   const favoritesAvailable = Boolean(favorites);
+  const hasAnyLikes =
+    (favoriteList?.length ?? 0) +
+      favoritePodcasts.length +
+      favoriteAudiobooks.length +
+      favoriteVideos.length >
+    0;
+
+  useEffect(() => {
+    if (mode === 'library-likes' && favoritesAvailable && (!favoriteList || favoriteList.length === 0)) {
+      getLikedSongs();
+    }
+  }, [mode, favoritesAvailable, favoriteList, getLikedSongs]);
 
   const renderPodcastList = (collection: Podcast[], options?: { onFavoriteChange?: () => void }) => (
     <div className="space-y-3">
@@ -376,6 +473,18 @@ export const Library: React.FC = () => {
         <LibraryPodcastCard
           key={podcast.id}
           podcast={podcast}
+          onFavoriteChange={options?.onFavoriteChange}
+        />
+      ))}
+    </div>
+  );
+
+  const renderAudiobookList = (collection: Audiobook[], options?: { onFavoriteChange?: () => void }) => (
+    <div className="space-y-3">
+      {collection.map((audiobook) => (
+        <LibraryAudiobookCard
+          key={audiobook.id}
+          audiobook={audiobook}
           onFavoriteChange={options?.onFavoriteChange}
         />
       ))}
@@ -462,6 +571,16 @@ export const Library: React.FC = () => {
           </button>
           <button
             className={`${
+              mode === 'library-audiobooks'
+                ? 'bg-sky-900/70 border border-sky-500/40'
+                : 'border border-sky-900/40 bg-transparent hover:bg-sky-900/40'
+            } text-sky-100 px-4 py-2 rounded transition`}
+            onClick={() => setMode('library-audiobooks')}
+          >
+            My Audiobooks
+          </button>
+          <button
+            className={`${
               mode === 'library-videos'
                 ? 'bg-sky-900/70 border border-sky-500/40'
                 : 'border border-sky-900/40 bg-transparent hover:bg-sky-900/40'
@@ -505,6 +624,16 @@ export const Library: React.FC = () => {
           </button>
           <button
             className={`${
+              mode === 'favorite-audiobooks'
+                ? 'bg-sky-900/70 border border-sky-500/40'
+                : 'border border-sky-900/40 bg-transparent hover:bg-sky-900/40'
+            } text-sky-100 px-4 py-2 rounded transition`}
+            onClick={() => setMode('favorite-audiobooks')}
+          >
+            Favorite Audiobooks
+          </button>
+          <button
+            className={`${
               mode === 'favorite-videos'
                 ? 'bg-sky-900/70 border border-sky-500/40'
                 : 'border border-sky-900/40 bg-transparent hover:bg-sky-900/40'
@@ -522,6 +651,16 @@ export const Library: React.FC = () => {
             onClick={() => setMode('favorite-playlists')}
           >
             Favorite Playlists
+          </button>
+          <button
+            className={`${
+              mode === 'library-likes'
+                ? 'bg-sky-900/70 border border-sky-500/40'
+                : 'border border-sky-900/40 bg-transparent hover:bg-sky-900/40'
+            } text-sky-100 px-4 py-2 rounded transition`}
+            onClick={() => setMode('library-likes')}
+          >
+            My Likes
           </button>
         </div>
 
@@ -561,6 +700,23 @@ export const Library: React.FC = () => {
               <EmptyState message="You have not published any podcasts yet." />
             ) : (
               renderPodcastList(userPodcasts, { onFavoriteChange: loadFavoritePodcasts })
+            )}
+          </>
+        )}
+
+        {mode === 'library-audiobooks' && (
+          <>
+            <div className="mt-5 mb-4">
+              <h2 className="text-xl font-semibold text-white">My Audiobooks</h2>
+            </div>
+            {!username ? (
+              <EmptyState message="Log in to see the audiobooks you have published." />
+            ) : isLoadingAudiobooks && !userAudiobooks.length ? (
+              <LoadingState label="Loading your audiobooks…" />
+            ) : userAudiobooks.length === 0 ? (
+              <EmptyState message="You have not published any audiobooks yet." />
+            ) : (
+              renderAudiobookList(userAudiobooks, { onFavoriteChange: loadFavoriteAudiobooks })
             )}
           </>
         )}
@@ -630,6 +786,21 @@ export const Library: React.FC = () => {
           </>
         )}
 
+        {mode === 'favorite-audiobooks' && (
+          <>
+            <div className="mt-5 mb-4">
+              <h2 className="text-xl font-semibold text-white">Favorite Audiobooks</h2>
+            </div>
+            {isLoadingFavAudiobooks && !favoriteAudiobooks.length ? (
+              <LoadingState label="Loading favorite audiobooks…" />
+            ) : favoriteAudiobooks.length === 0 ? (
+              <EmptyState message="You have not saved any audiobooks as favorites yet." />
+            ) : (
+              renderAudiobookList(favoriteAudiobooks, { onFavoriteChange: loadFavoriteAudiobooks })
+            )}
+          </>
+        )}
+
         {mode === 'favorite-videos' && (
           <>
             <div className="mt-5 mb-4">
@@ -654,6 +825,58 @@ export const Library: React.FC = () => {
               <EmptyState message="Log in to see your favorite playlists." />
             ) : (
               <FavPlaylists />
+            )}
+          </>
+        )}
+
+        {mode === 'library-likes' && (
+          <>
+            <div className="mt-5 mb-4">
+              <h2 className="text-xl font-semibold text-white">My Likes</h2>
+              <p className="text-sm text-sky-200/80">All the songs, podcasts, audiobooks, and videos you have liked in one place.</p>
+            </div>
+            {!favoritesAvailable ? (
+              <EmptyState message="Log in to see your likes." />
+            ) : !hasAnyLikes ? (
+              <EmptyState message="You have not liked any content yet." />
+            ) : (
+              <div className="space-y-8">
+                <section>
+                  <h3 className="text-lg font-semibold text-white">Liked Songs</h3>
+                  {favoriteList && favoriteList.length > 0 ? (
+                    <>
+                      <LibrarySongList songs={favoriteList} />
+                      <LazyLoad onLoadMore={getLikedSongs} />
+                    </>
+                  ) : (
+                    <p className="text-sm text-sky-300/80">You have not liked any songs yet.</p>
+                  )}
+                </section>
+                <section>
+                  <h3 className="text-lg font-semibold text-white">Liked Podcasts</h3>
+                  {favoritePodcasts.length > 0 ? (
+                    renderPodcastList(favoritePodcasts)
+                  ) : (
+                    <p className="text-sm text-sky-300/80">You have not liked any podcasts yet.</p>
+                  )}
+                </section>
+                <section>
+                  <h3 className="text-lg font-semibold text-white">Liked Audiobooks</h3>
+                  {favoriteAudiobooks.length > 0 ? (
+                    renderAudiobookList(favoriteAudiobooks)
+                  ) : (
+                    <p className="text-sm text-sky-300/80">You have not liked any audiobooks yet.</p>
+                  )}
+                </section>
+                <section>
+                  <h3 className="text-lg font-semibold text-white">Liked Videos</h3>
+                  {favoriteVideos.length > 0 ? (
+                    renderVideoList(favoriteVideos)
+                  ) : (
+                    <p className="text-sm text-sky-300/80">You have not liked any videos yet.</p>
+                  )}
+                </section>
+              </div>
             )}
           </>
         )}

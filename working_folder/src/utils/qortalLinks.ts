@@ -77,6 +77,17 @@ export const buildPodcastShareUrl = (name: string, identifier: string): string =
   return `qortal://${base}//?${params.toString()}`;
 };
 
+export const buildAudiobookShareUrl = (name: string, identifier: string): string => {
+  const base = normalizeBase(getQdnBase());
+  const params = new URLSearchParams({
+    type: 'audiobook',
+    audiobook: identifier,
+    audiobookPublisher: name,
+  });
+
+  return `qortal://${base}//?${params.toString()}`;
+};
+
 export const buildVideoShareUrl = (name: string, identifier: string): string => {
   const base = normalizeBase(getQdnBase());
   const params = new URLSearchParams({

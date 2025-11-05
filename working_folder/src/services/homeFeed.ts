@@ -2,7 +2,7 @@ import { PlayList, SongMeta } from '../state/features/globalSlice';
 import { parseSongMeta } from './songs';
 import { searchQdnResources, SearchQdnResourcesParams } from '../utils/qortalApi';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
-import { Podcast, Video } from '../types';
+import { Audiobook, Podcast, Video } from '../types';
 import { enrichVideosWithDocuments } from './videos';
 
 type Resource = Record<string, unknown> & {
@@ -14,6 +14,7 @@ type Resource = Record<string, unknown> & {
 const SONG_PREFIXES = ['enjoymusic_song_', 'earbump_song_'] as const;
 const PLAYLIST_PREFIXES = ['enjoymusic_playlist_', 'earbump_playlist_'] as const;
 const PODCAST_PREFIXES = ['enjoymusic_podcast_', 'earbump_podcast_'] as const;
+const AUDIOBOOK_PREFIXES = ['enjoymusic_audiobooks_', 'earbump_audiobooks_'] as const;
 const VIDEO_PREFIXES = ['enjoymusic_video_', 'earbump_video_'] as const;
 const VIDEO_LIKE_IDENTIFIER_PREFIX = 'video_like_';
 
@@ -125,6 +126,29 @@ const mapPodcastResource = (resource: any): Podcast | null => {
   };
 };
 
+const mapAudiobookResource = (resource: any): Audiobook | null => {
+  const id = typeof resource?.identifier === 'string' ? resource.identifier : '';
+  if (!id) return null;
+
+  const titleFromMeta = typeof resource?.metadata?.title === 'string' ? resource.metadata.title.trim() : '';
+  const descriptionFromMeta =
+    typeof resource?.metadata?.description === 'string' ? resource.metadata.description : undefined;
+
+  return {
+    id,
+    title: titleFromMeta || humanizeIdentifier(id, AUDIOBOOK_PREFIXES),
+    description: descriptionFromMeta,
+    created: resource?.created,
+    updated: resource?.updated,
+    publisher: resource?.name,
+    status: resource?.status,
+    service: 'AUDIO',
+    size: resource?.size,
+    type: resource?.metadata?.type || resource?.mimeType || resource?.contentType,
+    coverImage: typeof resource?.metadata?.coverImage === 'string' ? resource.metadata.coverImage : undefined,
+  };
+};
+
 const mapVideoResource = (resource: any): Video | null => {
   const id = typeof resource?.identifier === 'string' ? resource.identifier : '';
   if (!id) return null;
@@ -224,6 +248,32 @@ export const fetchLatestPodcasts = async (options: FetchLatestPodcastsOptions = 
   return filtered.map(mapPodcastResource).filter(Boolean) as Podcast[];
 };
 
+export interface FetchLatestAudiobooksOptions {
+  limit?: number;
+}
+
+export const fetchLatestAudiobooks = async (options: FetchLatestAudiobooksOptions = {}): Promise<Audiobook[]> => {
+  const limit = options.limit ?? 8;
+  if (limit <= 0) return [];
+
+  const fetchCount = limit * AUDIOBOOK_PREFIXES.length;
+
+  const combined = await combinePrefixResults(AUDIOBOOK_PREFIXES, (prefix) => ({
+    mode: 'ALL',
+    service: 'DOCUMENT',
+    query: prefix,
+    limit: fetchCount,
+    includeMetadata: true,
+    offset: 0,
+    reverse: true,
+    excludeBlocked: true,
+    includeStatus: false,
+  }));
+
+  const filtered = filterResources(combined).slice(0, limit) as any[];
+  return filtered.map(mapAudiobookResource).filter(Boolean) as Audiobook[];
+};
+
 export interface FetchLatestVideosOptions {
   limit?: number;
 }
@@ -258,6 +308,7 @@ export interface HomeFeedData {
   songs: SongMeta[];
   playlists: PlayList[];
   podcasts: Podcast[];
+  audiobooks: Audiobook[];
   videos: Video[];
 }
 
@@ -265,6 +316,7 @@ export interface LoadHomeFeedOptions {
   songsLimit?: number;
   playlistsLimit?: number;
   podcastsLimit?: number;
+  audiobooksLimit?: number;
   videosLimit?: number;
 }
 
@@ -273,17 +325,19 @@ export const loadHomeFeed = async (options: LoadHomeFeedOptions = {}): Promise<H
     songsLimit = 10,
     playlistsLimit = 10,
     podcastsLimit = 8,
+    audiobooksLimit = 8,
     videosLimit = 8,
   } = options;
 
-  const [songs, playlists, podcasts, videos] = await Promise.all([
+  const [songs, playlists, podcasts, audiobooks, videos] = await Promise.all([
     fetchLatestSongs({ limit: songsLimit }),
     fetchLatestPlaylists({ limit: playlistsLimit }),
     fetchLatestPodcasts({ limit: podcastsLimit }),
+    fetchLatestAudiobooks({ limit: audiobooksLimit }),
     fetchLatestVideos({ limit: videosLimit }),
   ]);
 
-  return { songs, playlists, podcasts, videos };
+  return { songs, playlists, podcasts, audiobooks, videos };
 };
 
 export interface FetchSongsFeedParams {

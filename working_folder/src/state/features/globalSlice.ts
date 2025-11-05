@@ -45,6 +45,7 @@ interface StatisticsData {
   earbumpSongs: number
   earbumpPlaylists: number
   totalPodcasts: number
+  totalAudiobooks: number
   musicVideos: number
   totalPublishers: number
   openRequests: number
