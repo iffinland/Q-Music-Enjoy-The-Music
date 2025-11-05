@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import useSound from 'use-sound';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-hot-toast';
@@ -923,6 +924,26 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   );
 };
 
+interface MiniPlayerPosition {
+  x: number;
+  y: number;
+}
+
+const getDefaultMiniPlayerPosition = (): MiniPlayerPosition => {
+  if (typeof window === 'undefined') {
+    return { x: 16, y: 16 };
+  }
+
+  const margin = 16;
+  const estimatedWidth = 360;
+  const estimatedHeight = 200;
+
+  return {
+    x: Math.max(margin, window.innerWidth - estimatedWidth - margin),
+    y: Math.max(margin, window.innerHeight - estimatedHeight - margin),
+  };
+};
+
 interface MiniPlayerProps {
   coverImage: string;
   title: string;
@@ -938,6 +959,8 @@ interface MiniPlayerProps {
   isMuted: boolean;
   volume: number;
   onVolumeChange?: (value: number) => void;
+  position: MiniPlayerPosition;
+  onPositionChange: (position: MiniPlayerPosition) => void;
 }
 
 const MiniPlayer: React.FC<MiniPlayerProps> = ({
@@ -955,15 +978,118 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
   isMuted,
   volume,
   onVolumeChange,
+  position,
+  onPositionChange,
 }) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
+
   const progressValue = progress.duration > 0 ? clamp(progress.currentTime / progress.duration) : 0;
   const totalFormatted = formatTime(progress.duration);
   const remainingFormatted = formatTime(Math.max(progress.duration - progress.currentTime, 0));
   const VolumeIcon = isMuted ? HiSpeakerXMark : HiSpeakerWave;
+  const margin = 16;
+
+  const clampToViewport = useCallback(
+    (x: number, y: number) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      const width = rect?.width ?? 0;
+      const height = rect?.height ?? 0;
+      const minX = width >= window.innerWidth ? 0 : margin;
+      const minY = height >= window.innerHeight ? 0 : margin;
+      const maxX = window.innerWidth - width - minX;
+      const maxY = window.innerHeight - height - minY;
+
+      return {
+        x: Math.min(Math.max(minX, x), Math.max(minX, maxX)),
+        y: Math.min(Math.max(minY, y), Math.max(minY, maxY)),
+      };
+    },
+    [margin],
+  );
+
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const target = event.target as HTMLElement;
+      if (target.closest('button, a, input, textarea, select, [data-no-drag]')) {
+        return;
+      }
+
+      isDraggingRef.current = true;
+      dragOffsetRef.current = {
+        x: event.clientX - position.x,
+        y: event.clientY - position.y,
+      };
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setIsDragging(true);
+    },
+    [position.x, position.y],
+  );
+
+  const handlePointerMove = useCallback(
+    (event: PointerEvent) => {
+      if (!isDraggingRef.current) return;
+      const nextPosition = clampToViewport(
+        event.clientX - dragOffsetRef.current.x,
+        event.clientY - dragOffsetRef.current.y,
+      );
+      onPositionChange(nextPosition);
+    },
+    [clampToViewport, onPositionChange],
+  );
+
+  const handlePointerUp = useCallback((event: PointerEvent) => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+    setIsDragging(false);
+    if (containerRef.current?.hasPointerCapture(event.pointerId)) {
+      containerRef.current.releasePointerCapture(event.pointerId);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleResize = () => {
+      const nextPosition = clampToViewport(position.x, position.y);
+      if (nextPosition.x !== position.x || nextPosition.y !== position.y) {
+        onPositionChange(nextPosition);
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [clampToViewport, handlePointerMove, handlePointerUp, onPositionChange, position.x, position.y]);
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 w-full max-w-md px-2 sm:px-0">
-      <div className="flex items-stretch gap-3 rounded-xl border border-sky-900/60 bg-sky-950/90 p-3 text-white shadow-xl backdrop-blur">
+    <div
+      ref={containerRef}
+      onPointerDown={handlePointerDown}
+      className="fixed z-40 cursor-grab px-2 sm:px-0"
+      style={{
+        top: `${position.y}px`,
+        left: `${position.x}px`,
+        width: 'min(calc(100vw - 32px), 28rem)',
+      }}
+    >
+      <div
+        className={`flex items-stretch gap-3 rounded-xl border border-sky-900/60 bg-sky-950/90 p-3 text-white shadow-xl backdrop-blur ${
+          isDragging ? 'cursor-grabbing select-none' : ''
+        }`}
+      >
         <div className="flex flex-1 flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -1045,7 +1171,7 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
           >
             <VolumeIcon size={22} />
           </button>
-          <div className="relative flex-1 min-h-[96px] w-full">
+          <div className="relative flex-1 min-h-[96px] w-full" data-no-drag>
             <Slider
               orientation="vertical"
               value={isMuted ? 0 : volume}
@@ -1169,6 +1295,9 @@ const Player = () => {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [playbackTimes, setPlaybackTimes] = useState({ currentTime: 0, duration: 0 });
   const [externalControls, setExternalControls] = useState<PlayerExternalControls | null>(null);
+  const [miniPlayerPosition, setMiniPlayerPosition] = useState<MiniPlayerPosition>(() =>
+    getDefaultMiniPlayerPosition(),
+  );
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -1357,6 +1486,8 @@ const Player = () => {
           isMuted={volume === 0}
           volume={volume}
           onVolumeChange={handleVolumeChangeCollapsed}
+          position={miniPlayerPosition}
+          onPositionChange={setMiniPlayerPosition}
         />
       )}
     </>
