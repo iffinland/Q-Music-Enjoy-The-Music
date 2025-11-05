@@ -9,6 +9,7 @@ interface SlideProps {
   step?: number;
   ariaLabel?: string;
   disabled?: boolean;
+  orientation?: 'horizontal' | 'vertical';
 }
 
 const Slider: React.FC<SlideProps> = ({
@@ -19,22 +20,21 @@ const Slider: React.FC<SlideProps> = ({
   step = 0.1,
   ariaLabel = 'Slider',
   disabled = false,
+  orientation = 'horizontal',
 }) => {
   const handleChange = (newValue: number[]) => {
     onChange?.(newValue[0]);
   };
 
+  const isVertical = orientation === 'vertical';
+
   return ( 
     <RadixSlider.Root
-      className="
-        relative 
-        flex 
-        items-center 
-        select-none 
-        touch-none 
-        w-full 
-        h-10
-      "
+      className={`relative flex select-none touch-none ${
+        isVertical ? 'h-full w-10 flex-col items-center' : 'h-10 w-full items-center'
+      }`}
+      style={styles}
+      orientation={orientation}
       defaultValue={[value]}
       value={[value]}
       onValueChange={handleChange}
@@ -42,26 +42,23 @@ const Slider: React.FC<SlideProps> = ({
       step={step}
       aria-label={ariaLabel}
       disabled={disabled}
-      style={{
-        ...styles
-      }}
     >
-      <RadixSlider.Track 
-        className="
+      <RadixSlider.Track
+        className={`
           bg-sky-900/60 
           relative 
           grow 
           rounded-full 
-          h-[3px]
-        "
+          ${isVertical ? 'w-[3px] h-full self-center' : 'h-[3px] w-full'}
+        `}
       >
-        <RadixSlider.Range 
-          className="
+        <RadixSlider.Range
+          className={`
             absolute 
             bg-sky-500 
             rounded-full 
-            h-full
-          " 
+            ${isVertical ? 'w-full' : 'h-full'}
+          `}
         />
       </RadixSlider.Track>
     </RadixSlider.Root>

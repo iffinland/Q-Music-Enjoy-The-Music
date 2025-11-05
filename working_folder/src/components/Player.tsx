@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import CircularProgress from '@mui/material/CircularProgress';
 import { AiFillStepBackward, AiFillStepForward } from 'react-icons/ai';
 import { BsPauseFill, BsPlayFill } from 'react-icons/bs';
-import { FiDownload, FiEdit2, FiInfo, FiMinimize2, FiThumbsUp } from 'react-icons/fi';
+import { FiDownload, FiEdit2, FiInfo, FiMaximize2, FiMinimize2, FiThumbsUp } from 'react-icons/fi';
 import { HiSpeakerWave, HiSpeakerXMark } from 'react-icons/hi2';
 import { LuCopy } from 'react-icons/lu';
 import { RiHandCoinLine } from 'react-icons/ri';
@@ -53,11 +53,14 @@ interface PlayerPlaybackProps {
   song: DownloadEntry;
   songUrl: string;
   onPlaybackStateChange: (isPlaying: boolean) => void;
+  onProgressChange?: (progress: { currentTime: number; duration: number }) => void;
+  onRegisterControls?: (controls: PlayerExternalControls) => void;
 }
 
 interface PlayerLoadingProps {
   song: DownloadEntry;
   percentLoaded: number;
+  onProgressChange?: (progress: { currentTime: number; duration: number }) => void;
 }
 
 interface QuickActionsProps {
@@ -114,6 +117,16 @@ const resolveAuthorName = (entry?: PlaylistSong | Song) => {
 
 const actionButtonClass =
   'flex h-9 w-9 items-center justify-center rounded-md border border-sky-900/50 bg-sky-950/30 text-sky-100 transition hover:border-sky-700 hover:bg-sky-900/50 hover:text-white focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-400/70';
+
+interface PlayerExternalControls {
+  play: () => void;
+  pause: () => void;
+  togglePlayPause: () => void;
+  next: () => void;
+  previous: () => void;
+  isPlaying: boolean;
+  isLoaded: boolean;
+}
 
 const useSongDetails = (song?: Song): SongDetails => {
   const imageCoverHash = useSelector((state: RootState) => state.global.imageCoverHash);
@@ -551,6 +564,8 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   song,
   songUrl,
   onPlaybackStateChange,
+  onProgressChange,
+  onRegisterControls,
 }) => {
   const dispatch = useDispatch();
   const { downloadVideo } = useContext(MyContext);
@@ -784,6 +799,40 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
     service: song.service,
   };
 
+  useEffect(() => {
+    onProgressChange?.({ currentTime, duration });
+  }, [currentTime, duration, onProgressChange]);
+
+  useEffect(() => {
+    if (!onRegisterControls) return;
+
+    onRegisterControls({
+      play: () => {
+        play();
+      },
+      pause,
+      togglePlayPause: () => {
+        handlePlayPause();
+      },
+      next: () => {
+        void handlePlaylistNavigation('next');
+      },
+      previous: () => {
+        void handlePlaylistNavigation('previous');
+      },
+      isPlaying,
+      isLoaded,
+    });
+  }, [
+    handlePlayPause,
+    handlePlaylistNavigation,
+    isLoaded,
+    isPlaying,
+    onRegisterControls,
+    pause,
+    play,
+  ]);
+
   return (
     <div className="flex flex-col gap-3">
       <div className="rounded-lg border border-sky-900/40 bg-sky-950/35 p-3 md:p-3.5">
@@ -874,7 +923,145 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   );
 };
 
-const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded }) => {
+interface MiniPlayerProps {
+  coverImage: string;
+  title: string;
+  author: string;
+  isPlaying: boolean;
+  isLoaded: boolean;
+  progress: { currentTime: number; duration: number };
+  onExpand: () => void;
+  onPlayPause?: () => void;
+  onNext?: () => void;
+  onPrevious?: () => void;
+  onToggleMute: () => void;
+  isMuted: boolean;
+  volume: number;
+  onVolumeChange?: (value: number) => void;
+}
+
+const MiniPlayer: React.FC<MiniPlayerProps> = ({
+  coverImage,
+  title,
+  author,
+  isPlaying,
+  isLoaded,
+  progress,
+  onExpand,
+  onPlayPause,
+  onNext,
+  onPrevious,
+  onToggleMute,
+  isMuted,
+  volume,
+  onVolumeChange,
+}) => {
+  const progressValue = progress.duration > 0 ? clamp(progress.currentTime / progress.duration) : 0;
+  const totalFormatted = formatTime(progress.duration);
+  const remainingFormatted = formatTime(Math.max(progress.duration - progress.currentTime, 0));
+  const VolumeIcon = isMuted ? HiSpeakerXMark : HiSpeakerWave;
+
+  return (
+    <div className="fixed bottom-4 right-4 z-40 w-full max-w-md px-2 sm:px-0">
+      <div className="flex items-stretch gap-3 rounded-xl border border-sky-900/60 bg-sky-950/90 p-3 text-white shadow-xl backdrop-blur">
+        <div className="flex flex-1 flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="relative h-14 w-14 overflow-hidden rounded-lg border border-sky-900/60 bg-sky-950/60">
+                <img
+                  src={coverImage}
+                  alt={title}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onPrevious}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-sky-900/60 bg-sky-950/60 text-white transition hover:border-sky-600 hover:bg-sky-900/60 disabled:opacity-40"
+                  disabled={!onPrevious}
+                  title="Previous song"
+                  aria-label="Previous song"
+                >
+                  <AiFillStepBackward size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={onPlayPause}
+                  className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400 text-slate-900 transition hover:bg-emerald-300 disabled:opacity-50"
+                  disabled={!isLoaded || !onPlayPause}
+                  title={isPlaying ? 'Pause' : 'Play'}
+                  aria-label={isPlaying ? 'Pause' : 'Play'}
+                >
+                  {isPlaying ? <BsPauseFill size={24} /> : <BsPlayFill size={24} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={onNext}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-sky-900/60 bg-sky-950/60 text-white transition hover:border-sky-600 hover:bg-sky-900/60 disabled:opacity-40"
+                  disabled={!onNext}
+                  title="Next song"
+                  aria-label="Next song"
+                >
+                  <AiFillStepForward size={18} />
+                </button>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onExpand}
+              className="flex items-center gap-2 rounded-full bg-amber-400 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow transition hover:bg-amber-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+              title="Open full player"
+              aria-label="Open full player"
+            >
+              <FiMaximize2 size={14} />
+              Open Player
+            </button>
+          </div>
+          <div className="space-y-1">
+            <p className="truncate text-sm font-semibold sm:text-base">{title}</p>
+            <p className="truncate text-xs text-sky-200/80 sm:text-sm">{author}</p>
+          </div>
+          <div className="space-y-1">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-sky-900/60">
+              <div
+                className="h-full rounded-full bg-emerald-400 transition-[width] duration-300"
+                style={{ width: `${Math.min(100, Math.max(0, progressValue * 100))}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] font-semibold text-sky-200/80 sm:text-xs">
+              <span>{totalFormatted}</span>
+              <span>-{remainingFormatted}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex w-12 flex-col items-center gap-3 rounded-lg bg-amber-400 px-2 py-3 text-slate-900 shadow transition hover:bg-amber-300 focus-within:outline-none focus-within:ring-2 focus-within:ring-amber-200">
+          <button
+            type="button"
+            onClick={onToggleMute}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500 text-slate-900 transition hover:bg-amber-400"
+            title={isMuted ? 'Unmute' : 'Mute'}
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
+          >
+            <VolumeIcon size={22} />
+          </button>
+          <div className="relative flex-1">
+            <Slider
+              orientation="vertical"
+              value={isMuted ? 0 : volume}
+              onChange={(value) => onVolumeChange?.(clamp(value))}
+              step={0.05}
+              ariaLabel="Volume"
+              styles={{ height: '100%' }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded, onProgressChange }) => {
   const volume = useSelector((state: RootState) => state.global.volume);
   const dispatch = useDispatch();
 
@@ -907,6 +1094,10 @@ const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded }) =>
     author: song.author,
     service: song.service,
   };
+
+  useEffect(() => {
+    onProgressChange?.({ currentTime: 0, duration: 0 });
+  }, [onProgressChange]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -973,8 +1164,11 @@ const Player = () => {
     (state: RootState) => state.global.downloads as Record<string, DownloadEntry>,
   );
   const imageCoverHash = useSelector((state: RootState) => state.global.imageCoverHash);
+  const volume = useSelector((state: RootState) => state.global.volume);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [playbackTimes, setPlaybackTimes] = useState({ currentTime: 0, duration: 0 });
+  const [externalControls, setExternalControls] = useState<PlayerExternalControls | null>(null);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -1083,6 +1277,19 @@ const Player = () => {
     };
   }, [dispatch, imageCoverHash, songItem]);
 
+  useEffect(() => {
+    if (!songUrl) {
+      setPlaybackTimes({ currentTime: 0, duration: 0 });
+    }
+  }, [songUrl]);
+
+  const handleVolumeChangeCollapsed = useCallback(
+    (value: number) => {
+      dispatch(setVolumePlayer(clamp(value)));
+    },
+    [dispatch],
+  );
+
   if (!songItem) return null;
 
   const percentLoaded = Math.round(songItem?.status?.percentLoaded ?? 0);
@@ -1114,39 +1321,43 @@ const Player = () => {
                 song={songItem}
                 songUrl={songUrl}
                 onPlaybackStateChange={setIsAudioPlaying}
+                onProgressChange={({ currentTime, duration }) =>
+                  setPlaybackTimes({ currentTime, duration })
+                }
+                onRegisterControls={setExternalControls}
               />
             ) : (
-              <PlayerLoading song={songItem} percentLoaded={percentLoaded} />
+              <PlayerLoading
+                song={songItem}
+                percentLoaded={percentLoaded}
+                onProgressChange={({ currentTime, duration }) =>
+                  setPlaybackTimes({ currentTime, duration })
+                }
+              />
             )}
           </div>
         </div>
       </div>
 
       {isCollapsed && (
-        <button
-          type="button"
-          onClick={() => setIsCollapsed(false)}
-          className="fixed bottom-4 right-4 z-40 flex items-center gap-3 rounded-full border border-sky-900/60 bg-sky-950/80 px-3 py-2 text-white shadow-lg backdrop-blur"
-          title="Show player"
-          aria-label="Show player"
-        >
-          <div className="relative h-12 w-12 overflow-hidden rounded-lg border border-sky-900/60 bg-sky-950/60">
-            <img src={coverImage} alt={songItem.title || 'Cover art'} className="absolute inset-0 h-full w-full object-cover" />
-          </div>
-          <div className="flex items-end gap-1">
-            {[0, 1, 2].map((bar) => (
-              <span
-                key={bar}
-                className="w-1.5 rounded-full bg-emerald-400"
-                style={{
-                  height: isAudioPlaying ? `${10 + bar * 4}px` : `${6 + bar * 2}px`,
-                  animation: isAudioPlaying ? `player-equalize 1.1s ease-in-out ${bar * 0.15}s infinite` : 'none',
-                  transformOrigin: 'bottom',
-                }}
-              />
-            ))}
-          </div>
-        </button>
+        <MiniPlayer
+          coverImage={coverImage}
+          title={songItem?.title || 'Unknown title'}
+          author={songItem?.author || 'Unknown artist'}
+          isPlaying={externalControls?.isPlaying ?? isAudioPlaying}
+          isLoaded={externalControls?.isLoaded ?? false}
+          progress={playbackTimes}
+          onExpand={() => setIsCollapsed(false)}
+          onPlayPause={
+            externalControls ? () => externalControls.togglePlayPause() : undefined
+          }
+          onNext={externalControls ? () => externalControls.next() : undefined}
+          onPrevious={externalControls ? () => externalControls.previous() : undefined}
+          onToggleMute={() => dispatch(setVolumePlayer(volume === 0 ? 0.75 : 0))}
+          isMuted={volume === 0}
+          volume={volume}
+          onVolumeChange={handleVolumeChangeCollapsed}
+        />
       )}
     </>
   );
