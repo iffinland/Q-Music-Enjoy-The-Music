@@ -1,6 +1,7 @@
 import { fetchRequestsFromQdn } from './qdnRequests';
 import { searchQdnResources } from '../utils/qortalApi';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
+import { SongRequest } from '../state/features/requestsSlice';
 
 type ResourceSummaryResult = {
   count: number;
@@ -128,8 +129,16 @@ export const fetchStatisticsSnapshot = async (): Promise<StatisticsSnapshot> => 
     result.publishers.forEach((publisher) => publisherSet.add(publisher));
   });
 
-  const { requests } = await fetchRequestsFromQdn();
-  const openRequests = requests.filter((request) => request.status !== 'filled').length;
+  const { requests, fills } = await fetchRequestsFromQdn();
+  const isRequestFilled = (request: SongRequest) => {
+    const normalizedStatus = typeof request?.status === 'string' ? request.status.toLowerCase() : '';
+    return normalizedStatus === 'filled'
+      || Boolean(request?.filledAt)
+      || Boolean(request?.filledBy)
+      || Boolean(request?.filledSongIdentifier)
+      || Boolean(fills?.[request.id]);
+  };
+  const openRequests = requests.filter((request) => !isRequestFilled(request)).length;
   const filledRequests = requests.length - openRequests;
 
   return {

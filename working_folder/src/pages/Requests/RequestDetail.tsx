@@ -6,12 +6,12 @@ import Button from '../../components/Button';
 import {
   fetchRequestsFromQdn,
   deleteRequest,
-  reportRequest,
 } from '../../services/qdnRequests';
 import { SongRequest } from '../../state/features/requestsSlice';
 import { RootState } from '../../state/store';
 import { toast } from 'react-hot-toast';
 import useFillRequestModal from '../../hooks/useFillRequestModal';
+import RequestRewardInfo from '../../components/requests/RequestRewardInfo';
 
 const formatTimestamp = (value?: number) => {
   if (!value) return '—';
@@ -97,24 +97,6 @@ const RequestDetail: React.FC = () => {
     }
   }, [navigate, request, username]);
 
-  const handleReport = useCallback(async () => {
-    if (!request) return;
-    if (!username) {
-      toast.error('Log in to report requests.');
-      return;
-    }
-    const reason = window.prompt('Describe the issue with this request (optional):', '');
-    if (reason === null) return;
-
-    try {
-      await reportRequest(username, request.id, reason || 'Reported without comment');
-      toast.success('Request was reported.');
-    } catch (err) {
-      console.error('Failed to report request', err);
-      toast.error('Could not report the request.');
-    }
-  }, [request, username]);
-
   const isOwner = useMemo(
     () => Boolean(request && username && request.publisher === username),
     [request, username],
@@ -172,6 +154,11 @@ const RequestDetail: React.FC = () => {
               </section>
             )}
 
+            <RequestRewardInfo
+              request={request}
+              onRequestUpdated={(updated) => setRequest(updated)}
+            />
+
             <div className="flex flex-wrap gap-3">
               <Button
                 onClick={handleFill}
@@ -185,14 +172,6 @@ const RequestDetail: React.FC = () => {
                   className="bg-red-600 hover:bg-red-500 text-white"
                 >
                   Delete
-                </Button>
-              )}
-              {username && username !== request.publisher && (
-                <Button
-                  onClick={handleReport}
-                  className="bg-amber-600 hover:bg-amber-500 text-white"
-                >
-                  Report
                 </Button>
               )}
               <Button

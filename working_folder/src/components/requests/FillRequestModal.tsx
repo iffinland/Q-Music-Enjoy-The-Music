@@ -13,7 +13,6 @@ import { objectToBase64, toBase64 } from '../../utils/toBase64';
 import { addNewSong, setImageCoverHash } from '../../state/features/globalSlice';
 import { removeTrailingUnderscore } from '../../utils/extra';
 import { upsertRequestFill } from '../../state/features/requestsSlice';
-import { useNavigate } from 'react-router-dom';
 
 const uid = new ShortUniqueId();
 
@@ -33,8 +32,8 @@ const buildIdentifierSegment = (value: string, limit: number) => {
 
 const FillRequestModal: React.FC = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const username = useSelector((state: RootState) => state.auth.user?.name);
+  const userAddress = useSelector((state: RootState) => state.auth.user?.address);
   const fillModal = useFillRequestModal();
   const [isLoading, setIsLoading] = useState(false);
   const successTimeoutRef = useRef<number | null>(null);
@@ -122,6 +121,10 @@ const FillRequestModal: React.FC = () => {
       toast.error('Log in to continue');
       return;
     }
+    if (!userAddress) {
+      toast.error('Account information missing. Please re-open the app.');
+      return;
+    }
 
     const imageFile = (values.image as FileList)?.[0];
     const songFile = (values.song as FileList)?.[0];
@@ -175,6 +178,7 @@ const FillRequestModal: React.FC = () => {
         id: fillIdentifier,
         requestId: fillModal.request.id,
         filledBy: username,
+        filledByAddress: userAddress,
         songIdentifier: identifier,
         songTitle: title,
         songArtist: author,
@@ -210,12 +214,12 @@ const FillRequestModal: React.FC = () => {
       dispatch(addNewSong(songData));
       dispatch(setImageCoverHash({ url: `data:image/webp;base64,${compressedImg}`, id: identifier }));
       dispatch(upsertRequestFill(fillPayload));
+      window.dispatchEvent(new CustomEvent('requests:refresh'));
 
-      toast.success('The request was filled successfully! Redirects...', { duration: successRedirectDelay });
+      toast.success('The request was filled successfully!', { duration: successRedirectDelay });
       successTimeoutRef.current = window.setTimeout(() => {
         reset();
         fillModal.onClose();
-        navigate('/');
         successTimeoutRef.current = null;
       }, successRedirectDelay);
     } catch (error) {

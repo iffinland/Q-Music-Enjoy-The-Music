@@ -111,7 +111,7 @@ export const AddLibrary: React.FC<LibraryProps> = ({
           className="flex w-full items-center gap-x-4 text-sky-200/80 hover:text-white font-medium text-sm transition focus:outline-none"
         >
           <BiListPlus className="text-current" size={18} />
-          <span>Request Song or Album</span>
+          <span>Requests and Fillings</span>
         </button>
         <button
           type="button"

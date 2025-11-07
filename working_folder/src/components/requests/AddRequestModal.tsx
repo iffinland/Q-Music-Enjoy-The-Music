@@ -1,5 +1,5 @@
 import ShortUniqueId from 'short-unique-id';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FieldValues, SubmitHandler, useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
@@ -12,13 +12,17 @@ import { RootState } from '../../state/store';
 import { objectToBase64 } from '../../utils/toBase64';
 import { removeTrailingUnderscore } from '../../utils/extra';
 import { SongRequest, upsertSongRequest } from '../../state/features/requestsSlice';
+import { updateRequest } from '../../services/qdnRequests';
 
 const uid = new ShortUniqueId();
+
+const DEFAULT_REWARD = '1';
 
 interface AddRequestFormValues {
   artist: string;
   title: string;
   info?: string;
+  rewardAmount: string;
 }
 
 const sanitizeForIdentifier = (value: string) => {
@@ -37,8 +41,35 @@ const AddRequestModal: React.FC = () => {
       artist: '',
       title: '',
       info: '',
+      rewardAmount: DEFAULT_REWARD,
     },
   });
+
+  const editingRequest = requestModal.editingRequest;
+  const isEditing = Boolean(editingRequest);
+
+  useEffect(() => {
+    if (!requestModal.isOpen) {
+      return;
+    }
+    if (editingRequest) {
+      reset({
+        artist: editingRequest.artist,
+        title: editingRequest.title,
+        info: editingRequest.info || '',
+        rewardAmount: editingRequest.rewardAmount !== undefined
+          ? String(editingRequest.rewardAmount)
+          : DEFAULT_REWARD,
+      });
+    } else {
+      reset({
+        artist: '',
+        title: '',
+        info: '',
+        rewardAmount: DEFAULT_REWARD,
+      });
+    }
+  }, [editingRequest, requestModal.isOpen, reset]);
 
   const onChange = (open: boolean) => {
     if (!open) {
@@ -56,54 +87,89 @@ const AddRequestModal: React.FC = () => {
     const artist = (values.artist as string)?.trim();
     const title = (values.title as string)?.trim();
     const info = (values.info as string)?.trim() || '';
+    const rewardAmountRaw = (values.rewardAmount as string)?.trim() || DEFAULT_REWARD;
+
+    const rewardAmount = Number.parseFloat(rewardAmountRaw);
+    if (!Number.isFinite(rewardAmount) || rewardAmount <= 0) {
+      toast.error('Sisesta kehtiv tasu, mis on suurem kui 0.');
+      return;
+    }
+
+    const rewardCoin = 'QORT';
 
     if (!artist || !title) {
       toast.error('Missing required fields');
       return;
     }
 
+    if (isEditing && editingRequest) {
+      if (editingRequest.publisher !== username) {
+        toast.error('Only the original author can edit this request.');
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
-      const uniqueId = uid(8);
-      const formattedTitle = sanitizeForIdentifier(title);
-      const identifier = `enjoymusic_request_${formattedTitle || uniqueId}_${uniqueId}`;
+      if (isEditing && editingRequest) {
+        const payload: SongRequest = {
+          ...editingRequest,
+          artist,
+          title,
+          info,
+          rewardAmount,
+          rewardCoin,
+        };
 
-      const payload: SongRequest = {
-        id: identifier,
-        artist,
-        title,
-        info,
-        created: Date.now(),
-        updated: Date.now(),
-        publisher: username,
-        status: 'open',
-      };
+        const updatedRequest = await updateRequest(payload);
+        dispatch(upsertSongRequest(updatedRequest));
+        toast.success('Request updated!');
+      } else {
+        const uniqueId = uid(8);
+        const formattedTitle = sanitizeForIdentifier(title);
+        const identifier = `enjoymusic_request_${formattedTitle || uniqueId}_${uniqueId}`;
 
-      const data64 = await objectToBase64(payload);
-      const resources = [
-        {
-          name: username,
-          service: 'DOCUMENT',
-          data64,
-          identifier,
-          filename: `${formattedTitle || uniqueId}.json`,
-          title: `Request: ${title}`.slice(0, 55),
-          description: `${artist} - ${title}`,
-        },
-      ];
+        const payload: SongRequest = {
+          id: identifier,
+          artist,
+          title,
+          info,
+          created: Date.now(),
+          updated: Date.now(),
+          publisher: username,
+          status: 'open',
+          rewardAmount,
+          rewardCoin,
+        };
 
-      await qortalRequest({
-        action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
-        resources,
-      });
+        const data64 = await objectToBase64(payload);
+        const resources = [
+          {
+            name: username,
+            service: 'DOCUMENT',
+            data64,
+            identifier,
+            filename: `${formattedTitle || uniqueId}.json`,
+            title: `Request: ${title}`.slice(0, 55),
+            description: `${artist} - ${title}`,
+          },
+        ];
 
-      dispatch(upsertSongRequest(payload));
-      toast.success('Request added!');
+        await qortalRequest({
+          action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+          resources,
+        });
+
+        dispatch(upsertSongRequest(payload));
+        toast.success('Request added!');
+      }
+
       reset();
       requestModal.onClose();
+      window.dispatchEvent(new CustomEvent('requests:refresh'));
     } catch (error) {
-      toast.error('Failed to add request');
+      toast.error(isEditing ? 'Failed to update request' : 'Failed to add request');
     } finally {
       setIsLoading(false);
     }
@@ -111,8 +177,8 @@ const AddRequestModal: React.FC = () => {
 
   return (
     <Modal
-      title="Add new request"
-      description="Request a song, album, or artist to be added"
+      title={isEditing ? 'Edit request' : 'Add new request'}
+      description={isEditing ? 'Update the request details' : 'Request a song, album, or artist to be added'}
       isOpen={requestModal.isOpen}
       onChange={onChange}
     >
@@ -136,8 +202,25 @@ const AddRequestModal: React.FC = () => {
           className="h-32 resize-none"
           {...register('info')}
         />
+        <div className="space-y-2">
+          <label htmlFor="reward-amount" className="text-sm font-semibold text-sky-100">
+            Fill reward (QORT)
+          </label>
+          <Input
+            id="reward-amount"
+            type="number"
+            min="0.00000001"
+            step="0.00000001"
+            disabled={isLoading}
+            placeholder="1"
+            {...register('rewardAmount')}
+          />
+          <p className="text-xs text-sky-300/70">
+            See summa makstakse täitjale käsitsi pärast requesti kinnitamist.
+          </p>
+        </div>
         <Button disabled={isLoading} type="submit" className="bg-amber-600 hover:bg-amber-500">
-          ADD REQUEST
+          {isEditing ? 'SAVE CHANGES' : 'ADD REQUEST'}
         </Button>
       </form>
     </Modal>

@@ -61,7 +61,13 @@ const formatBalanceDisplay = (balance: number | null): string => {
 };
 
 const SendTipModal: React.FC = () => {
-  const { isOpen, recipient, close } = useSendTipModal();
+  const {
+    isOpen,
+    recipient,
+    amount: presetAmount,
+    onSuccess,
+    close,
+  } = useSendTipModal();
   const [amount, setAmount] = useState<string>(DEFAULT_AMOUNT);
   const [balance, setBalance] = useState<number | null>(null);
   const [isBalanceLoading, setIsBalanceLoading] = useState<boolean>(false);
@@ -89,6 +95,12 @@ const SendTipModal: React.FC = () => {
       }
       return;
     }
+
+    const initialAmount =
+      presetAmount !== undefined && presetAmount !== null
+        ? formatAmountValue(presetAmount)
+        : DEFAULT_AMOUNT;
+    setAmount(initialAmount);
 
     let isCancelled = false;
 
@@ -121,7 +133,7 @@ const SendTipModal: React.FC = () => {
     return () => {
       isCancelled = true;
     };
-  }, [isOpen]);
+  }, [isOpen, presetAmount]);
 
   const handleClose = () => {
     if (successTimeoutRef.current) {
@@ -167,6 +179,14 @@ const SendTipModal: React.FC = () => {
         recipient,
         amount: numericAmount,
       });
+
+      if (onSuccess) {
+        try {
+          await onSuccess(numericAmount);
+        } catch (error) {
+          console.error('Post-tip callback failed', error);
+        }
+      }
 
       toast.success('Tip sending was successful.', {
         duration: 2500,

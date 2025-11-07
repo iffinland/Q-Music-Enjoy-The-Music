@@ -4,7 +4,6 @@ import { searchQdnResources } from '../utils/qortalApi';
 
 const REQUEST_IDENTIFIER_PREFIX = 'enjoymusic_request_';
 const REQUEST_FILL_IDENTIFIER_PREFIX = 'enjoymusic_request_fill_';
-const REQUEST_REPORT_PREFIX = 'enjoymusic_request_report_';
 
 const PAGE_SIZE = 200;
 
@@ -105,6 +104,7 @@ export const fetchRequestsFromQdn = async (): Promise<FetchRequestsResult> => {
         status: 'filled' as const,
         filledAt: matchingFill.created,
         filledBy: matchingFill.filledBy,
+        filledByAddress: matchingFill.filledByAddress,
         filledSongIdentifier: matchingFill.songIdentifier,
         filledSongTitle: matchingFill.songTitle,
         filledSongArtist: matchingFill.songArtist,
@@ -124,39 +124,6 @@ export const deleteRequest = async (publisher: string, identifier: string) => {
     name: publisher,
     service: 'DOCUMENT',
     identifier,
-  });
-};
-
-export const reportRequest = async (
-  reporter: string,
-  requestId: string,
-  reason: string,
-) => {
-  const reportIdentifier = `${REQUEST_REPORT_PREFIX}${requestId}_${Date.now()}`;
-  const payload = {
-    id: reportIdentifier,
-    requestId,
-    reporter,
-    reason,
-    created: Date.now(),
-  };
-
-  const data64 = await objectToBase64(payload);
-
-  await qortalRequest({
-    action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
-    resources: [
-      {
-        name: reporter,
-        service: 'DOCUMENT',
-        data64,
-        identifier: reportIdentifier,
-        filename: `${reportIdentifier}.json`,
-        title: `Request report ${requestId}`.slice(0, 55),
-        description: reason.slice(0, 4000),
-        encoding: 'base64',
-      },
-    ],
   });
 };
 
@@ -197,4 +164,26 @@ export const fetchRequestsByPublisher = async (publisher: string): Promise<SongR
   }
 
   return requests.sort((a, b) => (b.created ?? 0) - (a.created ?? 0));
+};
+
+export const updateRequest = async (request: SongRequest): Promise<SongRequest> => {
+  const payload: SongRequest = {
+    ...request,
+    updated: Date.now(),
+  };
+
+  const data64 = await objectToBase64(payload);
+
+  await qortalRequest({
+    action: 'PUBLISH_QDN_RESOURCE',
+    name: request.publisher,
+    service: 'DOCUMENT',
+    identifier: request.id,
+    data64,
+    encoding: 'base64',
+    title: `Request: ${payload.title}`.slice(0, 55),
+    description: `${payload.artist} — ${payload.title}`.slice(0, 4000),
+  });
+
+  return payload;
 };

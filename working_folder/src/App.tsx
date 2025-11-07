@@ -22,6 +22,7 @@ import PodcastDetail from "./pages/Podcasts/PodcastDetail";
 import Audiobooks from "./pages/Audiobooks/Audiobooks";
 import AudiobookDetail from "./pages/Audiobooks/AudiobookDetail";
 import Requests from "./pages/Requests/Requests";
+import FilledRequests from "./pages/Requests/FilledRequests";
 import SongDetail from "./pages/Song/SongDetail";
 
 function App() {
@@ -46,6 +47,7 @@ function App() {
             <Route path="/songs/:publisher/:identifier" element={<SongDetail />} />
             <Route path="/songs" element={<BrowseAllSongs />} />
             <Route path="/requests" element={<Requests />} />
+            <Route path="/requests/filled" element={<FilledRequests />} />
             <Route path="/videos" element={<Videos />} />
             <Route path="/videos/:publisher/:identifier" element={<VideoDetail />} />
             <Route path="/podcasts" element={<Podcasts />} />

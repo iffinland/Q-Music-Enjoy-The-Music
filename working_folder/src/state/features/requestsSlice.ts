@@ -13,15 +13,22 @@ export interface SongRequest {
   status: RequestStatus;
   filledAt?: number;
   filledBy?: string;
+  filledByAddress?: string;
   filledSongIdentifier?: string;
   filledSongTitle?: string;
   filledSongArtist?: string;
+  rewardAmount?: number;
+  rewardCoin?: string;
+  rewardPaidAt?: number;
+  rewardPaidBy?: string;
+  rewardPaidAmount?: number;
 }
 
 export interface RequestFill {
   id: string;
   requestId: string;
   filledBy: string;
+  filledByAddress?: string;
   songIdentifier: string;
   songTitle: string;
   songArtist: string;
@@ -53,7 +60,27 @@ export const requestsSlice = createSlice({
       state.error = action.payload;
     },
     setSongRequests(state, action: PayloadAction<SongRequest[]>) {
-      state.requests = action.payload;
+      const existingById = new Map(state.requests.map((request) => [request.id, request]));
+      state.requests = action.payload.map((incoming) => {
+        const previous = existingById.get(incoming.id);
+        if (!previous) {
+          return incoming;
+        }
+
+        if (previous.status === 'filled' && incoming.status !== 'filled') {
+          return {
+            ...incoming,
+            status: previous.status,
+            filledAt: previous.filledAt,
+            filledBy: previous.filledBy,
+            filledSongIdentifier: previous.filledSongIdentifier,
+            filledSongTitle: previous.filledSongTitle,
+            filledSongArtist: previous.filledSongArtist,
+          };
+        }
+
+        return incoming;
+      });
     },
     upsertSongRequest(state, action: PayloadAction<SongRequest>) {
       const incoming = action.payload;
@@ -65,7 +92,10 @@ export const requestsSlice = createSlice({
       }
     },
     setRequestFills(state, action: PayloadAction<Record<string, RequestFill>>) {
-      state.fills = action.payload;
+      state.fills = {
+        ...state.fills,
+        ...action.payload,
+      };
     },
     upsertRequestFill(state, action: PayloadAction<RequestFill>) {
       const incoming = action.payload;
@@ -78,6 +108,7 @@ export const requestsSlice = createSlice({
           status: 'filled',
           filledAt: incoming.created,
           filledBy: incoming.filledBy,
+          filledByAddress: incoming.filledByAddress,
           filledSongIdentifier: incoming.songIdentifier,
           filledSongTitle: incoming.songTitle,
           filledSongArtist: incoming.songArtist,

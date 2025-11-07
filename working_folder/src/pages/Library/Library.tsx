@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import localforage from 'localforage';
 import Header from '../../components/Header';
 import Box from '../../components/Box';
+import RequestRewardInfo from '../../components/requests/RequestRewardInfo';
 import LibrarySongList from '../../components/library/LibrarySongList';
 import LibraryPodcastCard from '../../components/library/LibraryPodcastCard';
 import LibraryAudiobookCard from '../../components/library/LibraryAudiobookCard';
@@ -530,6 +531,9 @@ export const Library: React.FC = () => {
               Filled by {request.filledBy || 'unknown'} — {request.filledSongArtist} · {request.filledSongTitle}
             </div>
           )}
+          <div className="mt-3">
+            <RequestRewardInfo request={request} />
+          </div>
         </div>
       ))}
     </div>

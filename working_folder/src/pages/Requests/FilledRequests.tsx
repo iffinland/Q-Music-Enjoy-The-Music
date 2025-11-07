@@ -13,18 +13,12 @@ import {
   SongRequest,
 } from '../../state/features/requestsSlice';
 import useRequestModal from '../../hooks/useRequestModal';
-import useFillRequestModal from '../../hooks/useFillRequestModal';
 import { fetchRequestsFromQdn } from '../../services/qdnRequests';
-import { FiEdit2 } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
-import RequestLikeButton from '../../components/requests/RequestLikeButton';
 import RequestRewardInfo from '../../components/requests/RequestRewardInfo';
 
-const Requests: React.FC = () => {
+const FilledRequests: React.FC = () => {
   const dispatch = useDispatch();
   const requestModal = useRequestModal();
-  const fillModal = useFillRequestModal();
-  const username = useSelector((state: RootState) => state.auth.user?.name);
   const navigate = useNavigate();
 
   const { requests, isLoading, error, fills } = useSelector((state: RootState) => state.requests);
@@ -67,8 +61,8 @@ const Requests: React.FC = () => {
       || Boolean(fills[request.id]);
   }, [fills]);
 
-  const openRequests = useMemo(
-    () => requests.filter((request) => !isRequestFilled(request)),
+  const filledRequests = useMemo(
+    () => requests.filter((request) => isRequestFilled(request)),
     [requests, isRequestFilled],
   );
 
@@ -81,33 +75,13 @@ const Requests: React.FC = () => {
     }
   };
 
-  const handleEditRequest = useCallback((
-    event: React.MouseEvent<HTMLButtonElement>,
-    request: SongRequest,
-  ) => {
-    event.stopPropagation();
-    event.preventDefault();
-
-    if (!username) {
-      toast.error('Log in to edit requests.');
-      return;
-    }
-
-    if (username !== request.publisher) {
-      toast.error('Only the original author can edit this request.');
-      return;
-    }
-
-    requestModal.onOpen(request);
-  }, [requestModal, username]);
-
   return (
     <div className="px-4 py-6 space-y-6">
       <Header>
         <div className="flex flex-col gap-y-4 md:flex-row md:items-center md:justify-between">
           <div className="text-center md:text-left">
-            <h1 className="text-3xl font-bold text-white">Requests</h1>
-            <p className="text-sky-300/80">Ask the community for songs and fill existing requests.</p>
+            <h1 className="text-3xl font-bold text-white">Filled Requests</h1>
+            <p className="text-sky-300/80">Browse the latest completed requests and share feedback.</p>
           </div>
           <div className="flex flex-col gap-y-2 md:flex-row md:gap-x-2">
             <Button
@@ -135,15 +109,15 @@ const Requests: React.FC = () => {
 
       <div className="flex flex-col gap-3 md:flex-row md:items-center">
         <Button
-          className="flex-1 min-h-[48px] rounded-md bg-emerald-500/90 px-5 py-3 text-base font-semibold text-black shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 aria-[current=page]:shadow-slate-950/70 aria-[current=page]:bg-sky-700/80 aria-[current=page]:text-white aria-[current=page]:border aria-[current=page]:border-sky-800/60"
+          className="flex-1 min-h-[48px] rounded-md border border-emerald-700/70 bg-emerald-900/40 px-5 py-3 text-base font-semibold text-emerald-100 shadow-lg shadow-emerald-950/50 transition hover:bg-emerald-500/80 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 aria-[current=page]:bg-sky-700/80 aria-[current=page]:text-white aria-[current=page]:border-sky-800/60 aria-[current=page]:shadow-slate-950/70"
           onClick={() => navigate('/requests')}
-          aria-current="page"
         >
           Open Requests
         </Button>
         <Button
-          className="flex-1 min-h-[48px] rounded-md border border-sky-800/60 bg-sky-900/70 px-5 py-3 text-base font-semibold text-sky-100 shadow-lg shadow-sky-950/60 transition hover:bg-sky-800/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+          className="flex-1 min-h-[48px] rounded-md bg-sky-700/80 px-5 py-3 text-base font-semibold text-white shadow-lg shadow-slate-950/70 transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
           onClick={() => navigate('/requests/filled')}
+          aria-current="page"
         >
           Filled Requests
         </Button>
@@ -158,21 +132,16 @@ const Requests: React.FC = () => {
       <section className="rounded-lg border border-sky-900/60 bg-sky-950/70">
         <header className="flex flex-col gap-y-1 border-b border-sky-900/60 px-4 py-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-white">Open requests</h2>
-            <p className="text-sm text-sky-300/80">Newest requests appear first.</p>
+            <h2 className="text-xl font-semibold text-white">Recently filled</h2>
+            <p className="text-sm text-sky-300/80">Completed requests stay here for reference.</p>
           </div>
-          <span className="text-sm text-sky-200/70">{openRequests.length} open</span>
+          <span className="text-sm text-sky-200/70">{filledRequests.length} filled</span>
         </header>
-        {isLoading && openRequests.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sky-200/70">Loading requests…</div>
-        ) : openRequests.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sky-200/70">
-            No pending requests yet. Be the first one to submit a request!
-          </div>
+        {filledRequests.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sky-200/70">No filled requests yet.</div>
         ) : (
           <ul className="divide-y divide-sky-900/60">
-            {openRequests.map((request) => {
-              const isFilled = isRequestFilled(request);
+            {filledRequests.map((request) => {
               const fill = fills[request.id];
               return (
                 <li
@@ -198,49 +167,32 @@ const Requests: React.FC = () => {
                     <p className="text-xs text-sky-400/70">
                       Requested by {request.publisher} · {formatTimestamp(request.created)}
                     </p>
-                    <div className="flex flex-wrap gap-2 pt-2 text-xs">
-                      <RequestLikeButton request={request} username={username} />
-                      {username === request.publisher && (
-                        <button
-                          type="button"
-                          onClick={(event) => handleEditRequest(event, request)}
-                          className="flex items-center gap-1 rounded border border-sky-500/60 px-2 py-1 text-sky-200 transition hover:bg-sky-500/20"
-                        >
-                          <FiEdit2 />
-                          Edit
-                        </button>
-                      )}
-                    </div>
+                    {fill && (
+                      <p className="text-xs text-emerald-300/80">
+                        Filled by {fill.filledBy} · {fill.songArtist} — {fill.songTitle} (
+                        {formatTimestamp(fill.created)})
+                      </p>
+                    )}
                     <div className="pt-3">
                       <RequestRewardInfo request={request} fill={fill} />
                     </div>
                   </div>
                   <div className="w-full md:w-40">
                     <Button
-                      className={`py-2 px-4 rounded-full md:w-full ${
-                        isFilled
-                          ? 'bg-sky-800/60 text-sky-200/70 cursor-not-allowed'
-                          : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                      }`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (isFilled) return;
-                          fillModal.onOpen(request);
-                        }}
-                        disabled={isFilled}
-                      >
-                        {isFilled ? 'FILLED' : 'FILL IT'}
-                      </Button>
-                    </div>
-                  </li>
+                      className="bg-sky-800/60 text-sky-200/70 cursor-not-allowed py-2 px-4 rounded-full md:w-full"
+                      disabled
+                    >
+                      FILLED
+                    </Button>
+                  </div>
+                </li>
               );
             })}
           </ul>
         )}
       </section>
-
     </div>
   );
 };
 
-export default Requests;
+export default FilledRequests;
