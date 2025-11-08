@@ -73,10 +73,10 @@ const RequestRewardInfo: React.FC<RequestRewardInfoProps> = ({ request, fill, on
         onRequestUpdated(updatedRequest);
       }
       window.dispatchEvent(new CustomEvent('requests:refresh'));
-      toast.success('Tasu märgitud makstuks.');
+      toast.success('Reward marked as paid.');
     } catch (error) {
       console.error('Failed to update reward status', error);
-      toast.error('Tasu märkimine ebaõnnestus. Kontrolli võrguühendust ja proovi uuesti.');
+      toast.error('Failed to mark the reward as paid. Check your connection and try again.');
     }
   };
 
@@ -84,7 +84,7 @@ const RequestRewardInfo: React.FC<RequestRewardInfoProps> = ({ request, fill, on
     event.stopPropagation();
     event.preventDefault();
     if (!fillerAddress) {
-      toast.error('Täiteja aadressi ei leitud.');
+      toast.error('Fulfiller address was not found.');
       return;
     }
     sendTipModal.open({
@@ -99,11 +99,11 @@ const RequestRewardInfo: React.FC<RequestRewardInfoProps> = ({ request, fill, on
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="font-semibold text-amber-100">
-            Täitmistasu: {formatAmount(rewardAmount)} {rewardCoin}
+            Completion reward: {formatAmount(rewardAmount)} {rewardCoin}
           </p>
           {rewardPaidAt ? (
             <p className="text-xs text-amber-200/80">
-              Makstud {formatTimestamp(rewardPaidAt)}
+              Paid on {formatTimestamp(rewardPaidAt)}
               {rewardPaidBy ? ` · ${rewardPaidBy}` : ''}
               {request.rewardPaidAmount
                 ? ` · ${formatAmount(request.rewardPaidAmount)} ${rewardCoin}`
@@ -113,9 +113,9 @@ const RequestRewardInfo: React.FC<RequestRewardInfoProps> = ({ request, fill, on
             <p className="text-xs text-amber-200/80">
               {isOwner
                 ? fillerName
-                  ? `Ootel väljamakse ${fillerName} (${fillerAddress})`
-                  : 'Ootel väljamakse täitjale'
-                : 'Ootel makse avaldajalt'}
+                  ? `Pending payout to ${fillerName} (${fillerAddress})`
+                  : 'Pending payout to the fulfiller'
+                : 'Waiting for payment from the publisher'}
             </p>
           )}
         </div>
@@ -124,12 +124,12 @@ const RequestRewardInfo: React.FC<RequestRewardInfoProps> = ({ request, fill, on
             onClick={handlePayReward}
             className="bg-amber-500 text-black hover:bg-amber-400 px-4 py-2 text-xs font-semibold uppercase"
           >
-            Maksa välja
+            Send reward
           </Button>
         )}
       </div>
       {!rewardPaidAt && !canPayReward && isOwner && !isFilled && (
-        <p className="mt-2 text-xs text-amber-200/70">Tasu saab maksta pärast requesti täitmist.</p>
+        <p className="mt-2 text-xs text-amber-200/70">You can send the reward after the request is filled.</p>
       )}
     </div>
   );

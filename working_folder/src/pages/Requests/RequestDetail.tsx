@@ -1,16 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 import Header from '../../components/Header';
 import Button from '../../components/Button';
 import {
   fetchRequestsFromQdn,
-  deleteRequest,
 } from '../../services/qdnRequests';
 import { SongRequest } from '../../state/features/requestsSlice';
-import { RootState } from '../../state/store';
-import { toast } from 'react-hot-toast';
-import useFillRequestModal from '../../hooks/useFillRequestModal';
 import RequestRewardInfo from '../../components/requests/RequestRewardInfo';
 
 const formatTimestamp = (value?: number) => {
@@ -25,8 +20,6 @@ const formatTimestamp = (value?: number) => {
 const RequestDetail: React.FC = () => {
   const { publisher, requestId } = useParams();
   const navigate = useNavigate();
-  const username = useSelector((state: RootState) => state.auth.user?.name);
-  const fillModal = useFillRequestModal();
 
   const [request, setRequest] = useState<SongRequest | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -70,45 +63,13 @@ const RequestDetail: React.FC = () => {
     navigate('/requests');
   }, [navigate]);
 
-  const handleFill = useCallback(() => {
-    if (!request) return;
-    fillModal.onOpen(request);
-  }, [fillModal, request]);
-
-  const handleDelete = useCallback(async () => {
-    if (!request) return;
-    if (!username) {
-      toast.error('Log in to manage requests.');
-      return;
-    }
-    if (username !== request.publisher) {
-      toast.error('Only the original author can delete this request.');
-      return;
-    }
-
-    try {
-      await deleteRequest(request.publisher, request.id);
-      toast.success('Request deleted.');
-      window.dispatchEvent(new CustomEvent('statistics:refresh'));
-      navigate('/requests');
-    } catch (err) {
-      console.error('Failed to delete request', err);
-      toast.error('Could not delete the request.');
-    }
-  }, [navigate, request, username]);
-
-  const isOwner = useMemo(
-    () => Boolean(request && username && request.publisher === username),
-    [request, username],
-  );
-
   return (
     <div className="px-4 py-6 space-y-6">
       <Header>
         <div className="flex flex-col gap-y-2">
           <h1 className="text-3xl font-bold text-white">Request details</h1>
           <p className="text-sky-300/80">
-            Review the request information, fill it, or manage it if you are the author.
+            Review the information and track the status of this request.
           </p>
         </div>
       </Header>
@@ -161,22 +122,8 @@ const RequestDetail: React.FC = () => {
 
             <div className="flex flex-wrap gap-3">
               <Button
-                onClick={handleFill}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white"
-              >
-                Fill this request
-              </Button>
-              {isOwner && (
-                <Button
-                  onClick={handleDelete}
-                  className="bg-red-600 hover:bg-red-500 text-white"
-                >
-                  Delete
-                </Button>
-              )}
-              <Button
                 onClick={handleGoBack}
-                className="border border-sky-700/70 text-sky-200/80 hover:bg-sky-900/30"
+                className="rounded-md bg-sky-800/80 px-5 py-3 font-semibold text-white shadow-lg shadow-sky-950/40 transition hover:bg-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
               >
                 Back to list
               </Button>
