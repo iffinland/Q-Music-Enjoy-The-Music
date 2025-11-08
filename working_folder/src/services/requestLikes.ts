@@ -5,8 +5,19 @@ import { SongRequest } from '../state/features/requestsSlice';
 const REQUEST_LIKE_PREFIX = 'enjoymusic_request_like_';
 const LIKE_FETCH_LIMIT = 50;
 
-export const buildRequestLikeIdentifier = (requestId: string): string =>
-  `${REQUEST_LIKE_PREFIX}${requestId}`;
+const hashRequestId = (requestId: string): string => {
+  let hash = 0;
+  for (let i = 0; i < requestId.length; i += 1) {
+    hash = (hash * 31 + requestId.charCodeAt(i)) >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+};
+
+export const buildRequestLikeIdentifier = (requestId: string): string => {
+  const tail = requestId.slice(-16);
+  const fingerprint = `${hashRequestId(requestId)}_${tail}`;
+  return `${REQUEST_LIKE_PREFIX}${fingerprint}`;
+};
 
 export const fetchRequestLikers = async (requestId: string): Promise<string[]> => {
   const likers = new Set<string>();

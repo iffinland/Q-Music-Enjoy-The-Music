@@ -127,12 +127,6 @@ const Requests: React.FC = () => {
         </div>
       </Header>
 
-      <Box className="border border-amber-600/40 bg-amber-900/30 p-4 text-sm text-amber-100 shadow-lg shadow-amber-900/20">
-        <p className="font-semibold uppercase tracking-wide text-amber-200">
-          Earn QRRTs by fulfilling every request (coming soon)
-        </p>
-      </Box>
-
       <div className="flex flex-col gap-3 md:flex-row md:items-center">
         <Button
           className="flex-1 min-h-[48px] rounded-md bg-emerald-500/90 px-5 py-3 text-base font-semibold text-black shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 aria-[current=page]:shadow-slate-950/70 aria-[current=page]:bg-sky-700/80 aria-[current=page]:text-white aria-[current=page]:border aria-[current=page]:border-sky-800/60"
