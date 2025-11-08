@@ -204,7 +204,7 @@ const AddRequestModal: React.FC = () => {
         />
         <div className="space-y-2">
           <label htmlFor="reward-amount" className="text-sm font-semibold text-sky-100">
-            Fill reward (QORT)
+            Add fill reward what you wish to pay to filler(QORT) - (OPTIONAL)
           </label>
           <Input
             id="reward-amount"
@@ -216,7 +216,7 @@ const AddRequestModal: React.FC = () => {
             {...register('rewardAmount')}
           />
           <p className="text-xs text-sky-300/70">
-            See summa makstakse täitjale käsitsi pärast requesti kinnitamist.
+            This amount will be paid to the fulfiller after the request is confirmed.
           </p>
         </div>
         <Button disabled={isLoading} type="submit" className="bg-amber-600 hover:bg-amber-500">
