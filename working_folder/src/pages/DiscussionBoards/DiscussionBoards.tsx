@@ -1,42 +1,63 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiMessageCircle, FiPlusCircle, FiEdit3, FiSend } from 'react-icons/fi';
+import {
+  FiArrowLeft,
+  FiEdit3,
+  FiMessageCircle,
+  FiPlusCircle,
+  FiRefreshCcw,
+  FiSend,
+} from 'react-icons/fi';
 import { HiOutlineLockClosed } from 'react-icons/hi';
 import { toast } from 'react-hot-toast';
 import Header from '../../components/Header';
 import Box from '../../components/Box';
 import Button from '../../components/Button';
 import {
-  createReply,
-  createThread,
+  addReplyToThread,
   DiscussionReply,
   DiscussionThread,
   ReplyAccess,
-  updateReply,
-  updateThread,
+  setDiscussionThreads,
+  setDiscussionsError,
+  setDiscussionsLoading,
+  upsertDiscussionThread,
+  updateReplyInThread,
 } from '../../state/features/discussionsSlice';
 import { RootState } from '../../state/store';
+import {
+  fetchDiscussionThreadsFromQdn,
+  publishDiscussionReply,
+  publishDiscussionThread,
+  updateDiscussionReply,
+} from '../../services/discussionBoards';
 
 const replyAccessOptions: Array<{ label: string; value: ReplyAccess; helper: string }> = [
   {
     label: 'Everyone can reply',
     value: 'everyone',
-    helper: 'Open community discussion.',
+    helper: 'Perfect for open conversations.',
   },
   {
     label: 'Only thread author',
     value: 'publisher',
-    helper: 'Use for announcements or locked notes.',
+    helper: 'Use this for updates & announcements.',
   },
   {
     label: 'Specific usernames',
     value: 'custom',
-    helper: 'Allow replies only from selected contributors.',
+    helper: 'Restrict replies to a curated list.',
   },
 ];
 
-const formatTimestamp = (value: number) => {
+const formatTimestamp = (value?: number) => {
+  if (!value) return '—';
   try {
     return new Date(value).toLocaleString();
   } catch {
@@ -47,21 +68,17 @@ const formatTimestamp = (value: number) => {
 const formatChips = (value: string) => value
   .split(',')
   .map((chip) => chip.trim())
-  .filter(Boolean);
+  .filter((chip) => chip.length > 0);
 
 const DiscussionBoards: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const threads = useSelector((state: RootState) => state.discussions.threads);
+  const { threads, isLoading, error } = useSelector((state: RootState) => state.discussions);
   const username = useSelector((state: RootState) => state.auth.user?.name || '');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showComposer, setShowComposer] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
-  const [newReplyDraft, setNewReplyDraft] = useState('');
-  const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
-  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
-  const [replyEditDraft, setReplyEditDraft] = useState('');
 
   const [composerState, setComposerState] = useState({
     title: '',
@@ -80,14 +97,43 @@ const DiscussionBoards: React.FC = () => {
     status: 'open' as 'open' | 'locked',
   });
 
+  const [newReplyDraft, setNewReplyDraft] = useState('');
+  const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [replyEditDraft, setReplyEditDraft] = useState('');
+
+  const [isPublishingThread, setIsPublishingThread] = useState(false);
+  const [isSavingThreadEdit, setIsSavingThreadEdit] = useState(false);
+  const [isPostingReply, setIsPostingReply] = useState(false);
+  const [isSavingReplyEdit, setIsSavingReplyEdit] = useState(false);
+
+  const loadThreads = useCallback(async () => {
+    dispatch(setDiscussionsLoading(true));
+    dispatch(setDiscussionsError(null));
+    try {
+      const data = await fetchDiscussionThreadsFromQdn();
+      dispatch(setDiscussionThreads(data));
+    } catch (err: any) {
+      const message = err?.message || 'Failed to load discussion threads.';
+      dispatch(setDiscussionsError(message));
+      toast.error(message);
+    } finally {
+      dispatch(setDiscussionsLoading(false));
+    }
+  }, [dispatch]);
+
+  useEffect(() => {
+    loadThreads();
+  }, [loadThreads]);
+
   useEffect(() => {
     if (!selectedThreadId && threads.length > 0) {
       setSelectedThreadId(threads[0].id);
     }
   }, [threads, selectedThreadId]);
 
-  const selectedThread = useMemo(
-    () => threads.find((thread) => thread.id === selectedThreadId) || null,
+  const selectedThread = useMemo<DiscussionThread | null>(
+    () => threads.find((thread) => thread.id === selectedThreadId) ?? null,
     [threads, selectedThreadId],
   );
 
@@ -111,6 +157,7 @@ const DiscussionBoards: React.FC = () => {
       thread.title.toLowerCase().includes(term)
       || thread.body.toLowerCase().includes(term)
       || thread.tags.some((tag) => tag.toLowerCase().includes(term))
+      || thread.publisher.toLowerCase().includes(term)
     ));
   }, [threads, searchTerm]);
 
@@ -122,18 +169,18 @@ const DiscussionBoards: React.FC = () => {
       return username === selectedThread.publisher;
     }
     if (selectedThread.replyAccess === 'custom') {
-      const normalized = selectedThread.allowedResponders.map((entry) => entry.toLowerCase());
-      return (
-        username === selectedThread.publisher
-        || normalized.includes(username.toLowerCase())
-      );
+      if (username === selectedThread.publisher) {
+        return true;
+      }
+      const normalized = selectedThread.allowedResponders.map((item) => item.toLowerCase());
+      return normalized.includes(username.toLowerCase());
     }
     return false;
   }, [selectedThread, username]);
 
-  const handleCreateThread = () => {
+  const handleCreateThread = async () => {
     if (!username) {
-      toast.error('Log in to create a thread.');
+      toast.error('Log in to publish threads.');
       return;
     }
     if (!composerState.title.trim() || !composerState.body.trim()) {
@@ -141,56 +188,72 @@ const DiscussionBoards: React.FC = () => {
       return;
     }
 
-    const tags = formatChips(composerState.tags);
-    const allowedResponders = formatChips(composerState.allowed);
-
-    const actionResult = dispatch(createThread({
-      title: composerState.title.trim(),
-      body: composerState.body.trim(),
-      tags,
-      replyAccess: composerState.replyAccess,
-      allowedResponders,
-      publisher: username,
-    }));
-
-    if ('payload' in actionResult && actionResult.payload && typeof actionResult.payload === 'object' && 'id' in actionResult.payload) {
-      setSelectedThreadId((actionResult.payload as DiscussionThread).id);
+    setIsPublishingThread(true);
+    try {
+      const tags = formatChips(composerState.tags);
+      const allowedResponders = formatChips(composerState.allowed);
+      const thread = await publishDiscussionThread({
+        title: composerState.title.trim(),
+        body: composerState.body.trim(),
+        tags,
+        replyAccess: composerState.replyAccess,
+        allowedResponders,
+        publisher: username,
+      });
+      dispatch(upsertDiscussionThread(thread));
+      setSelectedThreadId(thread.id);
+      setShowComposer(false);
+      setComposerState({
+        title: '',
+        body: '',
+        tags: '',
+        replyAccess: 'everyone',
+        allowed: '',
+      });
+      toast.success('Thread published');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to publish thread.');
+    } finally {
+      setIsPublishingThread(false);
     }
-
-    setComposerState({
-      title: '',
-      body: '',
-      tags: '',
-      replyAccess: 'everyone',
-      allowed: '',
-    });
-    setShowComposer(false);
-    toast.success('Thread created');
   };
 
-  const handleSaveThread = () => {
-    if (!selectedThread) return;
+  const handleSaveThread = async () => {
+    if (!selectedThread || editingThreadId !== selectedThread.id) {
+      return;
+    }
     if (!threadEditState.title.trim() || !threadEditState.body.trim()) {
       toast.error('Title and description cannot be empty.');
       return;
     }
-
-    dispatch(updateThread({
-      threadId: selectedThread.id,
-      changes: {
+    setIsSavingThreadEdit(true);
+    try {
+      const tags = formatChips(threadEditState.tags);
+      const allowedResponders = formatChips(threadEditState.allowed);
+      const updatedThread = await publishDiscussionThread({
+        id: selectedThread.id,
         title: threadEditState.title.trim(),
         body: threadEditState.body.trim(),
-        tags: formatChips(threadEditState.tags),
+        tags,
         replyAccess: threadEditState.replyAccess,
-        allowedResponders: formatChips(threadEditState.allowed),
+        allowedResponders,
+        publisher: selectedThread.publisher,
         status: threadEditState.status,
-      },
-    }));
-    setEditingThreadId(null);
-    toast.success('Thread updated');
+        created: selectedThread.created,
+        updated: Date.now(),
+        replies: selectedThread.replies,
+      });
+      dispatch(upsertDiscussionThread(updatedThread));
+      setEditingThreadId(null);
+      toast.success('Thread updated');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update thread.');
+    } finally {
+      setIsSavingThreadEdit(false);
+    }
   };
 
-  const handleCreateReply = () => {
+  const handleCreateReply = async () => {
     if (!selectedThread || !username) {
       toast.error('Log in to reply.');
       return;
@@ -203,13 +266,21 @@ const DiscussionBoards: React.FC = () => {
       toast.error('Add a response before sending.');
       return;
     }
-
-    dispatch(createReply(selectedThread.id, {
-      author: username,
-      body: newReplyDraft.trim(),
-    }));
-    setNewReplyDraft('');
-    toast.success('Reply posted');
+    setIsPostingReply(true);
+    try {
+      const reply = await publishDiscussionReply({
+        threadId: selectedThread.id,
+        author: username,
+        body: newReplyDraft.trim(),
+      });
+      dispatch(addReplyToThread({ threadId: selectedThread.id, reply }));
+      setNewReplyDraft('');
+      toast.success('Reply posted');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to publish reply.');
+    } finally {
+      setIsPostingReply(false);
+    }
   };
 
   const beginReplyEdit = (reply: DiscussionReply) => {
@@ -217,20 +288,31 @@ const DiscussionBoards: React.FC = () => {
     setReplyEditDraft(reply.body);
   };
 
-  const handleSaveReplyEdit = () => {
+  const handleSaveReplyEdit = async () => {
     if (!selectedThread || !editingReplyId) return;
+    const reply = selectedThread.replies.find((item) => item.id === editingReplyId);
+    if (!reply) return;
     if (!replyEditDraft.trim()) {
       toast.error('Reply cannot be empty.');
       return;
     }
-    dispatch(updateReply({
-      threadId: selectedThread.id,
-      replyId: editingReplyId,
-      body: replyEditDraft.trim(),
-    }));
-    setEditingReplyId(null);
-    setReplyEditDraft('');
-    toast.success('Reply updated');
+    if (reply.author !== username) {
+      toast.error('Only the author can edit this reply.');
+      return;
+    }
+
+    setIsSavingReplyEdit(true);
+    try {
+      const updatedReply = await updateDiscussionReply(reply, replyEditDraft.trim());
+      dispatch(updateReplyInThread({ threadId: selectedThread.id, reply: updatedReply }));
+      setEditingReplyId(null);
+      setReplyEditDraft('');
+      toast.success('Reply updated');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update reply.');
+    } finally {
+      setIsSavingReplyEdit(false);
+    }
   };
 
   const renderReplyComposer = () => {
@@ -282,11 +364,16 @@ const DiscussionBoards: React.FC = () => {
         <div className="flex flex-col gap-2 text-sm text-slate-400 md:flex-row md:items-center md:justify-between">
           <span>{newReplyDraft.trim().length} characters</span>
           <Button
-            className="flex items-center justify-center gap-2 rounded-md bg-sky-500/90 px-5 py-2 text-sm font-semibold text-slate-900 hover:bg-sky-400 md:w-auto"
+            className="flex items-center justify-center gap-2 rounded-md bg-sky-500/90 px-5 py-2 text-sm font-semibold text-slate-900 hover:bg-sky-400 md:w-auto disabled:opacity-60"
             onClick={handleCreateReply}
+            disabled={isPostingReply}
           >
-            <FiSend className="text-base" />
-            Send reply
+            {isPostingReply ? 'Sending…' : (
+              <>
+                <FiSend className="text-base" />
+                Send reply
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -312,14 +399,16 @@ const DiscussionBoards: React.FC = () => {
               Back to Q-Music
             </Button>
             <Button
-              className="flex items-center justify-center gap-2 rounded-md bg-emerald-500/90 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-emerald-400 sm:w-auto"
+              className="flex items-center justify-center gap-2 rounded-md bg-emerald-500/90 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-emerald-400 sm:w-auto disabled:opacity-60"
               onClick={() => setShowComposer((prev) => !prev)}
+              disabled={isPublishingThread}
             >
               <FiPlusCircle />
               {showComposer ? 'Hide thread builder' : 'Create new threads'}
             </Button>
           </div>
         </div>
+
         {showComposer && (
           <Box className="border border-sky-900/60 bg-slate-950/70 px-4 py-5">
             <div className="space-y-4">
@@ -411,21 +500,33 @@ const DiscussionBoards: React.FC = () => {
                       allowed: '',
                     });
                   }}
+                  disabled={isPublishingThread}
                 >
                   Cancel
                 </Button>
                 <Button
-                  className="flex items-center justify-center gap-2 rounded-md bg-sky-500/90 px-5 py-2 text-sm font-semibold text-slate-900 hover:bg-sky-400 md:w-auto"
+                  className="flex items-center justify-center gap-2 rounded-md bg-sky-500/90 px-5 py-2 text-sm font-semibold text-slate-900 hover:bg-sky-400 md:w-auto disabled:opacity-60"
                   onClick={handleCreateThread}
+                  disabled={isPublishingThread}
                 >
-                  <FiPlusCircle />
-                  Publish thread
+                  {isPublishingThread ? 'Publishing…' : (
+                    <>
+                      <FiPlusCircle />
+                      Publish thread
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
           </Box>
         )}
       </Header>
+
+      {error && (
+        <div className="rounded-md border border-red-700 bg-red-900/50 px-4 py-3 text-sm text-red-100">
+          {error}
+        </div>
+      )}
 
       <div className="flex flex-col gap-6 lg:flex-row">
         <Box className="border border-sky-900/60 bg-slate-950/70 px-4 py-5 lg:w-[40%]">
@@ -436,13 +537,26 @@ const DiscussionBoards: React.FC = () => {
             </div>
             <FiMessageCircle className="text-2xl text-sky-400/80" />
           </div>
-          <div className="mt-4">
-            <input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search by title, tags or author"
-              className="w-full rounded-lg border border-sky-800/70 bg-slate-900/70 px-4 py-2 text-sm text-slate-50 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
-            />
+          <div className="mt-4 flex flex-col gap-2">
+            <div className="flex gap-2">
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search by title, tags or author"
+                className="w-full rounded-lg border border-sky-800/70 bg-slate-900/70 px-4 py-2 text-sm text-slate-50 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
+              />
+              <Button
+                className="flex items-center justify-center gap-2 rounded-md border border-sky-800/60 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-sky-100 hover:bg-slate-900/80 md:w-auto"
+                onClick={loadThreads}
+                disabled={isLoading}
+              >
+                <FiRefreshCcw />
+                Refresh
+              </Button>
+            </div>
+            {isLoading && (
+              <p className="text-xs text-slate-400">Loading threads from QDN…</p>
+            )}
           </div>
           <ul className="mt-4 space-y-3">
             {filteredThreads.map((thread) => {
@@ -470,7 +584,9 @@ const DiscussionBoards: React.FC = () => {
                         {thread.status === 'locked' ? 'Locked' : 'Open'}
                       </span>
                     </div>
-                    <p className="mt-1 max-h-16 overflow-hidden text-sm text-slate-300">{thread.body}</p>
+                    <p className="mt-1 max-h-16 overflow-hidden text-sm text-slate-300">
+                      {thread.body}
+                    </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
                       <span>{thread.replies.length} replies</span>
                       <span>•</span>
@@ -490,7 +606,7 @@ const DiscussionBoards: React.FC = () => {
                 </li>
               );
             })}
-            {filteredThreads.length === 0 && (
+            {!isLoading && filteredThreads.length === 0 && (
               <li className="rounded-lg border border-slate-700/50 bg-slate-900/50 px-4 py-6 text-center text-sm text-slate-300">
                 No threads match your search.
               </li>
@@ -516,7 +632,7 @@ const DiscussionBoards: React.FC = () => {
                     )}
                   </div>
                   <p className="text-sm text-slate-300">
-                    By {selectedThread.publisher} • {formatTimestamp(selectedThread.created)}
+                    By {selectedThread.publisher} · {formatTimestamp(selectedThread.created)}
                   </p>
                 </div>
                 {username === selectedThread.publisher && (
@@ -626,14 +742,16 @@ const DiscussionBoards: React.FC = () => {
                     <Button
                       className="rounded-md border border-slate-700 bg-slate-900/70 px-5 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-900/90 md:w-auto"
                       onClick={() => setEditingThreadId(null)}
+                      disabled={isSavingThreadEdit}
                     >
                       Cancel
                     </Button>
                     <Button
-                      className="rounded-md bg-emerald-500/90 px-5 py-2 text-sm font-semibold text-slate-900 hover:bg-emerald-400 md:w-auto"
+                      className="rounded-md bg-emerald-500/90 px-5 py-2 text-sm font-semibold text-slate-900 hover:bg-emerald-400 md:w-auto disabled:opacity-60"
                       onClick={handleSaveThread}
+                      disabled={isSavingThreadEdit}
                     >
-                      Save changes
+                      {isSavingThreadEdit ? 'Saving…' : 'Save changes'}
                     </Button>
                   </div>
                 </div>
@@ -644,7 +762,7 @@ const DiscussionBoards: React.FC = () => {
                     <span>Updated {formatTimestamp(selectedThread.updated ?? selectedThread.created)}</span>
                     <span>•</span>
                     <span>
-                      Replies: {selectedThread.replies.length} · Access:&nbsp;
+                      Replies:&nbsp;{selectedThread.replies.length} — Access:&nbsp;
                       {selectedThread.replyAccess === 'everyone' && 'All members'}
                       {selectedThread.replyAccess === 'publisher' && 'Thread author only'}
                       {selectedThread.replyAccess === 'custom' && 'Custom list'}
@@ -717,14 +835,16 @@ const DiscussionBoards: React.FC = () => {
                                     setEditingReplyId(null);
                                     setReplyEditDraft('');
                                   }}
+                                  disabled={isSavingReplyEdit}
                                 >
                                   Cancel
                                 </Button>
                                 <Button
-                                  className="rounded-md bg-emerald-500/90 px-4 py-1 text-xs font-semibold text-slate-900 hover:bg-emerald-400 md:w-auto"
+                                  className="rounded-md bg-emerald-500/90 px-4 py-1 text-xs font-semibold text-slate-900 hover:bg-emerald-400 md:w-auto disabled:opacity-60"
                                   onClick={handleSaveReplyEdit}
+                                  disabled={isSavingReplyEdit}
                                 >
-                                  Save
+                                  {isSavingReplyEdit ? 'Saving…' : 'Save'}
                                 </Button>
                               </>
                             ) : (

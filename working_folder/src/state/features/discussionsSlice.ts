@@ -3,7 +3,8 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 export type ReplyAccess = 'everyone' | 'publisher' | 'custom';
 
 export interface DiscussionReply {
-  id: string;
+  id: string; // QDN identifier for the reply resource
+  threadId: string;
   author: string;
   body: string;
   created: number;
@@ -11,7 +12,7 @@ export interface DiscussionReply {
 }
 
 export interface DiscussionThread {
-  id: string;
+  id: string; // QDN identifier for the thread resource
   title: string;
   body: string;
   publisher: string;
@@ -20,151 +21,88 @@ export interface DiscussionThread {
   replies: DiscussionReply[];
   tags: string[];
   replyAccess: ReplyAccess;
-  allowedResponders: string[]; // used when replyAccess === 'custom'
+  allowedResponders: string[];
   status: 'open' | 'locked';
 }
 
 interface DiscussionsState {
   threads: DiscussionThread[];
+  isLoading: boolean;
+  error: string | null;
 }
 
-const generateId = () => `disc-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
-
-const now = Date.now();
-
 const initialState: DiscussionsState = {
-  threads: [
-    {
-      id: generateId(),
-      title: 'Feature ideas for next release',
-      body: 'Share the features you would love to see inside Q-Music next. Be specific about the workflows and how they would help DJs and listeners.',
-      publisher: 'Q-Music',
-      created: now - 1000 * 60 * 60 * 30,
-      replies: [
-        {
-          id: generateId(),
-          author: 'NovaDJ',
-          body: 'It would be amazing to have scheduled releases where curators can queue drops ahead of time.',
-          created: now - 1000 * 60 * 60 * 24,
-        },
-      ],
-      tags: ['roadmap', 'feedback'],
-      replyAccess: 'everyone',
-      allowedResponders: [],
-      status: 'open',
-    },
-    {
-      id: generateId(),
-      title: 'Trusted curators onboarding',
-      body: 'Collecting questions from curators who were recently invited. I will add clarifications in the top message so newcomers can find answers quickly.',
-      publisher: 'Q-Music',
-      created: now - 1000 * 60 * 60 * 55,
-      replies: [],
-      tags: ['curators', 'guides'],
-      replyAccess: 'custom',
-      allowedResponders: ['NovaDJ', 'LunaQ'],
-      status: 'open',
-    },
-    {
-      id: generateId(),
-      title: 'Archive migration progress',
-      body: 'Locked note regarding the migration status. Only moderators can update this thread so readers always have one canonical source.',
-      publisher: 'Moderator',
-      created: now - 1000 * 60 * 60 * 72,
-      replies: [
-        {
-          id: generateId(),
-          author: 'Moderator',
-          body: 'Phase 1 completed. Indexing runs nightly.',
-          created: now - 1000 * 60 * 60 * 36,
-        },
-      ],
-      tags: ['status'],
-      replyAccess: 'publisher',
-      allowedResponders: [],
-      status: 'locked',
-    },
-  ],
+  threads: [],
+  isLoading: false,
+  error: null,
 };
 
-const discussionsSlice = createSlice({
+const sortThreads = (threads: DiscussionThread[]) =>
+  [...threads].sort(
+    (a, b) => (b.updated ?? b.created ?? 0) - (a.updated ?? a.created ?? 0),
+  );
+
+const sortReplies = (replies: DiscussionReply[]) =>
+  [...replies].sort((a, b) => (a.created ?? 0) - (b.created ?? 0));
+
+export const discussionsSlice = createSlice({
   name: 'discussions',
   initialState,
   reducers: {
-    createThread: {
-      reducer(state, action: PayloadAction<DiscussionThread>) {
-        state.threads = [action.payload, ...state.threads];
-      },
-      prepare: (data: {
-        title: string;
-        body: string;
-        publisher: string;
-        tags: string[];
-        replyAccess: ReplyAccess;
-        allowedResponders: string[];
-      }) => ({
-        payload: {
-          id: generateId(),
-          created: Date.now(),
-          replies: [],
-          status: 'open' as const,
-          ...data,
-        },
-      }),
+    setDiscussionsLoading(state, action: PayloadAction<boolean>) {
+      state.isLoading = action.payload;
     },
-    updateThread: (
+    setDiscussionsError(state, action: PayloadAction<string | null>) {
+      state.error = action.payload;
+    },
+    setDiscussionThreads(state, action: PayloadAction<DiscussionThread[]>) {
+      state.threads = sortThreads(action.payload);
+    },
+    upsertDiscussionThread(state, action: PayloadAction<DiscussionThread>) {
+      const incoming = action.payload;
+      const index = state.threads.findIndex((thread) => thread.id === incoming.id);
+      if (index >= 0) {
+        state.threads[index] = incoming;
+      } else {
+        state.threads.unshift(incoming);
+      }
+      state.threads = sortThreads(state.threads);
+    },
+    addReplyToThread(
       state,
-      action: PayloadAction<{
-        threadId: string;
-        changes: Partial<Omit<DiscussionThread, 'id' | 'publisher' | 'created' | 'replies'>> & {
-          body?: string;
-          title?: string;
-          tags?: string[];
-          replyAccess?: ReplyAccess;
-          allowedResponders?: string[];
-          status?: 'open' | 'locked';
-        };
-      }>,
-    ) => {
-      const { threadId, changes } = action.payload;
+      action: PayloadAction<{ threadId: string; reply: DiscussionReply }>,
+    ) {
+      const { threadId, reply } = action.payload;
       const thread = state.threads.find((item) => item.id === threadId);
       if (!thread) return;
-      Object.assign(thread, changes);
-      thread.updated = Date.now();
+      thread.replies = sortReplies([...thread.replies, reply]);
+      thread.updated = Math.max(thread.updated ?? 0, reply.created);
+      state.threads = sortThreads(state.threads);
     },
-    createReply: {
-      reducer(state, action: PayloadAction<{ threadId: string; reply: DiscussionReply }>) {
-        const thread = state.threads.find((item) => item.id === action.payload.threadId);
-        if (!thread) return;
-        thread.replies.push(action.payload.reply);
-        thread.updated = Date.now();
-      },
-      prepare: (threadId: string, data: { author: string; body: string }) => ({
-        payload: {
-          threadId,
-          reply: {
-            id: generateId(),
-            created: Date.now(),
-            ...data,
-          },
-        },
-      }),
-    },
-    updateReply: (
+    updateReplyInThread(
       state,
-      action: PayloadAction<{ threadId: string; replyId: string; body: string }>,
-    ) => {
-      const thread = state.threads.find((item) => item.id === action.payload.threadId);
+      action: PayloadAction<{ threadId: string; reply: DiscussionReply }>,
+    ) {
+      const { threadId, reply } = action.payload;
+      const thread = state.threads.find((item) => item.id === threadId);
       if (!thread) return;
-      const reply = thread.replies.find((item) => item.id === action.payload.replyId);
-      if (!reply) return;
-      reply.body = action.payload.body;
-      reply.updated = Date.now();
-      thread.updated = Date.now();
+      const index = thread.replies.findIndex((item) => item.id === reply.id);
+      if (index === -1) return;
+      thread.replies[index] = reply;
+      thread.replies = sortReplies(thread.replies);
+      thread.updated = Math.max(thread.updated ?? 0, reply.updated ?? reply.created);
+      state.threads = sortThreads(state.threads);
     },
   },
 });
 
-export const { createThread, updateThread, createReply, updateReply } = discussionsSlice.actions;
+export const {
+  setDiscussionsLoading,
+  setDiscussionsError,
+  setDiscussionThreads,
+  upsertDiscussionThread,
+  addReplyToThread,
+  updateReplyInThread,
+} = discussionsSlice.actions;
 
 export default discussionsSlice.reducer;
