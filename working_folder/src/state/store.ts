@@ -3,6 +3,7 @@ import notificationsReducer from './features/notificationsSlice'
 import authReducer from './features/authSlice'
 import globalReducer from './features/globalSlice'
 import requestsReducer from './features/requestsSlice'
+import discussionsReducer from './features/discussionsSlice'
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     auth: authReducer,
     global: globalReducer,
     requests: requestsReducer,
+    discussions: discussionsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

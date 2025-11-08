@@ -25,6 +25,7 @@ import Requests from "./pages/Requests/Requests";
 import FilledRequests from "./pages/Requests/FilledRequests";
 import RequestDetail from "./pages/Requests/RequestDetail";
 import SongDetail from "./pages/Song/SongDetail";
+import DiscussionBoards from "./pages/DiscussionBoards/DiscussionBoards";
 
 function App() {
   return (
@@ -50,6 +51,7 @@ function App() {
             <Route path="/requests" element={<Requests />} />
             <Route path="/requests/filled" element={<FilledRequests />} />
             <Route path="/requests/:publisher/:requestId" element={<RequestDetail />} />
+            <Route path="/discussions" element={<DiscussionBoards />} />
             <Route path="/videos" element={<Videos />} />
             <Route path="/videos/:publisher/:identifier" element={<VideoDetail />} />
             <Route path="/podcasts" element={<Podcasts />} />

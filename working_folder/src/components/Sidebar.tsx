@@ -6,6 +6,7 @@ import { useLocation } from 'react-router-dom';
 import { TbPlaylist } from "react-icons/tb";
 import {IoMdCloudUpload} from "react-icons/io"
 import { MdLibraryMusic } from "react-icons/md";
+import { FiMessageSquare } from "react-icons/fi";
 import SidebarItem from "./SidebarItem";
 import Box from "./Box";
 import {AddLibrary} from "./AddLibrary";
@@ -57,6 +58,12 @@ const Sidebar = ({ children, songs }: SidebarProps) => {
       label: 'Search',
       href: '/search',
       active: pathname === '/search'
+    },
+    {
+      icon: FiMessageSquare,
+      label: 'Discussion Boards',
+      href: '/discussions',
+      active: pathname === '/discussions'
     }
   ], [pathname]);
 
