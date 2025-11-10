@@ -759,7 +759,7 @@ const Podcasts: React.FC = () => {
           slogan={SLOGAN}
           sortOrder={sortOrder}
           onSortChange={setSortOrder}
-          onPublishClick={() => openPublishModal('multi')}
+          onPublishClick={() => openPublishModal('podcast')}
         />
       </Header>
 

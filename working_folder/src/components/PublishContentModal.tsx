@@ -10,7 +10,7 @@ import Input from './Input';
 import Textarea from './TextArea';
 import Button from './Button';
 import usePublishContentModal from '../hooks/usePublishContentModal';
-import { PublishType, MultiEntryType } from '../types/publish';
+import { PublishType, MultiEntryType, MultiPublishPayload } from '../types/publish';
 import {
   AUDIOBOOK_CATEGORIES,
   MUSIC_CATEGORIES,
@@ -31,23 +31,6 @@ interface MultiEntry {
   category: string;
   notes: string;
   syncedFromTemplate?: boolean;
-}
-
-interface MultiPublishPayload {
-  id: string;
-  type: MultiEntryType;
-  file: File;
-  fileName: string;
-  fileSize: number;
-  title: string;
-  category: string;
-  notes: string;
-  tags: string[];
-  visibility: BaseValues['visibility'];
-  releaseDate?: string;
-  collectionTitle?: string;
-  collectionDescription?: string;
-  supportPrice?: string;
 }
 
 interface TypeOption {
@@ -446,6 +429,8 @@ const createInitialTypeValues = (): TypeSpecificValues => ({
   multi: {},
 });
 
+const SINGLE_ENTRY_SUPPORTED_TYPES: MultiEntryType[] = ['audio', 'podcast', 'audiobook'];
+
 const PublishContentModal: React.FC = () => {
   const modal = usePublishContentModal();
   const [selectedType, setSelectedType] = useState<PublishType>('audio');
@@ -454,9 +439,12 @@ const PublishContentModal: React.FC = () => {
   const [sectionState, setSectionState] = useState<Record<string, boolean>>({});
   const [multiEntries, setMultiEntries] = useState<MultiEntry[]>([]);
   const multiFileInputRef = useRef<HTMLInputElement | null>(null);
+  const primaryFileInputRef = useRef<HTMLInputElement | null>(null);
+  const coverFileInputRef = useRef<HTMLInputElement | null>(null);
   const [bulkCategoryType, setBulkCategoryType] = useState<MultiEntryType>('audio');
   const [bulkCategoryValue, setBulkCategoryValue] = useState('');
   const [bulkTypeSelection, setBulkTypeSelection] = useState<MultiEntryType | ''>('');
+  const [primaryFile, setPrimaryFile] = useState<File | null>(null);
 
   const currentOption = useMemo(
     () => PUBLISH_OPTIONS.find((option) => option.id === selectedType) ?? PUBLISH_OPTIONS[0],
@@ -473,8 +461,15 @@ const PublishContentModal: React.FC = () => {
     setMultiEntries([]);
     setBulkCategoryType('audio');
     setBulkCategoryValue('');
+    setPrimaryFile(null);
     if (multiFileInputRef.current) {
       multiFileInputRef.current.value = '';
+    }
+    if (primaryFileInputRef.current) {
+      primaryFileInputRef.current.value = '';
+    }
+    if (coverFileInputRef.current) {
+      coverFileInputRef.current.value = '';
     }
   };
 
@@ -529,10 +524,14 @@ const PublishContentModal: React.FC = () => {
         coverFileName: target === 'cover' ? '' : prev.coverFileName,
         coverPreview: target === 'cover' ? null : prev.coverPreview,
       }));
+      if (target === 'primary') {
+        setPrimaryFile(null);
+      }
       return;
     }
 
     if (target === 'primary') {
+      setPrimaryFile(file);
       setBaseValues((prev) => ({
         ...prev,
         primaryFileName: file.name,
@@ -784,7 +783,66 @@ const formatTitleFromFilename = (fileName: string) => {
       handleMultiPublish();
       return;
     }
-    toast('Publishing logic will be connected in the next step.');
+
+    if (!SINGLE_ENTRY_SUPPORTED_TYPES.includes(selectedType as MultiEntryType)) {
+      toast('Publishing for this type is not available yet.');
+      return;
+    }
+
+    if (!primaryFile) {
+      toast.error('Select a primary file to publish.');
+      return;
+    }
+
+    const trimmedTitle = baseValues.title.trim();
+    const resolvedTitle = trimmedTitle || formatTitleFromFilename(primaryFile.name);
+    if (!resolvedTitle) {
+      toast.error('Add a title before publishing.');
+      return;
+    }
+
+    const categoryValue = (currentTypeValues?.category ?? '').trim();
+    if (!categoryValue) {
+      toast.error('Choose a category to continue.');
+      return;
+    }
+
+    const payload: MultiPublishPayload = {
+      id: `${selectedType}-${Date.now()}`,
+      type: selectedType as MultiEntryType,
+      file: primaryFile,
+      fileName: primaryFile.name,
+      fileSize: primaryFile.size,
+      title: resolvedTitle,
+      category: categoryValue,
+      notes: baseValues.description.trim(),
+      tags,
+      visibility: baseValues.visibility,
+      releaseDate: baseValues.releaseDate || undefined,
+      collectionTitle: baseValues.title || undefined,
+      collectionDescription: baseValues.description || undefined,
+      supportPrice: baseValues.price || undefined,
+    };
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('multi-publish:queue', {
+          detail: {
+            entries: [payload],
+          },
+        }),
+      );
+    }
+
+    toast.success(`Queued ${resolvedTitle} for publishing.`);
+    setPrimaryFile(null);
+    setBaseValues((prev) => ({
+      ...prev,
+      primaryFileName: '',
+    }));
+    if (primaryFileInputRef.current) {
+      primaryFileInputRef.current.value = '';
+    }
   };
 
   const renderField = (field: SectionField) => {
@@ -1217,6 +1275,7 @@ const formatTitleFromFilename = (fileName: string) => {
                           <p className="text-sm text-white">{baseValues.primaryFileName || 'No file selected yet'}</p>
                           <p className="text-xs text-sky-200/70 mt-1">Supports: {FILE_HINTS[selectedType]}</p>
                           <input
+                            ref={primaryFileInputRef}
                             type="file"
                             className="mt-3 text-xs"
                             accept={FILE_ACCEPT_MAP[selectedType]}
@@ -1230,6 +1289,7 @@ const formatTitleFromFilename = (fileName: string) => {
                           <p className="text-sm text-white">{baseValues.coverFileName || 'Choose an image (JPG, PNG, WEBP)'}</p>
                           <p className="text-xs text-sky-200/70 mt-1">Minimum height 800px, keep the contrast strong.</p>
                           <input
+                            ref={coverFileInputRef}
                             type="file"
                             className="mt-3 text-xs"
                             accept="image/*"
