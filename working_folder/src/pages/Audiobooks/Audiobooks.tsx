@@ -11,6 +11,7 @@ import { fetchAudiobooks } from '../../services/audiobooks';
 import { Audiobook, Song } from '../../types';
 import { CircularProgress } from '@mui/material';
 import useUploadAudiobookModal from '../../hooks/useUploadAudiobookModal';
+import usePublishContentModal from '../../hooks/usePublishContentModal';
 import useSendTipModal from '../../hooks/useSendTipModal';
 import useAddSongToPlaylistModal from '../../hooks/useAddSongToPlaylistModal';
 import { toast } from 'react-hot-toast';
@@ -54,6 +55,7 @@ const Audiobooks: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const mountedRef = useRef(true);
   const uploadAudiobookModal = useUploadAudiobookModal();
+  const openPublishModal = usePublishContentModal((state) => state.open);
   const sendTipModal = useSendTipModal();
   const addSongToPlaylistModal = useAddSongToPlaylistModal();
   const location = useLocation();
@@ -757,7 +759,7 @@ const Audiobooks: React.FC = () => {
           slogan={SLOGAN}
           sortOrder={sortOrder}
           onSortChange={setSortOrder}
-          onPublishClick={uploadAudiobookModal.openCreate}
+          onPublishClick={() => openPublishModal('multi')}
         />
       </Header>
 

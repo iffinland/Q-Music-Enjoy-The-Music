@@ -54,3 +54,21 @@ export const AUDIOBOOK_CATEGORIES = [
 export type MusicCategory = typeof MUSIC_CATEGORIES[number];
 export type PodcastCategory = typeof PODCAST_CATEGORIES[number];
 export type AudiobookCategory = typeof AUDIOBOOK_CATEGORIES[number];
+
+export const VIDEO_CATEGORIES = [...MUSIC_CATEGORIES] as const;
+
+export const PLAYLIST_CATEGORIES = [
+  'All-Day Chill',
+  'Deep Focus',
+  'Morning Energy',
+  'Night Drive',
+  'Party & Dance',
+  'Workout Push',
+  'Relax & Sleep',
+  'Seasonal Picks',
+  'Community Favorites',
+  'Other',
+] as const;
+
+export type VideoCategory = typeof VIDEO_CATEGORIES[number];
+export type PlaylistCategory = typeof PLAYLIST_CATEGORIES[number];

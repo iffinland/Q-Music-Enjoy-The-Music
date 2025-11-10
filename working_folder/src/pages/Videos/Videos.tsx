@@ -16,6 +16,7 @@ import { enrichVideosWithDocuments, fetchVideos } from '../../services/videos';
 import { Song, Video } from '../../types';
 import { CircularProgress } from '@mui/material';
 import useUploadVideoModal from '../../hooks/useUploadVideoModal';
+import usePublishContentModal from '../../hooks/usePublishContentModal';
 import useSendTipModal from '../../hooks/useSendTipModal';
 import useAddSongToPlaylistModal from '../../hooks/useAddSongToPlaylistModal';
 import { toast } from 'react-hot-toast';
@@ -59,6 +60,7 @@ const Videos: React.FC = () => {
   const [highlightedVideoId, setHighlightedVideoId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const uploadVideoModal = useUploadVideoModal();
+  const openPublishModal = usePublishContentModal((state) => state.open);
   const location = useLocation();
   const navigate = useNavigate();
   const [sharedVideoId, setSharedVideoId] = useState<string | null>(null);
@@ -636,7 +638,7 @@ const Videos: React.FC = () => {
           slogan={SLOGAN}
           sortOrder={sortOrder}
           onSortChange={setSortOrder}
-          onPublishClick={uploadVideoModal.openCreate}
+          onPublishClick={() => openPublishModal('video')}
         />
       </Header>
 

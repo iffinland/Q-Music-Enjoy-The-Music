@@ -7,6 +7,7 @@ interface ModalProps {
   title: string;
   description: string;
   children: React.ReactNode;
+  contentClassName?: string;
 }
 
 const Modal: React.FC<ModalProps> = ({
@@ -14,7 +15,8 @@ const Modal: React.FC<ModalProps> = ({
   onChange,
   title,
   description,
-  children
+  children,
+  contentClassName = '',
 }) => {
   return ( 
     <Dialog.Root open={isOpen} defaultOpen={isOpen} onOpenChange={onChange}>
@@ -28,7 +30,7 @@ const Modal: React.FC<ModalProps> = ({
           " 
         />
         <Dialog.Content
-          className="
+          className={`
             fixed 
             drop-shadow-md 
             border 
@@ -49,7 +51,8 @@ const Modal: React.FC<ModalProps> = ({
             p-[25px] 
             focus:outline-none
             overflow-y-auto
-          ">
+            ${contentClassName}
+          `}>
           <Dialog.Title 
             className="
               text-xl 

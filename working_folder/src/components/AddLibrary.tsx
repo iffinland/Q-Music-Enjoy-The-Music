@@ -1,14 +1,9 @@
 import { toast } from "react-hot-toast";
 import { Song } from "../types";
-import useUploadModal from "../hooks/useUploadModal";
-import useUploadPlaylistModal from "../hooks/useUploadPlaylistModal";
-import { useDispatch, useSelector } from "react-redux";
+import usePublishContentModal from "../hooks/usePublishContentModal";
+import { useSelector } from "react-redux";
 import { RootState } from "../state/store";
-import { BsMusicNoteList, BsMusicNote } from "react-icons/bs";
-import { setNewPlayList } from "../state/features/globalSlice";
-import { FaVideo, FaPodcast, FaBookOpen } from "react-icons/fa";
-import { BiListPlus } from "react-icons/bi";
-import { useNavigate } from "react-router-dom";
+import { HiOutlineSparkles } from "react-icons/hi";
 
 interface LibraryProps {
   songs: Song[];
@@ -18,14 +13,10 @@ export const AddLibrary: React.FC<LibraryProps> = ({
   songs: _songs
 }) => {
   const username = useSelector((state: RootState) => state?.auth?.user?.name);
-  const newPlaylist = useSelector((state: RootState) => state?.global.newPlayList);
   const statistics = useSelector((state: RootState) => state.global.statistics);
   const statsData = statistics.data;
 
-  const dispatch = useDispatch()
-  const uploadModal = useUploadModal();
-  const uploadPlaylistModal = useUploadPlaylistModal()
-  const navigate = useNavigate();
+  const publishContentModal = usePublishContentModal();
 
   const formatStat = (value?: number | null) => {
     if (value == null) {
@@ -40,50 +31,8 @@ export const AddLibrary: React.FC<LibraryProps> = ({
       return
     }
 
-    return uploadModal.openPicker();
+    return publishContentModal.openMulti ? publishContentModal.openMulti() : publishContentModal.open('multi');
   }
-
-  const onClickPlaylist = () => {
-    if (!username) {
-      toast.error('Log in to continue')
-      return
-    }
-
-    if (!newPlaylist) {
-      dispatch(setNewPlayList({
-        id: '',
-        created: Date.now(),
-        updated: Date.now(),
-        user: username,
-        title: "",
-        description: "",
-        songs: [],
-        image: null
-      }))
-    }
-
-    uploadPlaylistModal.onOpen()
-
-
-
-  }
-
-  const onClickRequest = () => {
-    navigate('/requests');
-  }
-
-  const onClickVideos = () => {
-    navigate('/videos');
-  }
-
-  const onClickPodcasts = () => {
-    navigate('/podcasts');
-  }
-
-  const onClickAudiobooks = () => {
-    navigate('/audiobooks');
-  }
-
 
   return (
     <>
@@ -94,48 +43,8 @@ export const AddLibrary: React.FC<LibraryProps> = ({
           onClick={onClick}
           className="flex w-full items-center gap-x-4 text-sky-200/80 hover:text-white font-medium text-sm transition focus:outline-none"
         >
-          <BsMusicNote className="text-current" size={18} />
-          <span>Add New Songs or Album</span>
-        </button>
-        <button
-          type="button"
-          onClick={onClickPlaylist}
-          className="flex w-full items-center gap-x-4 text-sky-200/80 hover:text-white font-medium text-sm transition focus:outline-none"
-        >
-          <BsMusicNoteList className="text-current" size={18} />
-          <span>Create New Playlist</span>
-        </button>
-        <button
-          type="button"
-          onClick={onClickRequest}
-          className="flex w-full items-center gap-x-4 text-sky-200/80 hover:text-white font-medium text-sm transition focus:outline-none"
-        >
-          <BiListPlus className="text-current" size={18} />
-          <span>Requests and Fillings</span>
-        </button>
-        <button
-          type="button"
-          onClick={onClickVideos}
-          className="flex w-full items-center gap-x-4 text-sky-200/80 hover:text-white font-medium text-sm transition focus:outline-none"
-        >
-          <FaVideo className="text-current" size={18} />
-          <span>Watch & Add New Videos</span>
-        </button>
-        <button
-          type="button"
-          onClick={onClickPodcasts}
-          className="flex w-full items-center gap-x-4 text-sky-200/80 hover:text-white font-medium text-sm transition focus:outline-none"
-        >
-          <FaPodcast className="text-current" size={18} />
-          <span>Listen & Add New Podcast</span>
-        </button>
-        <button
-          type="button"
-          onClick={onClickAudiobooks}
-          className="flex w-full items-center gap-x-4 text-sky-200/80 hover:text-white font-medium text-sm transition focus:outline-none"
-        >
-          <FaBookOpen className="text-current" size={18} />
-          <span>Listen & Add New Audiobooks</span>
+          <HiOutlineSparkles className="text-current" size={18} />
+          <span>Add New Content</span>
         </button>
         <hr className="my-4 border-t border-sky-800" />
         <div className="flex flex-col gap-y-2">

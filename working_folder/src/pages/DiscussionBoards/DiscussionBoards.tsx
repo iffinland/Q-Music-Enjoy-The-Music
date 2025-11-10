@@ -520,6 +520,24 @@ const DiscussionBoards: React.FC = () => {
             </div>
           </Box>
         )}
+        <Box className="border border-amber-600/40 bg-amber-900/30 p-4 text-sm text-amber-100 shadow-lg shadow-amber-900/20">
+          <details className="group">
+            <summary className="flex cursor-pointer items-center justify-between text-base font-semibold uppercase tracking-wide text-amber-100">
+              <span>How-To Use Discussion Boards</span>
+              <span className="text-xs text-amber-200">
+                (click to {`{`}group-open:hidden{`}`} see details)
+              </span>
+            </summary>
+            <div className="mt-4 space-y-3 rounded-xl border border-amber-600/40 bg-amber-950/40 p-4 text-amber-50">
+              <p className="text-sm leading-relaxed">
+                • Please avoid opening a brand-new thread if an active discussion already exists for the same topic. Reusing established threads keeps the board tidy and helps everyone follow the context more easily.
+              </p>
+              <p className="text-sm leading-relaxed">
+                • When you do create a new thread, consider using a broad title that you can update over time. For example, “My Releases” can hold every new track you publish. This approach keeps related content in one place and makes it easier for listeners to revisit your updates. Thank you for helping maintain a clean and welcoming space!
+              </p>
+            </div>
+          </details>
+        </Box>
       </Header>
 
       {error && (

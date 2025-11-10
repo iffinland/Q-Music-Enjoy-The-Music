@@ -13,6 +13,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "../state/store";
 import SendTipModal from "../components/SendTipModal";
 import SongUploadModeModal from "../components/SongUploadModeModal";
+import PublishContentModal from "../components/PublishContentModal";
 
 
 
@@ -30,6 +31,7 @@ const ModalProvider: React.FC = () => {
 
   return (
     <>
+      <PublishContentModal />
       <SongUploadModeModal />
       <UploadModal />
       <UploadAlbumModal />

@@ -1,12 +1,13 @@
 
 import { HiHome } from "react-icons/hi";
-import { BiSearch } from "react-icons/bi";
+import { BiSearch, BiListPlus } from "react-icons/bi";
 import { twMerge } from "tailwind-merge";
 import { useLocation } from 'react-router-dom';
 import { TbPlaylist } from "react-icons/tb";
-import {IoMdCloudUpload} from "react-icons/io"
-import { MdLibraryMusic } from "react-icons/md";
+import { MdLibraryMusic, MdOutlineFavorite } from "react-icons/md";
 import { FiMessageSquare } from "react-icons/fi";
+import { FaPodcast, FaBookOpen, FaVideo } from "react-icons/fa";
+import { AiFillStar } from "react-icons/ai";
 import SidebarItem from "./SidebarItem";
 import Box from "./Box";
 import {AddLibrary} from "./AddLibrary";
@@ -14,6 +15,7 @@ import { useMemo, useEffect, useState, useCallback } from "react";
 import { Song } from "../types";
 import usePlayer from "../hooks/usePlayer";
 import useSendTipModal from "../hooks/useSendTipModal";
+import usePublishContentModal from "../hooks/usePublishContentModal";
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -27,45 +29,84 @@ const Sidebar = ({ children, songs }: SidebarProps) => {
         return location.pathname
     }, [location])
   const player = usePlayer();
+  const openPublishModal = usePublishContentModal((state) => state.openMulti);
+  const matchPath = useCallback((paths: string | string[]) => {
+    const list = Array.isArray(paths) ? paths : [paths];
+    return list.some((path) => {
+      if (path === '/') return pathname === '/';
+      return pathname === path || pathname.startsWith(`${path}/`);
+    });
+  }, [pathname]);
 
-  const routes = useMemo(() => [
+  const routes = useMemo<SidebarRoute[]>(() => [
     {
       icon: HiHome,
       label: 'Home',
-      active: pathname === '/',
+      active: matchPath('/'),
       href: '/'
     },
     {
       icon: MdLibraryMusic,
-      label: 'Browse All Songs',
-      active: pathname === '/songs',
+      label: 'Browse & Listen Songs',
+      active: matchPath('/songs'),
       href: '/songs'
     },
     {
-      icon: TbPlaylist,
-      label: 'Browse All Playlists',
-      href: '/playlists/all',
-      active: pathname === '/playlists/all'
+      icon: FaPodcast,
+      label: 'Browse & Listen Podcasts',
+      href: '/podcasts',
+      active: matchPath('/podcasts')
     },
     {
-      icon: IoMdCloudUpload,
-      label: 'My Favorites & Library',
+      icon: FaBookOpen,
+      label: 'Browse & Listen Audiobooks',
+      href: '/audiobooks',
+      active: matchPath('/audiobooks')
+    },
+    {
+      icon: TbPlaylist,
+      label: 'Browse & Listen Playlists',
+      href: '/playlists/all',
+      active: matchPath(['/playlists/all', '/playlists'])
+    },
+    {
+      icon: FaVideo,
+      label: 'Watch Music Videos',
+      href: '/videos',
+      active: matchPath('/videos')
+    },
+    {
+      icon: MdOutlineFavorite,
+      label: 'My Library & Favorites',
       href: '/library',
-      active: pathname === '/library' || pathname === '/liked'
+      active: matchPath(['/library', '/liked'])
+    },
+    {
+      icon: AiFillStar,
+      label: 'Add New Content',
+      href: '#',
+      active: false,
+      onClick: openPublishModal
+    },
+    {
+      icon: BiListPlus,
+      label: 'Requests & Fillings',
+      href: '/requests',
+      active: matchPath(['/requests'])
     },
     {
       icon: BiSearch,
-      label: 'Search',
+      label: 'Search Content',
       href: '/search',
-      active: pathname === '/search'
+      active: matchPath('/search')
     },
     {
       icon: FiMessageSquare,
       label: 'Discussion Boards',
       href: '/discussions',
-      active: pathname === '/discussions'
+      active: matchPath('/discussions')
     }
-  ], [pathname]);
+  ], [matchPath, openPublishModal]);
 
   return (
     <div 
@@ -89,9 +130,17 @@ const Sidebar = ({ children, songs }: SidebarProps) => {
 
 export default Sidebar;
 
+interface SidebarRoute {
+  icon: any;
+  label: string;
+  active: boolean;
+  href: string;
+  onClick?: () => void;
+}
+
 interface SidebarContentProps {
   songs: Song[];
-  routes: Array<{ icon: any; label: string; active: boolean; href: string }>;
+  routes: SidebarRoute[];
 }
 
 const DONATION_RECIPIENT = 'QTowvz1e89MP4FEFpHvEfZ4x8G3LwMpthz';
