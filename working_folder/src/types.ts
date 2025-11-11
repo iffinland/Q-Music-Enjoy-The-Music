@@ -32,6 +32,7 @@ export interface Podcast {
   audioFilename?: string;
   audioMimeType?: string;
   category?: string;
+  author?: string;
 }
 
 export type Audiobook = Podcast;

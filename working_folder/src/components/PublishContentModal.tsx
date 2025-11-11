@@ -4,6 +4,7 @@ import { FaBookOpen, FaPodcast, FaVideo } from 'react-icons/fa';
 import { IconType } from 'react-icons';
 import { HiOutlineSparkles } from 'react-icons/hi';
 import { toast } from 'react-hot-toast';
+import { useSelector } from 'react-redux';
 
 import Modal from './Modal';
 import Input from './Input';
@@ -18,6 +19,8 @@ import {
   PLAYLIST_CATEGORIES,
   VIDEO_CATEGORIES,
 } from '../constants/categories';
+import { objectToBase64, toBase64 } from '../utils/toBase64';
+import { RootState } from '../state/store';
 
 type FieldVariant = 'text' | 'number' | 'textarea' | 'select';
 
@@ -62,6 +65,7 @@ interface TypeSection {
 interface BaseValues {
   title: string;
   description: string;
+  creatorName: string;
   tags: string;
   releaseDate: string;
   visibility: 'public' | 'draft' | 'limited';
@@ -367,6 +371,7 @@ const VISIBILITY_LABELS: Record<BaseValues['visibility'], string> = {
 const createInitialBaseValues = (): BaseValues => ({
   title: '',
   description: '',
+  creatorName: '',
   tags: '',
   releaseDate: '',
   visibility: 'public',
@@ -430,9 +435,44 @@ const createInitialTypeValues = (): TypeSpecificValues => ({
 });
 
 const SINGLE_ENTRY_SUPPORTED_TYPES: MultiEntryType[] = ['audio', 'podcast', 'audiobook'];
+const VIDEO_IDENTIFIER_PREFIX = 'enjoymusic_video_';
+const PLAYLIST_IDENTIFIER_PREFIX = 'enjoymusic_playlist_';
+
+const sanitizeMetaValue = (value: string) => value.replace(/[;=]/g, ' ').trim();
+const slugifyForResource = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 40);
+
+const fileToData64 = async (file: File) => {
+  const result = await toBase64(file);
+  if (typeof result !== 'string') return null;
+  const [, base64] = result.split(',');
+  return base64 || null;
+};
+
+const buildVideoIdentifier = (title: string) => {
+  const slug = slugifyForResource(title) || `video_${Date.now().toString(36)}`;
+  return `${VIDEO_IDENTIFIER_PREFIX}${slug}_${Date.now().toString(36)}`;
+};
+
+const buildVideoFilename = (file: File, title: string) => {
+  const slug = slugifyForResource(title) || slugifyForResource(file.name) || 'video';
+  const extension =
+    file.name && file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : '.video';
+  return `${slug}_${Date.now().toString(36)}${extension}`;
+};
+
+const buildPlaylistIdentifier = (title: string) => {
+  const slug = slugifyForResource(title) || `playlist_${Date.now().toString(36)}`;
+  return `${PLAYLIST_IDENTIFIER_PREFIX}${slug}_${Date.now().toString(36)}`;
+};
 
 const PublishContentModal: React.FC = () => {
   const modal = usePublishContentModal();
+  const username = useSelector((state: RootState) => state.auth?.user?.name);
   const [selectedType, setSelectedType] = useState<PublishType>('audio');
   const [baseValues, setBaseValues] = useState<BaseValues>(() => createInitialBaseValues());
   const [typeValues, setTypeValues] = useState<TypeSpecificValues>(() => createInitialTypeValues());
@@ -445,6 +485,9 @@ const PublishContentModal: React.FC = () => {
   const [bulkCategoryValue, setBulkCategoryValue] = useState('');
   const [bulkTypeSelection, setBulkTypeSelection] = useState<MultiEntryType | ''>('');
   const [primaryFile, setPrimaryFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [isVideoPublishing, setIsVideoPublishing] = useState(false);
+  const [isPlaylistPublishing, setIsPlaylistPublishing] = useState(false);
 
   const currentOption = useMemo(
     () => PUBLISH_OPTIONS.find((option) => option.id === selectedType) ?? PUBLISH_OPTIONS[0],
@@ -462,6 +505,7 @@ const PublishContentModal: React.FC = () => {
     setBulkCategoryType('audio');
     setBulkCategoryValue('');
     setPrimaryFile(null);
+    setCoverFile(null);
     if (multiFileInputRef.current) {
       multiFileInputRef.current.value = '';
     }
@@ -526,6 +570,8 @@ const PublishContentModal: React.FC = () => {
       }));
       if (target === 'primary') {
         setPrimaryFile(null);
+      } else {
+        setCoverFile(null);
       }
       return;
     }
@@ -537,6 +583,7 @@ const PublishContentModal: React.FC = () => {
         primaryFileName: file.name,
       }));
     } else {
+      setCoverFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setBaseValues((prev) => ({
@@ -726,6 +773,11 @@ const formatTitleFromFilename = (fileName: string) => {
   };
 
   const handleMultiPublish = () => {
+    const creatorName = baseValues.creatorName.trim();
+    if (!creatorName) {
+      toast.error('Add the artist / author info before publishing.');
+      return;
+    }
     if (multiEntries.length === 0) {
       toast.error('Add at least one file to publish');
       return;
@@ -750,6 +802,7 @@ const formatTitleFromFilename = (fileName: string) => {
       title: entry.title.trim(),
       category: entry.category,
       notes: entry.notes.trim(),
+      author: creatorName,
       tags,
       visibility: baseValues.visibility,
       releaseDate: baseValues.releaseDate || undefined,
@@ -778,14 +831,296 @@ const formatTitleFromFilename = (fileName: string) => {
     toast.success('Saved a visual draft - actual persistence will be wired up next.');
   };
 
-  const handlePublishClick = () => {
+  const handleSingleVideoPublish = async () => {
+    if (isVideoPublishing) return;
+    if (!username) {
+      toast.error('Log in to publish videos.');
+      return;
+    }
+    const creatorName = baseValues.creatorName.trim();
+    if (!creatorName) {
+      toast.error('Add the artist / author info before publishing.');
+      return;
+    }
+    if (!primaryFile) {
+      toast.error('Select a video file to publish.');
+      return;
+    }
+
+    const trimmedTitle = baseValues.title.trim();
+    const resolvedTitle = trimmedTitle || formatTitleFromFilename(primaryFile.name);
+    if (!resolvedTitle) {
+      toast.error('Add a title before publishing.');
+      return;
+    }
+
+    const videoValues = typeValues.video || {};
+    const categoryValue = (videoValues.category ?? '').trim();
+    if (!categoryValue) {
+      toast.error('Choose a category to continue.');
+      return;
+    }
+
+    setIsVideoPublishing(true);
+    const toastId = toast.loading('Publishing video…');
+    try {
+      const identifier = buildVideoIdentifier(resolvedTitle);
+      const videoFilename = buildVideoFilename(primaryFile, resolvedTitle);
+      const description = baseValues.description.trim();
+      const descriptionSnippet = description.slice(0, 4000);
+      const metadataEntries: Record<string, string> = {};
+      if (creatorName) {
+        metadataEntries.author = sanitizeMetaValue(creatorName);
+      }
+      Object.entries(videoValues).forEach(([key, value]) => {
+        if (typeof value === 'string' && value.trim().length > 0) {
+          metadataEntries[key] = sanitizeMetaValue(value);
+        }
+      });
+
+      const documentPayload: Record<string, any> = {
+        id: identifier,
+        title: resolvedTitle,
+        description,
+        publisher: username,
+        visibility: baseValues.visibility,
+        author: creatorName,
+        created: Date.now(),
+        updated: Date.now(),
+        ...(tags.length ? { tags } : {}),
+        ...(baseValues.releaseDate ? { releaseDate: baseValues.releaseDate } : {}),
+        ...(baseValues.price ? { supportPrice: baseValues.price } : {}),
+        video: {
+          filename: videoFilename,
+          mimeType: primaryFile.type || 'video/mp4',
+        },
+      };
+
+      if (Object.keys(metadataEntries).length > 0) {
+        documentPayload.metadata = metadataEntries;
+      }
+
+      const resources: any[] = [
+        {
+          name: username,
+          service: 'VIDEO',
+          file: primaryFile,
+          identifier,
+          filename: videoFilename,
+          title: resolvedTitle.slice(0, 55),
+          description: descriptionSnippet,
+        },
+        {
+          name: username,
+          service: 'DOCUMENT',
+          data64: await objectToBase64(documentPayload),
+          identifier,
+          filename: `${identifier}.json`,
+          title: resolvedTitle.slice(0, 55),
+          description: descriptionSnippet,
+        },
+      ];
+
+      if (coverFile) {
+        const coverBase64 = await fileToData64(coverFile);
+        if (coverBase64) {
+          resources.push({
+            name: username,
+            service: 'THUMBNAIL',
+            data64: coverBase64,
+            identifier,
+          });
+        }
+      }
+
+      await qortalRequest({
+        action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+        resources,
+      });
+
+      toast.success(`Published ${resolvedTitle}`, { id: toastId });
+      window.dispatchEvent(new CustomEvent('videos:refresh'));
+      setPrimaryFile(null);
+      setCoverFile(null);
+      setBaseValues((prev) => ({
+        ...prev,
+        primaryFileName: '',
+        coverFileName: '',
+        coverPreview: null,
+      }));
+      if (primaryFileInputRef.current) {
+        primaryFileInputRef.current.value = '';
+      }
+      if (coverFileInputRef.current) {
+        coverFileInputRef.current.value = '';
+      }
+    } catch (error: any) {
+      console.error('Failed to publish video', error);
+      const message =
+        typeof error?.message === 'string' ? error.message : 'Failed to publish video.';
+      toast.error(message, { id: toastId });
+    } finally {
+      setIsVideoPublishing(false);
+    }
+  };
+
+  const handleSinglePlaylistPublish = async () => {
+    if (isPlaylistPublishing) return;
+    if (!username) {
+      toast.error('Log in to publish playlists.');
+      return;
+    }
+
+    const trimmedTitle = baseValues.title.trim();
+    if (!trimmedTitle) {
+      toast.error('Add a title before publishing.');
+      return;
+    }
+
+    const creatorName = baseValues.creatorName.trim();
+    if (!creatorName) {
+      toast.error('Add the artist / author info before publishing.');
+      return;
+    }
+
+    if (!primaryFile) {
+      toast.error('Upload a playlist file (JSON or text).');
+      return;
+    }
+
+    const playlistValues = typeValues.playlist || {};
+    setIsPlaylistPublishing(true);
+    const toastId = toast.loading('Publishing playlist…');
+    try {
+      const identifier = buildPlaylistIdentifier(trimmedTitle);
+      const description = baseValues.description.trim();
+      const descriptionSnippet = description.slice(0, 4000);
+      const playlistData64 = await fileToData64(primaryFile);
+      if (!playlistData64) {
+        throw new Error('Failed to read the playlist file.');
+      }
+
+      const metadataEntries: Record<string, string> = {};
+      if (creatorName) {
+        metadataEntries.author = sanitizeMetaValue(creatorName);
+      }
+      Object.entries(playlistValues).forEach(([key, value]) => {
+        if (typeof value === 'string' && value.trim().length > 0) {
+          metadataEntries[key] = sanitizeMetaValue(value);
+        }
+      });
+
+      const documentPayload: Record<string, any> = {
+        id: identifier,
+        title: trimmedTitle,
+        description,
+        publisher: username,
+        visibility: baseValues.visibility,
+        type: 'PLAYLIST',
+        author: creatorName,
+        ...(tags.length ? { tags } : {}),
+        ...(baseValues.releaseDate ? { releaseDate: baseValues.releaseDate } : {}),
+        ...(baseValues.price ? { supportPrice: baseValues.price } : {}),
+      };
+
+      if (Object.keys(metadataEntries).length > 0) {
+        documentPayload.metadata = metadataEntries;
+      }
+
+      let coverBase64: string | null = null;
+      if (coverFile) {
+        coverBase64 = await fileToData64(coverFile);
+        if (coverBase64) {
+          const mime = coverFile.type || 'image/png';
+          documentPayload.coverImage = `data:${mime};base64,${coverBase64}`;
+        }
+      }
+
+      const resources: any[] = [
+        {
+          name: username,
+          service: 'PLAYLIST',
+          data64: playlistData64,
+          identifier,
+          filename: primaryFile.name || `${identifier}.json`,
+          title: trimmedTitle.slice(0, 55),
+          description: descriptionSnippet,
+        },
+        {
+          name: username,
+          service: 'DOCUMENT',
+          data64: await objectToBase64(documentPayload),
+          identifier,
+          filename: `${identifier}.meta.json`,
+          title: trimmedTitle.slice(0, 55),
+          description: descriptionSnippet,
+        },
+      ];
+
+      if (coverBase64) {
+        resources.push({
+          name: username,
+          service: 'THUMBNAIL',
+          data64: coverBase64,
+          identifier,
+        });
+      }
+
+      await qortalRequest({
+        action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+        resources,
+      });
+
+      toast.success(`Published ${trimmedTitle}`, { id: toastId });
+      window.dispatchEvent(new CustomEvent('playlists:refresh'));
+      setPrimaryFile(null);
+      setCoverFile(null);
+      setBaseValues((prev) => ({
+        ...prev,
+        primaryFileName: '',
+        coverFileName: '',
+        coverPreview: null,
+      }));
+      if (primaryFileInputRef.current) {
+        primaryFileInputRef.current.value = '';
+      }
+      if (coverFileInputRef.current) {
+        coverFileInputRef.current.value = '';
+      }
+    } catch (error: any) {
+      console.error('Failed to publish playlist', error);
+      const message =
+        typeof error?.message === 'string' ? error.message : 'Failed to publish playlist.';
+      toast.error(message, { id: toastId });
+    } finally {
+      setIsPlaylistPublishing(false);
+    }
+  };
+
+  const handlePublishClick = async () => {
     if (isMultiPublish) {
       handleMultiPublish();
       return;
     }
 
+    if (selectedType === 'video') {
+      await handleSingleVideoPublish();
+      return;
+    }
+
+    if (selectedType === 'playlist') {
+      await handleSinglePlaylistPublish();
+      return;
+    }
+
     if (!SINGLE_ENTRY_SUPPORTED_TYPES.includes(selectedType as MultiEntryType)) {
       toast('Publishing for this type is not available yet.');
+      return;
+    }
+
+    const creatorName = baseValues.creatorName.trim();
+    if (!creatorName) {
+      toast.error('Add the artist / author info before publishing.');
       return;
     }
 
@@ -816,6 +1151,7 @@ const formatTitleFromFilename = (fileName: string) => {
       title: resolvedTitle,
       category: categoryValue,
       notes: baseValues.description.trim(),
+      author: creatorName,
       tags,
       visibility: baseValues.visibility,
       releaseDate: baseValues.releaseDate || undefined,
@@ -1193,6 +1529,14 @@ const formatTitleFromFilename = (fileName: string) => {
                         />
                       </label>
                       <label className="flex flex-col gap-2 text-sm text-sky-100/80">
+                        Artist / Band / Author / Performer / Narrator
+                        <Input
+                          placeholder="e.g. Analog Voyage Collective"
+                          value={baseValues.creatorName}
+                          onChange={handleBaseValueChange('creatorName')}
+                        />
+                      </label>
+                      <label className="flex flex-col gap-2 text-sm text-sky-100/80">
                         Description
                         <Textarea
                           rows={4}
@@ -1422,6 +1766,11 @@ const formatTitleFromFilename = (fileName: string) => {
                     <p className="text-sm font-semibold text-white">{summaryTitle}</p>
                     <p className="text-xs text-sky-200/70">{summaryDescription}</p>
                     <div className="text-xs text-sky-200/80">
+                      <p>
+                        {baseValues.creatorName
+                          ? `By ${baseValues.creatorName}`
+                          : 'Artist / author not set yet'}
+                      </p>
                       <p>{summaryDate}</p>
                       <p>{VISIBILITY_LABELS[baseValues.visibility]}</p>
                       {baseValues.price && <p>Support: {baseValues.price}</p>}

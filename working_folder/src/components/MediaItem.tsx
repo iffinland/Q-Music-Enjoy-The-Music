@@ -25,6 +25,8 @@ const MediaItem: React.FC<MediaItemProps> = ({ data, onClick, showPlayButton = t
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  const creatorDisplay = (data?.author?.trim()?.length ? data.author.trim() : '') || data?.name || 'Unknown artist';
+
   const handlePlay = useCallback(async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
 
@@ -38,7 +40,7 @@ const MediaItem: React.FC<MediaItemProps> = ({ data, onClick, showPlayButton = t
         url: resolvedUrl ?? undefined,
         status: data?.status,
         title: data?.title || '',
-        author: data?.author || '',
+        author: creatorDisplay,
       }));
     } else {
       downloadVideo({
@@ -46,14 +48,14 @@ const MediaItem: React.FC<MediaItemProps> = ({ data, onClick, showPlayButton = t
         service: 'AUDIO',
         identifier: data.id,
         title: data?.title || '',
-        author: data?.author || '',
+        author: creatorDisplay,
         id: data.id,
       });
     }
 
     dispatch(setCurrentSong(data.id));
     onClick?.(data.id);
-  }, [data, downloads, dispatch, downloadVideo, onClick]);
+  }, [creatorDisplay, data, downloads, dispatch, downloadVideo, onClick]);
 
   const handleNavigate = useCallback(() => {
     if (!data?.name || !data?.id) return;
@@ -93,7 +95,7 @@ const MediaItem: React.FC<MediaItemProps> = ({ data, onClick, showPlayButton = t
       </div>
       <div className="flex flex-1 flex-col gap-y-1 overflow-hidden">
         <p className="text-white truncate">{data?.title}</p>
-        <p className="text-sky-200/80 text-sm truncate">By {data?.author}</p>
+        <p className="text-sky-200/80 text-sm truncate">By {creatorDisplay}</p>
       </div>
     </div>
   );

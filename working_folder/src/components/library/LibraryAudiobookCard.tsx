@@ -78,6 +78,7 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
   const likeUsersLoadedRef = useRef(false);
 
   const coverImage = audiobook.coverImage || radioImg;
+  const creatorDisplay = audiobook.author?.trim() || audiobook.publisher || 'Unknown narrator';
   const isOwner = useMemo(() => {
     if (!username || !audiobook.publisher) return false;
     return username.toLowerCase() === audiobook.publisher.toLowerCase();
@@ -169,29 +170,29 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
             existingDownload?.url ||
             (await getQdnResourceUrl('AUDIO', audiobook.publisher, audiobook.id));
 
-          dispatch(
-            setAddToDownloads({
-              name: audiobook.publisher,
-              service: 'AUDIO',
-              id: audiobook.id,
-              identifier: audiobook.id,
-              url: resolvedUrl ?? undefined,
-              status: audiobook.status,
-              title: audiobook.title || '',
-              author: audiobook.publisher,
-            }),
-          );
-        } else {
-          toast.success('Fetching the audiobook. Playback will start shortly.');
-          downloadVideo({
+        dispatch(
+          setAddToDownloads({
             name: audiobook.publisher,
             service: 'AUDIO',
-            identifier: audiobook.id,
-            title: audiobook.title || '',
-            author: audiobook.publisher,
             id: audiobook.id,
-          });
-        }
+            identifier: audiobook.id,
+            url: resolvedUrl ?? undefined,
+            status: audiobook.status,
+            title: audiobook.title || '',
+            author: creatorDisplay,
+          }),
+        );
+      } else {
+        toast.success('Fetching the audiobook. Playback will start shortly.');
+        downloadVideo({
+          name: audiobook.publisher,
+          service: 'AUDIO',
+          identifier: audiobook.id,
+          title: audiobook.title || '',
+          author: creatorDisplay,
+          id: audiobook.id,
+        });
+      }
 
         dispatch(setCurrentSong(audiobook.id));
       } catch (error) {
@@ -200,7 +201,7 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
         setPlayBusy(false);
       }
     },
-    [dispatch, downloadVideo, downloads, playBusy, audiobook],
+    [creatorDisplay, dispatch, downloadVideo, downloads, playBusy, audiobook],
   );
 
   const handleToggleLike = useCallback(
@@ -297,7 +298,7 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
             url: directUrl,
             status: audiobook.status,
             title: audiobook.title || '',
-            author: audiobook.publisher,
+            author: creatorDisplay,
           }),
         );
         toast.success('Audiobook download started.');
@@ -305,7 +306,7 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
         toast.error('Failed to download audiobook.');
       }
     },
-    [dispatch, audiobook],
+    [creatorDisplay, dispatch, audiobook],
   );
 
   const handleCopyLink = useCallback(
@@ -372,13 +373,13 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
         id: audiobook.id,
         title: audiobook.title,
         name: audiobook.publisher,
-        author: audiobook.publisher,
+        author: creatorDisplay,
         service: audiobook.service || 'AUDIO',
         status: audiobook.status,
       };
       addSongToPlaylistModal.onOpen(songData);
     },
-    [addSongToPlaylistModal, audiobook],
+    [addSongToPlaylistModal, audiobook, creatorDisplay],
   );
 
   return (
@@ -415,9 +416,7 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
                 </span>
               </div>
               <p className="text-xs text-sky-400/80">
-                {audiobook.publisher
-                  ? `Published by ${audiobook.publisher}`
-                  : 'Publisher unknown'}
+                {`Published by ${creatorDisplay}`}
                 {audiobook.category ? ` • ${audiobook.category}` : ''}
               </p>
               {audiobook.description && (

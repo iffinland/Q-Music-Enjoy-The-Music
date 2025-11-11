@@ -18,6 +18,10 @@ export const buildPodcastMeta = (item: any): Podcast | null => {
     item?.metadata?.title || item?.metadata?.name;
 
   const description: string | undefined = item?.metadata?.description;
+  const author: string | undefined =
+    typeof item?.metadata?.author === 'string'
+      ? item.metadata.author.trim()
+      : undefined;
 
   return {
     id: item.identifier,
@@ -31,6 +35,7 @@ export const buildPodcastMeta = (item: any): Podcast | null => {
     size: item.size,
     type: item.metadata?.type || item.mimeType || item.contentType,
     category: typeof item?.metadata?.category === 'string' ? item.metadata.category : undefined,
+    author,
   };
 };
 
@@ -165,6 +170,14 @@ export const fetchPodcasts = async (options: FetchPodcastsOptions = {}): Promise
           typeof parsed.category === 'string' && parsed.category.trim().length > 0
             ? parsed.category.trim()
             : aggregated[index].category;
+        const metadataAuthor =
+          parsed.metadata && typeof parsed.metadata === 'object' && typeof parsed.metadata.author === 'string'
+            ? parsed.metadata.author.trim()
+            : '';
+        const resolvedAuthor =
+          (typeof parsed.author === 'string' && parsed.author.trim().length > 0
+            ? parsed.author.trim()
+            : metadataAuthor) || aggregated[index].author;
 
         aggregated[index] = {
           ...aggregated[index],
@@ -175,6 +188,7 @@ export const fetchPodcasts = async (options: FetchPodcastsOptions = {}): Promise
           audioMimeType: resolvedAudioMimeType,
           size: resolvedSize,
           category: resolvedCategory,
+          author: resolvedAuthor,
         };
       } catch (error) {
         console.error('Failed to fetch podcast document', error);
@@ -253,6 +267,16 @@ export const fetchPodcastByIdentifier = async (
 
       if (typeof parsedDocument.category === 'string' && parsedDocument.category.trim().length > 0) {
         meta.category = parsedDocument.category.trim();
+      }
+
+      const metadataAuthor =
+        parsedDocument.metadata && typeof parsedDocument.metadata === 'object' && typeof parsedDocument.metadata.author === 'string'
+          ? parsedDocument.metadata.author.trim()
+          : '';
+      if (typeof parsedDocument.author === 'string' && parsedDocument.author.trim().length > 0) {
+        meta.author = parsedDocument.author.trim();
+      } else if (metadataAuthor) {
+        meta.author = metadataAuthor;
       }
 
       const audioInfo = parsedDocument.audio && typeof parsedDocument.audio === 'object'

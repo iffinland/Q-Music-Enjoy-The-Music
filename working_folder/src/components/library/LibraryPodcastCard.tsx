@@ -78,6 +78,7 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
   const likeUsersLoadedRef = useRef(false);
 
   const coverImage = podcast.coverImage || radioImg;
+  const creatorDisplay = podcast.author?.trim() || podcast.publisher || 'Unknown host';
   const isOwner = useMemo(() => {
     if (!username || !podcast.publisher) return false;
     return username.toLowerCase() === podcast.publisher.toLowerCase();
@@ -169,29 +170,29 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
             existingDownload?.url ||
             (await getQdnResourceUrl('AUDIO', podcast.publisher, podcast.id));
 
-          dispatch(
-            setAddToDownloads({
-              name: podcast.publisher,
-              service: 'AUDIO',
-              id: podcast.id,
-              identifier: podcast.id,
-              url: resolvedUrl ?? undefined,
-              status: podcast.status,
-              title: podcast.title || '',
-              author: podcast.publisher,
-            }),
-          );
-        } else {
-          toast.success('Fetching the podcast. Playback will start shortly.');
-          downloadVideo({
+        dispatch(
+          setAddToDownloads({
             name: podcast.publisher,
             service: 'AUDIO',
-            identifier: podcast.id,
-            title: podcast.title || '',
-            author: podcast.publisher,
             id: podcast.id,
-          });
-        }
+            identifier: podcast.id,
+            url: resolvedUrl ?? undefined,
+            status: podcast.status,
+            title: podcast.title || '',
+            author: creatorDisplay,
+          }),
+        );
+      } else {
+        toast.success('Fetching the podcast. Playback will start shortly.');
+        downloadVideo({
+          name: podcast.publisher,
+          service: 'AUDIO',
+          identifier: podcast.id,
+          title: podcast.title || '',
+          author: creatorDisplay,
+          id: podcast.id,
+        });
+      }
 
         dispatch(setCurrentSong(podcast.id));
       } catch (error) {
@@ -200,7 +201,7 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
         setPlayBusy(false);
       }
     },
-    [dispatch, downloadVideo, downloads, playBusy, podcast],
+    [creatorDisplay, dispatch, downloadVideo, downloads, playBusy, podcast],
   );
 
   const handleToggleLike = useCallback(
@@ -297,7 +298,7 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
             url: directUrl,
             status: podcast.status,
             title: podcast.title || '',
-            author: podcast.publisher,
+            author: creatorDisplay,
           }),
         );
         toast.success('Podcast download started.');
@@ -305,7 +306,7 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
         toast.error('Failed to download podcast.');
       }
     },
-    [dispatch, podcast],
+    [creatorDisplay, dispatch, podcast],
   );
 
   const handleCopyLink = useCallback(
@@ -372,13 +373,13 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
         id: podcast.id,
         title: podcast.title,
         name: podcast.publisher,
-        author: podcast.publisher,
+        author: creatorDisplay,
         service: podcast.service || 'AUDIO',
         status: podcast.status,
       };
       addSongToPlaylistModal.onOpen(songData);
     },
-    [addSongToPlaylistModal, podcast],
+    [addSongToPlaylistModal, creatorDisplay, podcast],
   );
 
   return (
@@ -415,9 +416,7 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
                 </span>
               </div>
               <p className="text-xs text-sky-400/80">
-                {podcast.publisher
-                  ? `Published by ${podcast.publisher}`
-                  : 'Publisher unknown'}
+                {`Published by ${creatorDisplay}`}
                 {podcast.category ? ` • ${podcast.category}` : ''}
               </p>
               {podcast.description && (

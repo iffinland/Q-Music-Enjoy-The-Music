@@ -51,8 +51,9 @@ const formatPublishedLabel = (podcast: Podcast): string => {
     : 'Published';
 
   const sizeSegment = sizeLabel ? ` | Size: ${sizeLabel}` : '';
-  const publisherSegment = podcast.publisher
-    ? ` | by ${podcast.publisher}`
+  const hostName = podcast.author?.trim() || podcast.publisher;
+  const publisherSegment = hostName
+    ? ` | by ${hostName}`
     : '';
 
   return `${publishedPrefix}${sizeSegment}${publisherSegment}`;
@@ -110,6 +111,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
     podcast.coverImage && podcast.coverImage.trim().length > 0
       ? podcast.coverImage
       : radioImg;
+  const creatorDisplay = podcast.author?.trim() || podcast.publisher || 'Unknown host';
   const handleNavigate = useCallback(() => {
     if (!podcast.publisher || !podcast.id) return;
     navigate(`/podcasts/${encodeURIComponent(podcast.publisher)}/${encodeURIComponent(podcast.id)}`);
@@ -118,10 +120,10 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
     id: podcast.id,
     title: podcast.title,
     name: podcast.publisher,
-    author: podcast.publisher,
+    author: creatorDisplay,
     service: podcast.service || 'PODCAST',
     status: podcast.status,
-  }), [podcast.id, podcast.publisher, podcast.service, podcast.status, podcast.title]);
+  }), [creatorDisplay, podcast.id, podcast.publisher, podcast.service, podcast.status, podcast.title]);
 
   const [isLikePopoverOpen, setIsLikePopoverOpen] = useState(false);
   const [likeUsers, setLikeUsers] = useState<string[]>([]);

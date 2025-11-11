@@ -61,6 +61,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
   const likeUsersLoadedRef = useRef(false);
 
   const coverImage = podcast.coverImage && podcast.coverImage.trim().length > 0 ? podcast.coverImage : radioImg;
+  const creatorDisplay = podcast.author?.trim() || podcast.publisher || 'Unknown host';
 
   useEffect(() => {
     let cancelled = false;
@@ -111,7 +112,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
           url: resolvedUrl ?? undefined,
           status: podcast.status,
           title: podcast.title || '',
-          author: podcast.publisher,
+          author: creatorDisplay,
         }));
       } else {
         downloadVideo({
@@ -119,7 +120,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
           service: 'AUDIO',
           identifier: podcast.id,
           title: podcast.title || '',
-          author: podcast.publisher,
+          author: creatorDisplay,
           id: podcast.id,
         });
       }
@@ -128,7 +129,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
     } catch (error) {
       toast.error('Podcasti esitamine ebaõnnestus.');
     }
-  }, [dispatch, downloadVideo, downloads, podcast]);
+  }, [creatorDisplay, dispatch, downloadVideo, downloads, podcast]);
 
   const handleDownload = useCallback(async () => {
     try {
@@ -154,12 +155,12 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
         url: directUrl,
         status: podcast.status,
         title: podcast.title || '',
-        author: podcast.publisher,
+        author: creatorDisplay,
       }));
     } catch (error) {
       toast.error('Podcasti allalaadimine ebaõnnestus.');
     }
-  }, [dispatch, podcast]);
+  }, [creatorDisplay, dispatch, podcast]);
 
   const handleLikePopover = useCallback(
     (open: boolean) => {
@@ -280,8 +281,8 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
     const entries: { label: string; value: string }[] = [];
 
     entries.push({
-      label: 'Publisher',
-      value: podcast.publisher || 'Unknown',
+      label: 'Creator',
+      value: creatorDisplay,
     });
 
     if (podcast.category) {
@@ -307,7 +308,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
     }
 
     return entries;
-  }, [podcast.category, podcast.created, podcast.description, podcast.publisher, podcast.updated]);
+  }, [creatorDisplay, podcast.category, podcast.created, podcast.description, podcast.updated]);
 
   return (
     <div
@@ -338,7 +339,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
             {podcast.title || 'Untitled podcast'}
           </p>
           <p className="text-xs font-medium text-sky-300" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-            {podcast.publisher || 'Avaldaja teadmata'}
+            {creatorDisplay}
           </p>
         </div>
       </div>

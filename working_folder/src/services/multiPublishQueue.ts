@@ -40,6 +40,7 @@ const buildFilename = (entry: MultiPublishPayload, identifier: string) => {
 const buildDescription = (entry: MultiPublishPayload) => {
   const parts: string[] = [];
   if (entry.title) parts.push(`title=${sanitizeMetaValue(entry.title)}`);
+  if (entry.author) parts.push(`author=${sanitizeMetaValue(entry.author)}`);
   if (entry.category) parts.push(`category=${sanitizeMetaValue(entry.category)}`);
   if (entry.notes) parts.push(`notes=${sanitizeMetaValue(entry.notes)}`);
   if (entry.tags?.length) parts.push(`tags=${sanitizeMetaValue(entry.tags.join(','))}`);
@@ -76,6 +77,7 @@ const publishPodcastEntry = async (entry: MultiPublishPayload, publisher: string
   const documentPayload = {
     title: entry.title,
     description: entry.notes,
+    author: entry.author,
     category: entry.category,
     tags: entry.tags,
     visibility: entry.visibility,
@@ -123,6 +125,7 @@ const publishAudiobookEntry = async (entry: MultiPublishPayload, publisher: stri
   const documentPayload = {
     title: entry.title,
     description: entry.notes,
+    author: entry.author,
     category: entry.category,
     tags: entry.tags,
     visibility: entry.visibility,

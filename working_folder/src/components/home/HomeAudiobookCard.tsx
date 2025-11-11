@@ -82,6 +82,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
   );
 
   const coverImage = audiobook.coverImage && audiobook.coverImage.trim().length > 0 ? audiobook.coverImage : radioImg;
+  const creatorDisplay = audiobook.author?.trim() || audiobook.publisher || 'Unknown narrator';
 
   useEffect(() => {
     let cancelled = false;
@@ -132,7 +133,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
           url: resolvedUrl ?? undefined,
           status: audiobook.status,
           title: audiobook.title || '',
-          author: audiobook.publisher,
+          author: creatorDisplay,
         }));
       } else {
         downloadVideo({
@@ -140,7 +141,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
           service: 'AUDIO',
           identifier: audiobook.id,
           title: audiobook.title || '',
-          author: audiobook.publisher,
+          author: creatorDisplay,
           id: audiobook.id,
         });
       }
@@ -149,7 +150,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
     } catch (error) {
       toast.error('Audiobooki esitamine ebaõnnestus.');
     }
-  }, [dispatch, downloadVideo, downloads, audiobook]);
+  }, [creatorDisplay, dispatch, downloadVideo, downloads, audiobook]);
 
   const handleDownload = useCallback(async () => {
     try {
@@ -175,12 +176,12 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
         url: directUrl,
         status: audiobook.status,
         title: audiobook.title || '',
-        author: audiobook.publisher,
+        author: creatorDisplay,
       }));
     } catch (error) {
       toast.error('Audiobooki allalaadimine ebaõnnestus.');
     }
-  }, [dispatch, audiobook]);
+  }, [creatorDisplay, dispatch, audiobook]);
 
   const handleLike = useCallback(async (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -280,8 +281,8 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
     const entries: { label: string; value: string }[] = [];
 
     entries.push({
-      label: 'Publisher',
-      value: audiobook.publisher || 'Unknown',
+      label: 'Narrator / Author',
+      value: creatorDisplay,
     });
 
     if (audiobook.category) {
@@ -307,7 +308,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
     }
 
     return entries;
-  }, [audiobook.category, audiobook.created, audiobook.description, audiobook.publisher, audiobook.updated]);
+  }, [audiobook.category, audiobook.created, audiobook.description, audiobook.updated, creatorDisplay]);
 
   return (
     <div
@@ -338,7 +339,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
             {audiobook.title || 'Untitled audiobook'}
           </p>
           <p className="text-xs font-medium text-sky-300" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-            {audiobook.publisher || 'Avaldaja teadmata'}
+            {creatorDisplay}
           </p>
         </div>
       </div>

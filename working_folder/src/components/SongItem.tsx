@@ -50,6 +50,8 @@ const SongItem: React.FC<SongItemProps> = ({
 
   const coverImage = imageCoverHash[data.id] || radioImg;
   const publisherName = data?.name?.trim() || "—";
+  const normalizedCreator = typeof data?.author === 'string' ? data.author.trim() : '';
+  const creatorDisplay = normalizedCreator || (publisherName !== "—" ? publisherName : 'Unknown artist');
   const encodedPublisher = data?.name ? encodeURIComponent(data.name) : 'unknown';
   const encodedIdentifier = data?.id ? encodeURIComponent(data.id) : 'unknown';
 
@@ -106,7 +108,7 @@ const SongItem: React.FC<SongItemProps> = ({
         url: resolvedUrl ?? undefined,
         status: data?.status,
         title: data?.title || "",
-        author: data?.author || "",
+        author: creatorDisplay,
       }));
     } else {
       downloadVideo({
@@ -114,14 +116,14 @@ const SongItem: React.FC<SongItemProps> = ({
         service: 'AUDIO',
         identifier: data.id,
         title: data?.title || "",
-        author: data?.author || "",
+        author: creatorDisplay,
         id: data.id,
       });
     }
 
     dispatch(setCurrentSong(data.id));
     onClick(data.id);
-  }, [data, downloads, dispatch, downloadVideo, onClick]);
+  }, [creatorDisplay, data, downloads, dispatch, downloadVideo, onClick]);
 
   const handleNavigate = useCallback(() => {
     if (!data?.name || !data?.id) return;
@@ -190,14 +192,14 @@ const SongItem: React.FC<SongItemProps> = ({
         url: resolvedUrl,
         status: data?.status,
         title: data?.title || "",
-        author: data?.author || "",
+        author: creatorDisplay,
       }));
       toast.success("Song download started.");
     } catch (error) {
       console.error("Failed to download song", error);
       toast.error("Song could not be downloaded. Please try again later.");
     }
-  }, [data?.author, data?.id, data?.name, data?.status, data?.title, dispatch]);
+  }, [creatorDisplay, data?.id, data?.name, data?.status, data?.title, dispatch]);
 
   const handleSendTip = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -238,7 +240,7 @@ const SongItem: React.FC<SongItemProps> = ({
     id: data.id,
     title: data.title,
     name: data.name,
-    author: data.author,
+    author: normalizedCreator || creatorDisplay,
     service: data.service,
     status: data.status
   };
@@ -344,7 +346,7 @@ const SongItem: React.FC<SongItemProps> = ({
           truncate
         "
       >
-        {data?.author}
+        {creatorDisplay}
       </p>
       <p className="text-sky-400/60 text-xs" title={publisherName !== "—" ? publisherName : undefined}>
         by {publisherName}

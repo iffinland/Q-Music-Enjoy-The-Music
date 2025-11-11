@@ -11,6 +11,7 @@ export interface MultiPublishPayload {
   title: string;
   category: string;
   notes: string;
+   author: string;
   tags: string[];
   visibility: 'public' | 'draft' | 'limited';
   releaseDate?: string;

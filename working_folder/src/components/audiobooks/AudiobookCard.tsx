@@ -51,8 +51,9 @@ const formatPublishedLabel = (audiobook: Audiobook): string => {
     : 'Published';
 
   const sizeSegment = sizeLabel ? ` | Size: ${sizeLabel}` : '';
-  const publisherSegment = audiobook.publisher
-    ? ` | by ${audiobook.publisher}`
+  const hostName = audiobook.author?.trim() || audiobook.publisher;
+  const publisherSegment = hostName
+    ? ` | by ${hostName}`
     : '';
 
   return `${publishedPrefix}${sizeSegment}${publisherSegment}`;
@@ -110,6 +111,7 @@ export const AudiobookCard: React.FC<AudiobookCardProps> = ({
     audiobook.coverImage && audiobook.coverImage.trim().length > 0
       ? audiobook.coverImage
       : radioImg;
+  const creatorDisplay = audiobook.author?.trim() || audiobook.publisher || 'Unknown narrator';
   const handleNavigate = useCallback(() => {
     if (!audiobook.publisher || !audiobook.id) return;
     navigate(`/audiobooks/${encodeURIComponent(audiobook.publisher)}/${encodeURIComponent(audiobook.id)}`);
@@ -118,10 +120,10 @@ export const AudiobookCard: React.FC<AudiobookCardProps> = ({
     id: audiobook.id,
     title: audiobook.title,
     name: audiobook.publisher,
-    author: audiobook.publisher,
+    author: creatorDisplay,
     service: audiobook.service || 'AUDIO',
     status: audiobook.status,
-  }), [audiobook.id, audiobook.publisher, audiobook.service, audiobook.status, audiobook.title]);
+  }), [audiobook.id, audiobook.publisher, audiobook.service, audiobook.status, audiobook.title, creatorDisplay]);
 
   const [isLikePopoverOpen, setIsLikePopoverOpen] = useState(false);
   const [likeUsers, setLikeUsers] = useState<string[]>([]);
