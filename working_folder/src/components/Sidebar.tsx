@@ -141,11 +141,12 @@ interface SidebarRoute {
 interface SidebarContentProps {
   songs: Song[];
   routes: SidebarRoute[];
+  onNavigate?: () => void;
 }
 
 const DONATION_RECIPIENT = 'QTowvz1e89MP4FEFpHvEfZ4x8G3LwMpthz';
 
-const SidebarContent: React.FC<SidebarContentProps> = ({ songs, routes }) => {
+const SidebarContent: React.FC<SidebarContentProps> = ({ songs, routes, onNavigate }) => {
   const sendTipModal = useSendTipModal();
 
   const handleDonateClick = useCallback(() => {
@@ -157,7 +158,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ songs, routes }) => {
       <Box className="overflow-y-auto flex-grow">
         <div className="flex flex-col gap-y-1 px-5 py-4">
           {routes.map((item) => (
-            <SidebarItem key={item.label} {...item} />
+            <SidebarItem key={item.label} {...item} onNavigate={onNavigate} />
           ))}
           <AddLibrary songs={songs} />
         </div>
@@ -249,7 +250,11 @@ const MobileSidebarToggle: React.FC<SidebarContentProps> = ({ songs, routes }) =
               </button>
             </div>
             <div className="max-h-[70vh] overflow-y-auto">
-              <SidebarContent songs={songs} routes={routes} />
+              <SidebarContent
+                songs={songs}
+                routes={routes}
+                onNavigate={() => setIsOpen(false)}
+              />
             </div>
           </div>
         </div>

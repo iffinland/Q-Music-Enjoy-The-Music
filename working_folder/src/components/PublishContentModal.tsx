@@ -452,7 +452,7 @@ const PublishContentModal: React.FC = () => {
       setSelectedType('audio');
       return;
     }
-    setSelectedType(modal.preferredType);
+    setSelectedType(modal.preferredType || 'audio');
   }, [modal.isOpen, modal.preferredType]);
 
   useEffect(() => {

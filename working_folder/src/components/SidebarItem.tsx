@@ -9,6 +9,7 @@ interface SidebarItemProps {
   active?: boolean;
   href: string;
   onClick?: () => void;
+  onNavigate?: () => void;
 }
 
 const baseClasses = `
@@ -32,13 +33,19 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   label,
   active,
   href,
-  onClick
+  onClick,
+  onNavigate
 }) => {
   if (onClick) {
+    const handleButtonClick = () => {
+      onClick();
+      onNavigate?.();
+    };
+
     return (
       <button
         type="button"
-        onClick={onClick}
+        onClick={handleButtonClick}
         className={twMerge(baseClasses, active && "text-white")}
       >
         <Icon size={18} />
@@ -51,6 +58,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
     <NavLink
       to={href} 
       className={twMerge(baseClasses, active && "text-white")}
+      onClick={onNavigate}
     >
       <Icon size={18} />
       <p className="truncate w-100">{label}</p>
