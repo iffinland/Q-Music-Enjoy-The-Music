@@ -64,20 +64,17 @@ const normalizedBase = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath
 const logoUrl = `${normalizedBase || ''}/qmusic.png`;
 
 const HomeHero = () => (
-  <section className="rounded-2xl border border-sky-900/60 bg-gradient-to-br from-sky-950/85 via-sky-900/60 to-sky-950/80 p-6 shadow-lg">
-    <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-      <div className="max-w-2xl space-y-4">
-        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-wide text-sky-300/90" />
-        <h1 className="text-3xl font-bold text-white md:text-4xl">
-          <span className="inline-flex items-center gap-3">
-            <img src={logoUrl} alt="Q-Music logo" className="h-12 w-12" />
-            Enjoy and share music, podcasts, and audiobooks with the Q-Music community
-          </span>
-        </h1>
-        <p className="text-base text-sky-200/85 md:text-lg">
-          Discover the latest community creations and keep your library fresh with new songs, playlists, podcasts, audiobooks and videos.
-        </p>
-      </div>
+  <section className="rounded-2xl border border-sky-900/60 bg-gradient-to-br from-sky-950/85 via-sky-900/60 to-sky-950/80 px-4 py-5 shadow-lg sm:px-6 sm:py-6">
+    <div className="mx-auto flex max-w-3xl flex-col gap-4">
+      <h1 className="text-2xl font-bold text-white md:text-3xl">
+        <span className="inline-flex items-center gap-3">
+          <img src={logoUrl} alt="Q-Music logo" className="h-9 w-9 shrink-0" />
+          Enjoy and share music, podcasts, and audiobooks with the Q-Music community
+        </span>
+      </h1>
+      <p className="text-sm text-sky-200/85 md:text-base">
+        Discover the latest community creations and keep your library fresh with new songs, playlists, podcasts, audiobooks and videos.
+      </p>
     </div>
   </section>
 );

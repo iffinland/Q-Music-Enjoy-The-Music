@@ -12,7 +12,7 @@ import localforage from 'localforage';
 import { toast } from 'react-hot-toast';
 import { FiDownload, FiEdit2, FiPlay, FiShare2, FiThumbsUp } from 'react-icons/fi';
 import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
-import { PlayList, removeFavPlaylist, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavPlaylist, setNewPlayList } from '../../state/features/globalSlice';
+import { PlayList, removeFavPlaylist, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavPlaylist, setNewPlayList, setNowPlayingPlaylist } from '../../state/features/globalSlice';
 import { RootState } from '../../state/store';
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import { useContext } from 'react';
@@ -27,6 +27,7 @@ import useUploadPlaylistModal from '../../hooks/useUploadPlaylistModal';
 import useSendTipModal from '../../hooks/useSendTipModal';
 import { RiHandCoinLine } from 'react-icons/ri';
 import useCoverImage from '../../hooks/useCoverImage';
+import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../../hooks/usePlaylistPlayback';
 
 const playlistFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites',
@@ -57,6 +58,7 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
   const [likeBusy, setLikeBusy] = useState(false);
   const [favBusy, setFavBusy] = useState(false);
   const [playBusy, setPlayBusy] = useState(false);
+  const { ensurePlaylistSongs } = usePlaylistPlayback();
 
   const { url: coverUrl } = useCoverImage({
     identifier: playlist?.id ?? null,
@@ -105,12 +107,13 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
   }, [playlist.id, username]);
 
   const handlePlay = useCallback(async () => {
-    if (!playlist.songs || playlist.songs.length === 0) {
+    const readyPlaylist = await ensurePlaylistSongs(playlist);
+    if (!readyPlaylist || !readyPlaylist.songs || readyPlaylist.songs.length === 0) {
       toast.error('Playlist on tühi.');
       return;
     }
 
-    const head = playlist.songs[0];
+    const head = readyPlaylist.songs[0];
     if (!head?.identifier || !head?.name) {
       toast.error('Loo info puudulik.');
       return;
@@ -120,7 +123,8 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
 
     try {
       setPlayBusy(true);
-      dispatch(setCurrentPlaylist(playlist.id));
+      dispatch(setCurrentPlaylist(readyPlaylist.id));
+      dispatch(setNowPlayingPlaylist(mapPlaylistSongsToSongs(readyPlaylist.songs)));
 
       const downloadEntry = downloads[head.identifier];
       const isReady = downloadEntry?.status?.status === 'READY';
@@ -154,7 +158,7 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
     } finally {
       setPlayBusy(false);
     }
-  }, [dispatch, downloadVideo, downloads, playBusy, playlist]);
+  }, [dispatch, downloadVideo, downloads, playBusy, playlist, ensurePlaylistSongs]);
 
   const handleToggleFavorite = useCallback(async () => {
     if (!username) {

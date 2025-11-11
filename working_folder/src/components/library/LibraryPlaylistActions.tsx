@@ -20,6 +20,7 @@ import {
   setCurrentSong,
   setFavPlaylist,
   setNewPlayList,
+  setNowPlayingPlaylist,
 } from '../../state/features/globalSlice';
 import { RootState } from '../../state/store';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
@@ -30,6 +31,7 @@ import {
   likePlaylist,
   unlikePlaylist,
 } from '../../services/playlistLikes';
+import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../../hooks/usePlaylistPlayback';
 
 const playlistFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites',
@@ -57,6 +59,7 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
   const [likeBusy, setLikeBusy] = useState<boolean>(false);
   const [favBusy, setFavBusy] = useState<boolean>(false);
   const [playBusy, setPlayBusy] = useState<boolean>(false);
+  const { ensurePlaylistSongs } = usePlaylistPlayback();
 
   const isFavorited = useMemo(
     () => favoritesPlaylist?.some((item) => item.id === playlist.id) ?? false,
@@ -101,12 +104,13 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
   const handlePlay = useCallback(async () => {
     if (playBusy) return;
 
-    if (!playlist.songs || playlist.songs.length === 0) {
+    const ready = await ensurePlaylistSongs(playlist);
+    if (!ready || !ready.songs || ready.songs.length === 0) {
       toast.error('Playlist is empty.');
       return;
     }
 
-    const head = playlist.songs[0];
+    const head = ready.songs[0];
     if (!head?.identifier || !head?.name) {
       toast.error('Playlist song information missing.');
       return;
@@ -114,7 +118,8 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
 
     try {
       setPlayBusy(true);
-      dispatch(setCurrentPlaylist(playlist.id));
+      dispatch(setCurrentPlaylist(ready.id));
+      dispatch(setNowPlayingPlaylist(mapPlaylistSongsToSongs(ready.songs)));
 
       const downloadEntry = downloads[head.identifier];
       const isReady = downloadEntry?.status?.status === 'READY';
@@ -156,7 +161,7 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
     } finally {
       setPlayBusy(false);
     }
-  }, [dispatch, downloadVideo, downloads, playBusy, playlist]);
+  }, [dispatch, downloadVideo, downloads, playBusy, playlist, ensurePlaylistSongs]);
 
   const handleToggleFavorite = useCallback(async () => {
     if (!username) {

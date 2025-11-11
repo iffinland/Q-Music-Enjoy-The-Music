@@ -1,6 +1,6 @@
 import { SongMeta } from '../state/features/globalSlice';
-import { searchQdnResources } from '../utils/qortalApi';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
+import { cachedSearchQdnResources } from './resourceCache';
 
 /**
  * Shared parsing and memoization for song description k=v pairs
@@ -54,7 +54,7 @@ export const fetchSongByIdentifier = async (
   publisher: string,
   identifier: string,
 ): Promise<SongMeta | null> => {
-  const results = await searchQdnResources({
+  const results = await cachedSearchQdnResources({
     mode: 'ALL',
     service: 'AUDIO',
     query: identifier,

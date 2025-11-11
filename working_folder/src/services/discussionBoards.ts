@@ -4,7 +4,7 @@ import {
   ReplyAccess,
 } from '../state/features/discussionsSlice';
 import { objectToBase64 } from '../utils/toBase64';
-import { searchQdnResources } from '../utils/qortalApi';
+import { cachedSearchQdnResources } from './resourceCache';
 
 const THREAD_IDENTIFIER_PREFIX = 'qm_discussion_thread_';
 const REPLY_IDENTIFIER_PREFIX = 'qm_discussion_reply_';
@@ -33,7 +33,7 @@ const fetchSummaries = async (identifierPrefix: string) => {
   const aggregated: any[] = [];
 
   while (true) {
-    const page: any[] = await searchQdnResources({
+    const page: any[] = await cachedSearchQdnResources({
       mode: 'ALL',
       service: THREAD_SERVICE,
       identifier: identifierPrefix,

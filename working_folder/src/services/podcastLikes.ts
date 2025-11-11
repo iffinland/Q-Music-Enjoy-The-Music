@@ -1,6 +1,7 @@
 import { Podcast } from '../types';
-import { deleteQdnResource, fetchQdnResource, searchQdnResources } from '../utils/qortalApi';
+import { deleteQdnResource, fetchQdnResource } from '../utils/qortalApi';
 import { objectToBase64 } from '../utils/toBase64';
+import { cachedSearchQdnResources } from './resourceCache';
 
 const PODCAST_LIKE_PREFIX = 'podcast_like_';
 const LIKE_FETCH_LIMIT = 50;
@@ -14,7 +15,7 @@ export const fetchPodcastLikeCount = async (podcastId: string): Promise<number> 
 
   try {
     while (true) {
-      const results = await searchQdnResources({
+      const results = await cachedSearchQdnResources({
         mode: 'ALL',
         service: 'DOCUMENT',
         identifier: buildPodcastLikeIdentifier(podcastId),
@@ -53,7 +54,7 @@ export const fetchPodcastLikeUsers = async (
 
   try {
     while (users.size < limit) {
-      const results = await searchQdnResources({
+      const results = await cachedSearchQdnResources({
         mode: 'ALL',
         service: 'DOCUMENT',
         identifier: buildPodcastLikeIdentifier(podcastId),

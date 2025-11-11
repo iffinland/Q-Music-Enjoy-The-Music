@@ -1,6 +1,7 @@
-import { deleteQdnResource, fetchQdnResource, searchQdnResources } from '../utils/qortalApi';
+import { deleteQdnResource, fetchQdnResource } from '../utils/qortalApi';
 import { objectToBase64 } from '../utils/toBase64';
 import { SongRequest } from '../state/features/requestsSlice';
+import { cachedSearchQdnResources } from './resourceCache';
 
 const REQUEST_LIKE_PREFIX = 'enjoymusic_request_like_';
 const LIKE_FETCH_LIMIT = 50;
@@ -25,7 +26,7 @@ export const fetchRequestLikers = async (requestId: string): Promise<string[]> =
 
   try {
     while (true) {
-      const results = await searchQdnResources({
+      const results = await cachedSearchQdnResources({
         mode: 'ALL',
         service: 'DOCUMENT',
         identifier: buildRequestLikeIdentifier(requestId),

@@ -1,6 +1,6 @@
 import { RequestFill, SongRequest } from '../state/features/requestsSlice';
 import { objectToBase64 } from '../utils/toBase64';
-import { searchQdnResources } from '../utils/qortalApi';
+import { cachedSearchQdnResources } from './resourceCache';
 
 const REQUEST_IDENTIFIER_PREFIX = 'enjoymusic_request_';
 const REQUEST_FILL_IDENTIFIER_PREFIX = 'enjoymusic_request_fill_';
@@ -27,7 +27,7 @@ const fetchDocumentSummaries = async (identifierPrefix: string): Promise<any[]> 
   const aggregated: any[] = [];
 
   while (true) {
-    const page: any[] = await searchQdnResources({
+    const page: any[] = await cachedSearchQdnResources({
       mode: 'ALL',
       service: 'DOCUMENT',
       identifier: identifierPrefix,
@@ -130,7 +130,7 @@ export const deleteRequest = async (publisher: string, identifier: string) => {
 export const fetchRequestsByPublisher = async (publisher: string): Promise<SongRequest[]> => {
   if (!publisher) return [];
 
-  const summaries = await searchQdnResources({
+  const summaries = await cachedSearchQdnResources({
     mode: 'ALL',
     service: 'DOCUMENT',
     name: publisher,

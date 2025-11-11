@@ -6,6 +6,9 @@
 @font-face {
   font-family: 'Figtree';
   src: url("./styles/fonts/Figtree-Regular.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
 }
 
 
@@ -14,13 +17,36 @@ html,
 body,
 :root {
   height: 100%;
-  background-color: black;
   color-scheme: dark;
-  --scrollbar-track-color: rgba(12, 74, 110, 0.2);
-  --scrollbar-thumb-color: rgba(56, 189, 248, 0.8);
-  --scrollbar-thumb-hover-color: rgba(37, 99, 235, 0.95);
+  background-color: #030b17;
+  --qm-font-sans: 'Figtree', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --qm-ink: #e4f0ff;
+  --qm-ink-muted: #9cc4eb;
+  --qm-primary: #38bdf8;
+  --qm-primary-strong: #0ea5e9;
+  --qm-primary-soft: rgba(56, 189, 248, 0.14);
+  --qm-accent: #f472b6;
+  --qm-surface: #030b17;
+  --qm-surface-100: #061126;
+  --qm-surface-200: #0b1c34;
+  --qm-surface-300: #10223f;
+  --qm-border: #15345c;
+  --qm-border-strong: #1f4374;
+  --scrollbar-track-color: rgba(12, 74, 110, 0.25);
+  --scrollbar-thumb-color: rgba(56, 189, 248, 0.85);
+  --scrollbar-thumb-hover-color: rgba(14, 165, 233, 0.95);
   --scrollbar-thumb-gradient: linear-gradient(180deg, rgba(14, 165, 233, 0.9), rgba(37, 99, 235, 0.95));
   --scrollbar-thumb-hover-gradient: linear-gradient(180deg, rgba(2, 132, 199, 0.95), rgba(30, 64, 175, 1));
+}
+
+body {
+  margin: 0;
+  font-family: var(--qm-font-sans);
+  background: radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.08), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(8, 47, 73, 0.4), transparent 55%),
+    var(--qm-surface-100);
+  color: var(--qm-ink);
+  min-height: 100%;
 }
 
 #root {
@@ -29,7 +55,8 @@ body,
 
 
 * {
-  font-family: Figtree
+  font-family: var(--qm-font-sans);
+  letter-spacing: 0.01em;
 }
 
 * {
@@ -101,4 +128,11 @@ body,
 .donate-button-glow {
   background-size: 250% 250% !important;
   animation: donateGlow 7s ease-in-out infinite;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
 }

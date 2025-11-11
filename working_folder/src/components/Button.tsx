@@ -1,13 +1,49 @@
 import { forwardRef } from "react";
 import { twMerge } from "tailwind-merge";
 
-export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+}
+
+const variantClasses: Record<ButtonVariant, string> = {
+  primary: `
+    bg-qm-primary 
+    text-[#04101e] 
+    hover:bg-qm-primary-strong 
+    shadow-qm-soft 
+    border-transparent
+  `,
+  secondary: `
+    bg-transparent 
+    text-qm-ink 
+    border border-qm-border 
+    hover:border-qm-primary 
+    hover:text-white 
+    hover:bg-qm-primary-soft
+  `,
+  ghost: `
+    bg-transparent 
+    text-qm-ink-muted 
+    border border-transparent 
+    hover:bg-qm-surface-200 
+    hover:text-qm-ink
+  `,
+  danger: `
+    bg-qm-error/90 
+    text-white 
+    border border-transparent 
+    hover:bg-qm-error
+  `,
+};
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   className,
   children,
   disabled,
   type = 'button',
+  variant = 'primary',
   ...props
 }, ref) => {
   return (
@@ -15,21 +51,28 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
       type={type}
       className={twMerge(
         `
-        w-full 
-        rounded-full 
-        bg-green-500
-        border
-        border-transparent
-        px-3 
-        py-3 
-        disabled:cursor-not-allowed 
-        disabled:opacity-50
-        text-black
-        font-bold
-        hover:opacity-75
+        inline-flex
+        w-full
+        items-center
+        justify-center
+        gap-2
+        rounded-xl
+        px-4
+        py-3
+        text-sm
+        font-semibold
+        tracking-wide
         transition
+        focus:outline-none
+        focus-visible:ring-2
+        focus-visible:ring-qm-primary
+        focus-visible:ring-offset-2
+        focus-visible:ring-offset-qm-surface
+        disabled:cursor-not-allowed
+        disabled:opacity-60
       `,
-        disabled && 'opacity-75 cursor-not-allowed',
+        variantClasses[variant],
+        disabled && 'pointer-events-none',
         className
       )}
       disabled={disabled}

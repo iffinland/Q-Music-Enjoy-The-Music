@@ -12,6 +12,7 @@ import {
 import { CircularProgress } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { cachedSearchQdnResources } from "../../services/resourceCache";
+import { loadPlaylistMeta } from "../../services/playlistLoader";
 import { shouldHideQdnResource } from "../../utils/qdnResourceFilters";
 
 type SourceKey = "ALL" | "QMUSIC" | "EARBUMP";
@@ -75,20 +76,9 @@ const BrowseAllPlaylists: React.FC = () => {
   const fetchPlaylistContent = useCallback(
     async (user: string, identifier: string) => {
       try {
-        const responseData = await qortalRequest({
-          action: "FETCH_QDN_RESOURCE",
-          name: user,
-          service: "PLAYLIST",
-          identifier,
-        });
-        if (responseData && responseData.songs) {
-          dispatch(
-            addToPlaylistHashMap({
-              ...responseData,
-              user,
-              id: identifier,
-            })
-          );
+        const meta = await loadPlaylistMeta(user, identifier);
+        if (meta) {
+          dispatch(addToPlaylistHashMap(meta));
         }
       } catch (error) {
         console.error(error);

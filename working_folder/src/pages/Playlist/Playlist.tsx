@@ -7,6 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   PlayList,
   SongReference,
+  Status,
   addToPlaylistHashMap,
   removeFavPlaylist,
   setAddToDownloads,
@@ -17,6 +18,7 @@ import {
   setNewPlayList,
   removePlaylistById,
   upsertMyPlaylists,
+  setNowPlayingPlaylist,
 } from '../../state/features/globalSlice';
 import { FiShare2, FiTrash2, FiFlag, FiPlay, FiEdit2, FiList, FiChevronUp, FiChevronDown, FiCheck, FiX } from 'react-icons/fi';
 import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
@@ -31,6 +33,7 @@ import { cachedSearchQdnResources } from '../../services/resourceCache';
 import { objectToBase64 } from '../../utils/toBase64';
 import { shouldHideQdnResource } from '../../utils/qdnResourceFilters';
 import HomeActionButton from '../../components/home/HomeActionButton';
+import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../../hooks/usePlaylistPlayback';
 import useUploadPlaylistModal from '../../hooks/useUploadPlaylistModal';
 import MediaItem from '../../components/MediaItem';
 import { Song } from '../../types';
@@ -50,6 +53,7 @@ export const Playlist = () => {
   const dispatch = useDispatch()
   const playlistHash = useSelector((state: RootState) => state.global.playlistHash);
   const { downloadVideo } = useContext(MyContext)
+  const { ensurePlaylistSongs } = usePlaylistPlayback();
 
   const downloads = useSelector(
     (state: RootState) => state.global.downloads
@@ -366,41 +370,58 @@ export const Playlist = () => {
       toast.error('Failed to copy playlist link.');
     }
   }, [name, playlistId]);
-  const onClickPlayPlaylist = async ()=> {
-    if(!playListData?.songs && playListData?.songs?.length === 0) return
+  const onClickPlayPlaylist = async () => {
+    if (!playListData) return;
+    const ready = await ensurePlaylistSongs(playListData);
+    if (!ready || !ready.songs || ready.songs.length === 0) {
+      toast.error('Playlist is empty.');
+      return;
+    }
 
-    const firstLikedSong = {
-      ...playListData?.songs[0],
-      id: playListData?.songs[0].identifier
+    const firstEntry = ready.songs[0] as SongReference & { status?: Status };
+    const firstSong = {
+      ...firstEntry,
+      id: firstEntry.identifier,
+    };
+
+    if (!firstSong?.id || !firstSong?.name) {
+      toast.error('Playlist song information missing.');
+      return;
     }
-    dispatch(
-      setCurrentPlaylist(playListData.id)
-    )
-    if(firstLikedSong?.status?.status === 'READY' || downloads[firstLikedSong.id]?.status?.status === 'READY'){
-      const resolvedUrl = await getQdnResourceUrl('AUDIO', firstLikedSong.name, firstLikedSong.id);
-      dispatch(setAddToDownloads({
-        name: firstLikedSong.name,
-        service: 'AUDIO',
-        id: firstLikedSong.id,
-        identifier: firstLikedSong.id,
-        url: resolvedUrl ?? undefined,
-        status: firstLikedSong?.status,
-        title: firstLikedSong?.title || "",
-        author: firstLikedSong?.author || "",
-      }))
-    }else {
+
+    dispatch(setCurrentPlaylist(ready.id));
+    dispatch(setNowPlayingPlaylist(mapPlaylistSongsToSongs(ready.songs)));
+
+    if (
+      firstSong?.status?.status === 'READY' ||
+      downloads[firstSong.id]?.status?.status === 'READY'
+    ) {
+      const resolvedUrl = await getQdnResourceUrl('AUDIO', firstSong.name, firstSong.id);
+      dispatch(
+        setAddToDownloads({
+          name: firstSong.name,
+          service: 'AUDIO',
+          id: firstSong.id,
+          identifier: firstSong.id,
+          url: resolvedUrl ?? undefined,
+          status: firstSong?.status,
+          title: firstSong?.title || '',
+          author: firstSong?.author || '',
+        }),
+      );
+    } else {
       downloadVideo({
-        name: firstLikedSong.name,
+        name: firstSong.name,
         service: 'AUDIO',
-        identifier: firstLikedSong.id,
-        title: firstLikedSong?.title || "",
-        author: firstLikedSong?.author || "",
-        id: firstLikedSong.id
-      })
+        identifier: firstSong.id,
+        title: firstSong?.title || '',
+        author: firstSong?.author || '',
+        id: firstSong.id,
+      });
     }
-   
-    dispatch(setCurrentSong(firstLikedSong.id))
-  }
+
+    dispatch(setCurrentSong(firstSong.id));
+  };
 
   const handleLike = async () => {
     try {

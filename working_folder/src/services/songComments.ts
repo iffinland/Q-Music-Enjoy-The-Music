@@ -4,6 +4,7 @@ import { objectToBase64 } from '../utils/toBase64';
 
 const COMMENT_PREFIX = 'enjoymusic_song_comment_';
 const FETCH_LIMIT = 50;
+const COMMENT_CACHE_TTL = 10_000;
 
 export interface SongComment {
   id: string;
@@ -17,67 +18,111 @@ export interface SongComment {
 
 const uid = new ShortUniqueId();
 
+type CommentCacheEntry = {
+  timestamp: number;
+  promise: Promise<SongComment[]>;
+};
+
+const commentCache = new Map<string, CommentCacheEntry>();
+
+const buildCommentCacheKey = (publisher: string, identifier: string) =>
+  `${publisher?.toLowerCase() ?? ''}:${identifier}`;
+
+export interface FetchSongCommentsOptions {
+  force?: boolean;
+}
+
+export const invalidateSongCommentsCache = (songPublisher: string, songIdentifier: string) => {
+  const cacheKey = buildCommentCacheKey(songPublisher, songIdentifier);
+  commentCache.delete(cacheKey);
+};
+
 export const fetchSongComments = async (
   songPublisher: string,
   songIdentifier: string,
+  options: FetchSongCommentsOptions = {},
 ): Promise<SongComment[]> => {
-  const prefix = `${COMMENT_PREFIX}${songIdentifier}_`;
-  const aggregated: SongComment[] = [];
-  let offset = 0;
+  const { force = false } = options;
+  const cacheKey = buildCommentCacheKey(songPublisher, songIdentifier);
+  const now = Date.now();
 
-  while (true) {
-    const page = await searchQdnResources({
-      mode: 'ALL',
-      service: 'DOCUMENT',
-      query: prefix,
-      limit: FETCH_LIMIT,
-      offset,
-      reverse: true,
-      includeMetadata: false,
-      excludeBlocked: true,
-    });
-
-    if (!Array.isArray(page) || page.length === 0) {
-      break;
+  if (!force) {
+    const cached = commentCache.get(cacheKey);
+    if (cached && now - cached.timestamp < COMMENT_CACHE_TTL) {
+      return cached.promise;
     }
-
-    for (const entry of page) {
-      try {
-        const data = await fetchQdnResource({
-          name: entry.name,
-          service: entry.service,
-          identifier: entry.identifier,
-        });
-
-        if (!data || typeof data !== 'object') continue;
-
-        if (data.songIdentifier !== songIdentifier) continue;
-
-        const created = data.created ?? entry.created ?? Date.now();
-        const updated = data.updated ?? created;
-
-        aggregated.push({
-          id: entry.identifier,
-          songIdentifier: data.songIdentifier,
-          songPublisher: data.songPublisher,
-          author: data.author || entry.name,
-          message: data.message || '',
-          created,
-          updated,
-        });
-      } catch (error) {
-        console.error('Failed to fetch song comment', error);
-      }
-    }
-
-    if (page.length < FETCH_LIMIT) {
-      break;
-    }
-
-    offset += page.length;
+  } else {
+    commentCache.delete(cacheKey);
   }
 
-  return aggregated.sort((a, b) => (b.created ?? 0) - (a.created ?? 0));
+  const promise = (async () => {
+    const prefix = `${COMMENT_PREFIX}${songIdentifier}_`;
+    const aggregated: SongComment[] = [];
+    let offset = 0;
+
+    while (true) {
+      const page = await searchQdnResources({
+        mode: 'ALL',
+        service: 'DOCUMENT',
+        query: prefix,
+        limit: FETCH_LIMIT,
+        offset,
+        reverse: true,
+        includeMetadata: false,
+        excludeBlocked: true,
+      });
+
+      if (!Array.isArray(page) || page.length === 0) {
+        break;
+      }
+
+      for (const entry of page) {
+        try {
+          const data = await fetchQdnResource({
+            name: entry.name,
+            service: entry.service,
+            identifier: entry.identifier,
+          });
+
+          if (!data || typeof data !== 'object') continue;
+          if (data.songIdentifier !== songIdentifier) continue;
+
+          const created = data.created ?? entry.created ?? Date.now();
+          const updated = data.updated ?? created;
+
+          aggregated.push({
+            id: entry.identifier,
+            songIdentifier: data.songIdentifier,
+            songPublisher: data.songPublisher,
+            author: data.author || entry.name,
+            message: data.message || '',
+            created,
+            updated,
+          });
+        } catch (error) {
+          console.error('Failed to fetch song comment', error);
+        }
+      }
+
+      if (page.length < FETCH_LIMIT) {
+        break;
+      }
+
+      offset += page.length;
+    }
+
+    return aggregated.sort((a, b) => (b.created ?? 0) - (a.created ?? 0));
+  })();
+
+  commentCache.set(cacheKey, { timestamp: now, promise });
+  promise.catch(() => {
+    const existing = commentCache.get(cacheKey);
+    if (existing?.promise === promise) {
+      commentCache.delete(cacheKey);
+    }
+  });
+
+  return promise;
 };
 
 interface PublishCommentPayload {
@@ -128,19 +173,30 @@ export const publishSongComment = async ({
     ],
   });
 
+  invalidateSongCommentsCache(publisher, identifier);
+
   return {
     ...payload,
     author,
   };
 };
 
-export const deleteSongComment = async (author: string, identifier: string) => {
+export const deleteSongComment = async (
+  author: string,
+  identifier: string,
+  songPublisher?: string,
+  songIdentifier?: string,
+) => {
   await qortalRequest({
     action: 'DELETE_QDN_RESOURCE',
     name: author,
     service: 'DOCUMENT',
     identifier,
   });
+
+  if (songPublisher && songIdentifier) {
+    invalidateSongCommentsCache(songPublisher, songIdentifier);
+  }
 };
 
 export const updateSongComment = async (
@@ -172,6 +228,8 @@ export const updateSongComment = async (
       },
     ],
   });
+
+  invalidateSongCommentsCache(comment.songPublisher, comment.songIdentifier);
 
   return payload;
 };

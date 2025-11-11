@@ -22,6 +22,7 @@ import {
   setCurrentSong,
   setFavPlaylist,
   setNewPlayList,
+  setNowPlayingPlaylist,
 } from '../state/features/globalSlice';
 import { RootState } from '../state/store';
 import { MyContext } from '../wrappers/DownloadWrapper';
@@ -37,6 +38,7 @@ import useUploadPlaylistModal from '../hooks/useUploadPlaylistModal';
 import useSendTipModal from '../hooks/useSendTipModal';
 import { RiHandCoinLine } from 'react-icons/ri';
 import useCoverImage from '../hooks/useCoverImage';
+import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../hooks/usePlaylistPlayback';
 
 interface PlaylistCardProps {
   data: PlayList;
@@ -63,6 +65,7 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
   const [isLikeBusy, setIsLikeBusy] = useState<boolean>(false);
   const [isFavoriteBusy, setIsFavoriteBusy] = useState<boolean>(false);
   const [isPlayBusy, setIsPlayBusy] = useState<boolean>(false);
+  const { ensurePlaylistSongs } = usePlaylistPlayback();
 
   const { url: coverUrl } = useCoverImage({
     identifier: data?.id ?? null,
@@ -141,12 +144,13 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
       event.stopPropagation();
       if (isPlayBusy) return;
 
-      if (!data.songs || data.songs.length === 0) {
+      const ready = await ensurePlaylistSongs(data);
+      if (!ready || !ready.songs || ready.songs.length === 0) {
         toast.error('Playlist is empty.');
         return;
       }
 
-      const firstTrack = data.songs[0];
+      const firstTrack = ready.songs[0];
       if (!firstTrack?.identifier || !firstTrack?.name) {
         toast.error('Playlist track information is incomplete.');
         return;
@@ -156,7 +160,8 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
         setIsPlayBusy(true);
         const trackId = firstTrack.identifier;
         const service = firstTrack.service || 'AUDIO';
-        dispatch(setCurrentPlaylist(data.id));
+        dispatch(setCurrentPlaylist(ready.id));
+        dispatch(setNowPlayingPlaylist(mapPlaylistSongsToSongs(ready.songs)));
 
         const downloadEntry = downloads[trackId];
         const isReady = downloadEntry?.status?.status === 'READY';
@@ -199,7 +204,7 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
         setIsPlayBusy(false);
       }
     },
-    [data, dispatch, downloadVideo, downloads, isPlayBusy],
+    [data, dispatch, downloadVideo, downloads, ensurePlaylistSongs, isPlayBusy],
   );
 
   const handleSharePlaylist = useCallback(

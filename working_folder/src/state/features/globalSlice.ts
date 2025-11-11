@@ -304,6 +304,9 @@ export const globalSlice = createSlice({
         }
       })
     },
+    setNowPlayingPlaylist: (state, action: PayloadAction<Song[]>) => {
+      state.nowPlayingPlaylist = Array.isArray(action.payload) ? action.payload : [];
+    },
     setVolumePlayer: (state, action) => {
       state.volume = action.payload
     },
@@ -375,7 +378,8 @@ export const {
   setFavPlaylist,
   removeFavPlaylist,
   setStatisticsLoading,
-  setStatistics
+  setStatistics,
+  setNowPlayingPlaylist,
 } = globalSlice.actions
 
 export default globalSlice.reducer

@@ -1,7 +1,7 @@
 import { fetchRequestsFromQdn } from './qdnRequests';
-import { searchQdnResources } from '../utils/qortalApi';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { SongRequest } from '../state/features/requestsSlice';
+import { cachedSearchQdnResources } from './resourceCache';
 
 type ResourceSummaryResult = {
   count: number;
@@ -39,7 +39,7 @@ const fetchResourceSummary = async (
   const queryPrefix = `${prefix}_`;
 
   while (true) {
-    const page: any[] = await searchQdnResources({
+    const page: any[] = await cachedSearchQdnResources({
       mode: 'ALL',
       service,
       query: queryPrefix,

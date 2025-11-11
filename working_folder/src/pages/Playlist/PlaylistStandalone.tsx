@@ -3,7 +3,7 @@ import Header from '../../components/Header'
 import SearchContent from '../../components/SearchContent'
 import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '../../state/store'
-import { PlayList, addToPlaylistHashMap, removeFavPlaylist, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavPlaylist, setIsLoadingGlobal, setNewPlayList } from '../../state/features/globalSlice'
+import { PlayList, SongReference, Status, addToPlaylistHashMap, removeFavPlaylist, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavPlaylist, setIsLoadingGlobal, setNewPlayList, setNowPlayingPlaylist } from '../../state/features/globalSlice'
 import { AiFillEdit, AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { FaPlay } from 'react-icons/fa'
 import { FiShare2, FiTrash2, FiFlag } from 'react-icons/fi';
@@ -17,6 +17,7 @@ import { toast } from 'react-hot-toast';
 import { objectToBase64 } from '../../utils/toBase64';
 import { shouldHideQdnResource } from '../../utils/qdnResourceFilters';
 import { cachedSearchQdnResources } from '../../services/resourceCache';
+import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../../hooks/usePlaylistPlayback';
 
 const favoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites'
@@ -33,6 +34,7 @@ export const PlaylistStandalone = ({
   const dispatch = useDispatch()
   const playlistHash = useSelector((state: RootState) => state.global.playlistHash);
   const { downloadVideo } = useContext(MyContext)
+  const { ensurePlaylistSongs } = usePlaylistPlayback();
 
   const downloads = useSelector(
     (state: RootState) => state.global.downloads
@@ -252,41 +254,58 @@ export const PlaylistStandalone = ({
       toast.error('Failed to copy playlist link.');
     }
   }, [name, playlistId]);
-  const onClickPlayPlaylist = async ()=> {
-    if(!playListData?.songs && playListData?.songs?.length === 0) return
+  const onClickPlayPlaylist = async () => {
+    if (!playListData) return;
+    const ready = await ensurePlaylistSongs(playListData);
+    if (!ready || !ready.songs || ready.songs.length === 0) {
+      toast.error('Playlist is empty.');
+      return;
+    }
 
-    const firstLikedSong = {
-      ...playListData?.songs[0],
-      id: playListData?.songs[0].identifier
+    const firstEntry = ready.songs[0] as SongReference & { status?: Status };
+    const firstSong = {
+      ...firstEntry,
+      id: firstEntry.identifier,
+    };
+
+    if (!firstSong?.id || !firstSong?.name) {
+      toast.error('Playlist song information missing.');
+      return;
     }
-    dispatch(
-      setCurrentPlaylist(playListData.id)
-    )
-    if(firstLikedSong?.status?.status === 'READY' || downloads[firstLikedSong.id]?.status?.status === 'READY'){
-      const resolvedUrl = await getQdnResourceUrl('AUDIO', firstLikedSong.name, firstLikedSong.id);
-      dispatch(setAddToDownloads({
-        name: firstLikedSong.name,
-        service: 'AUDIO',
-        id: firstLikedSong.id,
-        identifier: firstLikedSong.id,
-        url: resolvedUrl ?? undefined,
-        status: firstLikedSong?.status,
-        title: firstLikedSong?.title || "",
-        author: firstLikedSong?.author || "",
-      }))
-    }else {
+
+    dispatch(setCurrentPlaylist(ready.id));
+    dispatch(setNowPlayingPlaylist(mapPlaylistSongsToSongs(ready.songs)));
+
+    if (
+      firstSong?.status?.status === 'READY' ||
+      downloads[firstSong.id]?.status?.status === 'READY'
+    ) {
+      const resolvedUrl = await getQdnResourceUrl('AUDIO', firstSong.name, firstSong.id);
+      dispatch(
+        setAddToDownloads({
+          name: firstSong.name,
+          service: 'AUDIO',
+          id: firstSong.id,
+          identifier: firstSong.id,
+          url: resolvedUrl ?? undefined,
+          status: firstSong?.status,
+          title: firstSong?.title || '',
+          author: firstSong?.author || '',
+        }),
+      );
+    } else {
       downloadVideo({
-        name: firstLikedSong.name,
+        name: firstSong.name,
         service: 'AUDIO',
-        identifier: firstLikedSong.id,
-        title: firstLikedSong?.title || "",
-        author: firstLikedSong?.author || "",
-        id: firstLikedSong.id
-      })
+        identifier: firstSong.id,
+        title: firstSong?.title || '',
+        author: firstSong?.author || '',
+        id: firstSong.id,
+      });
     }
-   
-    dispatch(setCurrentSong(firstLikedSong.id))
-  }
+
+    dispatch(setCurrentSong(firstSong.id));
+  };
 
   const handleLike = async () => {
     try {

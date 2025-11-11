@@ -224,7 +224,7 @@ const SongDetail: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await deleteSongComment(username, comment.id);
+      await deleteSongComment(username, comment.id, comment.songPublisher, comment.songIdentifier);
       setComments((prev) => prev.filter((entry) => entry.id !== comment.id));
       toast.success('Comment deleted.');
       if (editingCommentId === comment.id) {

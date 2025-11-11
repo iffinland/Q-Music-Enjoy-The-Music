@@ -1,6 +1,7 @@
 import { Audiobook } from '../types';
-import { deleteQdnResource, fetchQdnResource, searchQdnResources } from '../utils/qortalApi';
+import { deleteQdnResource, fetchQdnResource } from '../utils/qortalApi';
 import { objectToBase64 } from '../utils/toBase64';
+import { cachedSearchQdnResources } from './resourceCache';
 
 const AUDIOBOOK_LIKE_PREFIX = 'audiobook_like_';
 const LIKE_FETCH_LIMIT = 50;
@@ -14,7 +15,7 @@ export const fetchAudiobookLikeCount = async (audiobookId: string): Promise<numb
 
   try {
     while (true) {
-      const results = await searchQdnResources({
+      const results = await cachedSearchQdnResources({
         mode: 'ALL',
         service: 'DOCUMENT',
         identifier: buildAudiobookLikeIdentifier(audiobookId),
@@ -53,7 +54,7 @@ export const fetchAudiobookLikeUsers = async (
 
   try {
     while (users.size < limit) {
-      const results = await searchQdnResources({
+      const results = await cachedSearchQdnResources({
         mode: 'ALL',
         service: 'DOCUMENT',
         identifier: buildAudiobookLikeIdentifier(audiobookId),

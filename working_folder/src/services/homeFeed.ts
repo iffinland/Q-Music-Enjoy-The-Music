@@ -64,7 +64,7 @@ const mapPlaylistResource = (resource: any): PlayList => ({
   created: resource?.created,
   updated: resource?.updated,
   user: resource?.name,
-  image: '',
+  image: typeof resource?.metadata?.image === 'string' ? resource.metadata.image : null,
   songs: [],
   id: resource?.identifier,
 });

@@ -1,6 +1,7 @@
 import { PlayList } from '../state/features/globalSlice';
-import { deleteQdnResource, fetchQdnResource, searchQdnResources } from '../utils/qortalApi';
+import { deleteQdnResource, fetchQdnResource } from '../utils/qortalApi';
 import { objectToBase64 } from '../utils/toBase64';
+import { cachedSearchQdnResources } from './resourceCache';
 
 const PLAYLIST_LIKE_PREFIX = 'playlist_like_';
 const LIKE_FETCH_LIMIT = 50;
@@ -14,7 +15,7 @@ export const fetchPlaylistLikeCount = async (playlistId: string): Promise<number
 
   try {
     while (true) {
-      const results = await searchQdnResources({
+      const results = await cachedSearchQdnResources({
         mode: 'ALL',
         service: 'DOCUMENT',
         identifier: buildPlaylistLikeIdentifier(playlistId),

@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import CircularProgress from '@mui/material/CircularProgress';
 import { AiFillStepBackward, AiFillStepForward } from 'react-icons/ai';
 import { BsPauseFill, BsPlayFill } from 'react-icons/bs';
-import { FiDownload, FiEdit2, FiInfo, FiMaximize2, FiMinimize2, FiThumbsUp } from 'react-icons/fi';
+import { FiDownload, FiEdit2, FiInfo, FiMaximize2, FiMinimize2, FiShuffle, FiThumbsUp, FiX } from 'react-icons/fi';
 import { HiSpeakerWave, HiSpeakerXMark } from 'react-icons/hi2';
 import { LuCopy } from 'react-icons/lu';
 import { RiHandCoinLine } from 'react-icons/ri';
@@ -23,7 +23,9 @@ import {
   Status,
   SongMeta,
   setAddToDownloads,
+  setCurrentPlaylist,
   setCurrentSong,
+  setNowPlayingPlaylist,
   setVolumePlayer,
   upsertNowPlayingPlaylist,
 } from '../state/features/globalSlice';
@@ -582,6 +584,8 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   const downloads = useSelector(
     (state: RootState) => state.global.downloads as Record<string, DownloadEntry>,
   );
+  const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
+  const shuffleOrderRef = useRef<string[]>([]);
 
   const details = useSongDetails(song);
   const {
@@ -628,6 +632,44 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
     [],
   );
 
+  const getActivePlaylistEntries = useCallback((): (PlaylistSong | Song)[] => {
+    if (currentPlaylist === 'nowPlayingPlaylist') {
+      return nowPlayingPlaylist;
+    }
+    if (currentPlaylist === 'likedPlaylist') {
+      return favoriteList;
+    }
+    const playlist = playlistHash[currentPlaylist];
+    return (playlist?.songs as PlaylistSong[]) || [];
+  }, [currentPlaylist, favoriteList, nowPlayingPlaylist, playlistHash]);
+
+  const shuffleArray = (input: string[]) => {
+    const arr = [...input];
+    for (let i = arr.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
+  const buildShuffleOrder = useCallback(
+    (entries: (PlaylistSong | Song)[]) => {
+      const ids = entries
+        .map((entry) => resolveIdentifier(entry))
+        .filter((id): id is string => Boolean(id));
+
+      if (!ids.length) {
+        return [];
+      }
+
+      const currentId = song.id;
+      const remaining = ids.filter((id) => id !== currentId);
+      const shuffled = shuffleArray(remaining);
+      return currentId ? [currentId, ...shuffled] : shuffled;
+    },
+    [resolveIdentifier, song.id],
+  );
+
   const playSongByIdentifier = useCallback(
     async (songToPlay?: PlaylistSong | Song) => {
       if (!songToPlay) return;
@@ -672,43 +714,67 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
     [dispatch, downloadVideo, downloads, resolveIdentifier],
   );
 
+  const handleToggleShuffle = useCallback(() => {
+    const entries = getActivePlaylistEntries();
+    if (!entries.length) {
+      toast.error('Playlist is empty.');
+      return;
+    }
+    setIsShuffleEnabled((prev) => {
+      if (prev) {
+        shuffleOrderRef.current = [];
+        return false;
+      }
+      shuffleOrderRef.current = buildShuffleOrder(entries);
+      return true;
+    });
+  }, [buildShuffleOrder, getActivePlaylistEntries]);
+
   const handlePlaylistNavigation = useCallback(
     async (direction: 'next' | 'previous') => {
-      if (currentPlaylist === 'nowPlayingPlaylist') {
-        if (nowPlayingPlaylist.length === 0) return;
-        const currentIndex = nowPlayingPlaylist.findIndex((item) => item.id === song.id);
+      const entries = getActivePlaylistEntries();
+      if (entries.length === 0) return;
+
+      if (isShuffleEnabled) {
+        if (shuffleOrderRef.current.length !== entries.length) {
+          shuffleOrderRef.current = buildShuffleOrder(entries);
+        }
+        let currentIndex = shuffleOrderRef.current.indexOf(song.id);
+        if (currentIndex === -1) {
+          shuffleOrderRef.current = buildShuffleOrder(entries);
+          currentIndex = shuffleOrderRef.current.indexOf(song.id);
+        }
+        const delta = direction === 'next' ? 1 : -1;
         const nextIndex =
-          direction === 'next'
-            ? (currentIndex + 1) % nowPlayingPlaylist.length
-            : (currentIndex - 1 + nowPlayingPlaylist.length) % nowPlayingPlaylist.length;
-        await playSongByIdentifier(nowPlayingPlaylist[nextIndex]);
+          (currentIndex + delta + shuffleOrderRef.current.length) %
+          shuffleOrderRef.current.length;
+        const nextId = shuffleOrderRef.current[nextIndex];
+        const nextEntry = entries.find(
+          (entry) => resolveIdentifier(entry) === nextId,
+        );
+        if (nextEntry) {
+          await playSongByIdentifier(nextEntry as PlaylistSong);
+        }
         return;
       }
 
-      if (currentPlaylist === 'likedPlaylist') {
-        if (favoriteList.length === 0) return;
-        const currentIndex = favoriteList.findIndex((item) => item.id === song.id);
-        const nextIndex =
-          direction === 'next'
-            ? (currentIndex + 1) % favoriteList.length
-            : (currentIndex - 1 + favoriteList.length) % favoriteList.length;
-        await playSongByIdentifier(favoriteList[nextIndex]);
-        return;
-      }
-
-      const playlist = playlistHash[currentPlaylist];
-      if (playlist) {
-        const songs = (playlist.songs as PlaylistSong[]) || [];
-        if (songs.length === 0) return;
-        const currentIndex = songs.findIndex((item) => item?.identifier === song?.id);
-        const nextIndex =
-          direction === 'next'
-            ? (currentIndex + 1) % songs.length
-            : (currentIndex - 1 + songs.length) % songs.length;
-        await playSongByIdentifier(songs[nextIndex]);
-      }
+      const currentIndex = entries.findIndex(
+        (entry) => resolveIdentifier(entry) === song?.id,
+      );
+      const safeIndex = currentIndex >= 0 ? currentIndex : 0;
+      const delta = direction === 'next' ? 1 : -1;
+      const nextIndex = (safeIndex + delta + entries.length) % entries.length;
+      const nextEntry = entries[nextIndex];
+      await playSongByIdentifier(nextEntry as PlaylistSong);
     },
-    [currentPlaylist, favoriteList, nowPlayingPlaylist, playlistHash, playSongByIdentifier, song?.id],
+    [
+      buildShuffleOrder,
+      getActivePlaylistEntries,
+      isShuffleEnabled,
+      playSongByIdentifier,
+      resolveIdentifier,
+      song?.id,
+    ],
   );
 
   const [play, { pause, sound }] = useSound(songUrl || '', {
@@ -740,6 +806,12 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
     onPlaybackStateChange(false);
     setCurrentTime(0);
   }, [song.id, onPlaybackStateChange]);
+
+  useEffect(() => {
+    if (!isShuffleEnabled) return;
+    const entries = getActivePlaylistEntries();
+    shuffleOrderRef.current = buildShuffleOrder(entries);
+  }, [buildShuffleOrder, getActivePlaylistEntries, isShuffleEnabled]);
 
   useEffect(() => {
     sound?.play();
@@ -848,6 +920,15 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
             className="order-1 flex min-w-[200px] flex-1 md:min-w-[220px] md:flex-none"
           />
           <div className="order-2 flex items-center justify-center gap-2 md:order-3 md:flex-none">
+            <button
+              type="button"
+              onClick={handleToggleShuffle}
+              className={`${actionButtonClass} ${isShuffleEnabled ? '!bg-sky-800/70 !border-sky-500/70' : ''}`}
+              title="Toggle shuffle"
+              aria-label="Toggle shuffle"
+            >
+              <FiShuffle size={18} />
+            </button>
             <button
               type="button"
               onClick={() => handlePlaylistNavigation('previous')}
@@ -965,6 +1046,7 @@ interface MiniPlayerProps {
   onVolumeChange?: (value: number) => void;
   position: MiniPlayerPosition;
   onPositionChange: (position: MiniPlayerPosition) => void;
+  onClose?: () => void;
 }
 
 const MiniPlayer: React.FC<MiniPlayerProps> = ({
@@ -984,6 +1066,7 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
   onVolumeChange,
   position,
   onPositionChange,
+  onClose,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
@@ -1143,10 +1226,23 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
               className="flex items-center gap-2 rounded-full bg-amber-400 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow transition hover:bg-amber-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
               title="Open full player"
               aria-label="Open full player"
+              data-no-drag
             >
               <FiMaximize2 size={14} />
               Open Player
             </button>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex items-center justify-center rounded-full bg-sky-900/50 p-2 text-white transition hover:bg-sky-800/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                title="Close player"
+                aria-label="Close player"
+                data-no-drag
+              >
+                <FiX size={14} />
+              </button>
+            )}
           </div>
           <div className="space-y-1">
             <p className="truncate text-sm font-semibold sm:text-base">{title}</p>
@@ -1382,6 +1478,16 @@ const Player = () => {
     [dispatch],
   );
 
+  const handleClosePlayer = useCallback(() => {
+    if (externalControls?.pause) {
+      externalControls.pause();
+    }
+    dispatch(setCurrentSong(null));
+    dispatch(setCurrentPlaylist('nowPlayingPlaylist'));
+    dispatch(setNowPlayingPlaylist([]));
+    setIsCollapsed(false);
+  }, [dispatch, externalControls]);
+
   if (!songItem) return null;
 
   const percentLoaded = Math.round(songItem?.status?.percentLoaded ?? 0);
@@ -1398,7 +1504,17 @@ const Player = () => {
       <div className={`${isCollapsed ? 'hidden' : ''} fixed bottom-0 left-0 right-0 z-40`}>
         <div className="border-t border-sky-900/60 bg-sky-950/25 backdrop-blur-lg">
           <div className="mx-auto w-full max-w-6xl px-4 pb-3 pt-2 sm:px-6">
-            <div className="mb-2 flex justify-end">
+            <div className="mb-2 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleClosePlayer}
+                className="flex items-center gap-2 rounded-full bg-sky-900/40 px-3 py-1.5 text-sm font-semibold text-sky-100 hover:bg-sky-800/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60"
+                title="Close player"
+                aria-label="Close player"
+              >
+                <FiX size={16} />
+                <span className="hidden sm:inline">Close</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setIsCollapsed(true)}
@@ -1453,6 +1569,7 @@ const Player = () => {
           onVolumeChange={handleVolumeChangeCollapsed}
           position={miniPlayerPosition}
           onPositionChange={setMiniPlayerPosition}
+          onClose={handleClosePlayer}
         />
       )}
     </>

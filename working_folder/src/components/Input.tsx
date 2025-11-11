@@ -16,23 +16,29 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
         `
         flex 
         w-full 
-        rounded-md 
-        bg-sky-950/70
+        rounded-xl 
+        bg-qm-surface-200/80
         border
-        border-sky-900/60
-        px-3 
+        border-qm-border
+        px-4 
         py-3 
         text-sm 
+        text-qm-ink
+        placeholder:text-qm-ink-muted 
+        focus:outline-none
+        focus-visible:ring-2
+        focus-visible:ring-qm-primary
+        focus-visible:ring-offset-2
+        focus-visible:ring-offset-qm-surface
+        transition
         file:border-0 
         file:bg-transparent 
         file:text-sm 
         file:font-medium 
-        placeholder:text-sky-200/60 
         disabled:cursor-not-allowed 
-        disabled:opacity-50
-        focus:outline-none
+        disabled:opacity-60
       `,
-        disabled && 'opacity-75',
+        disabled && 'pointer-events-none',
         className
       )}
       disabled={disabled}
