@@ -2,6 +2,7 @@
 
 import radioImg from '../assets/img/enjoy-music.jpg';
 import { PlayList } from "../state/features/globalSlice";
+import useCoverImage from "../hooks/useCoverImage";
 
 interface PlaylistItemProps {
   data: PlayList;
@@ -13,6 +14,12 @@ export const PlaylistItem: React.FC<PlaylistItemProps> = ({
   onClick,
 }) => {
   const songCount = data?.songs?.length ?? 0;
+  const { url: coverUrl } = useCoverImage({
+    identifier: data?.id ?? null,
+    publisher: data?.user ?? null,
+    enabled: Boolean(data?.id && data?.user),
+  });
+  const coverImage = data?.image || coverUrl || radioImg;
 
   return ( 
     <div
@@ -38,7 +45,7 @@ export const PlaylistItem: React.FC<PlaylistItemProps> = ({
         "
       >
         <img
-          src={data?.image || radioImg}
+          src={coverImage}
           alt="MediaItem"
           className="object-cover absolute"
         />

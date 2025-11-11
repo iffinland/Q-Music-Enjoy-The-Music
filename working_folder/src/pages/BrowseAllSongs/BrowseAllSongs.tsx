@@ -1,12 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "../../components/Box";
 import Header from "../../components/Header";
 import SongItem from "../../components/SongItem";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "../../state/store";
 import useOnPlay from "../../hooks/useOnPlay";
-import { queueFetchAvatars } from "../../wrappers/GlobalWrapper";
-import { setImageCoverHash, SongMeta } from "../../state/features/globalSlice";
+import { SongMeta } from "../../state/features/globalSlice";
 import { CircularProgress } from "@mui/material";
 import { searchQdnResources } from "../../utils/qortalApi";
 import { shouldHideQdnResource } from "../../utils/qdnResourceFilters";
@@ -96,11 +93,6 @@ const buildSongMeta = (song: any): SongMeta => {
 };
 
 const BrowseAllSongs: React.FC = () => {
-  const dispatch = useDispatch();
-  const imageCoverHash = useSelector(
-    (state: RootState) => state.global.imageCoverHash
-  );
-  const imageCoverHashRef = useRef(imageCoverHash);
 
   const [songs, setSongs] = useState<SongMeta[]>([]);
   const [activeSource, setActiveSource] = useState<SourceKey>("ALL");
@@ -109,30 +101,6 @@ const BrowseAllSongs: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-
-  useEffect(() => {
-    imageCoverHashRef.current = imageCoverHash;
-  }, [imageCoverHash]);
-
-  const getImgCover = useCallback(
-    async (id: string, name: string) => {
-      try {
-        const url = await qortalRequest({
-          action: "GET_QDN_RESOURCE_URL",
-          name,
-          service: "THUMBNAIL",
-          identifier: id,
-        });
-
-        if (url === "Resource does not exist") return;
-
-        dispatch(setImageCoverHash({ url, id }));
-      } catch (err) {
-        console.error(err);
-      }
-    },
-    [dispatch]
-  );
 
   const fetchSongsForPrefix = useCallback(
     async (prefix?: string) => {
@@ -223,13 +191,6 @@ const BrowseAllSongs: React.FC = () => {
         return aTitle.localeCompare(bTitle);
       });
 
-      for (const song of sortedSongs) {
-        if (!song?.id || !song?.name) continue;
-        if (!imageCoverHashRef.current[song.id]) {
-          queueFetchAvatars.push(() => getImgCover(song.id, song.name), `${song.name}:${song.id}`);
-        }
-      }
-
       setSongs(sortedSongs);
       setCurrentPage(1);
       setActiveLetter("ALL");
@@ -240,7 +201,7 @@ const BrowseAllSongs: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [activeSource, fetchSongsForPrefix, getImgCover]);
+  }, [activeSource, fetchSongsForPrefix]);
 
   useEffect(() => {
     fetchSongs();

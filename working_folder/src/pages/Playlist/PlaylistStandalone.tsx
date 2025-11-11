@@ -3,12 +3,11 @@ import Header from '../../components/Header'
 import SearchContent from '../../components/SearchContent'
 import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '../../state/store'
-import { PlayList, addToPlaylistHashMap, removeFavPlaylist, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavPlaylist, setImageCoverHash, setIsLoadingGlobal, setNewPlayList } from '../../state/features/globalSlice'
+import { PlayList, addToPlaylistHashMap, removeFavPlaylist, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavPlaylist, setIsLoadingGlobal, setNewPlayList } from '../../state/features/globalSlice'
 import { AiFillEdit, AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { FaPlay } from 'react-icons/fa'
 import { FiShare2, FiTrash2, FiFlag } from 'react-icons/fi';
 import { MyContext } from '../../wrappers/DownloadWrapper'
-import { queueFetchAvatars } from '../../wrappers/GlobalWrapper'
 import localforage from 'localforage'
 import likeImg from '../../assets/img/like-button.png'
 import Box from '../../components/Box';
@@ -33,7 +32,6 @@ export const PlaylistStandalone = ({
   const dispatch = useDispatch()
   const playlistHash = useSelector((state: RootState) => state.global.playlistHash);
   const { downloadVideo } = useContext(MyContext)
-  const imageCoverHash = useSelector((state: RootState) => state.global.imageCoverHash);
 
   const downloads = useSelector(
     (state: RootState) => state.global.downloads
@@ -130,24 +128,6 @@ export const PlaylistStandalone = ({
 
   }, [playlistId, name, playlistHash])
 
-  const getImgCover = async (id: string, name: string, retries = 0) => {
-    try {
-      const url = await qortalRequest({
-        action: "GET_QDN_RESOURCE_URL",
-        name: name,
-        service: "THUMBNAIL",
-        identifier: id
-      });
-
-      if (url === "Resource does not exist") return;
-
-      dispatch(setImageCoverHash({ url, id }));
-    } catch (error) {
-
-
-    }
-  }
-
   const isLiked = useMemo(()=> {
 
     let isLiked = false
@@ -166,19 +146,12 @@ export const PlaylistStandalone = ({
 
   console.log({playListData})
 
-  const songs = useMemo(()=> {
-   
-    const transformSongs = (playListData?.songs || []).map((song: any)=> {
-      if (!imageCoverHash[song?.identifier]) {
-        queueFetchAvatars.push(() => getImgCover(song?.identifier, song?.name), `${song?.name}:${song?.identifier}`)
-      }
-      return {
-        ...song,
-        id: song?.identifier || song?.id
-      }
-    })
-    return transformSongs
-  }, [playListData?.songs, imageCoverHash])
+  const songs = useMemo(() => {
+    return (playListData?.songs || []).map((song: any) => ({
+      ...song,
+      id: song?.identifier || song?.id,
+    }));
+  }, [playListData?.songs]);
 
   const onClickPlaylist = ()=> {
 

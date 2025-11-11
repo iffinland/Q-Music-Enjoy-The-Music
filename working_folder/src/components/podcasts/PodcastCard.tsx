@@ -8,6 +8,7 @@ import { fetchPodcastLikeUsers } from '../../services/podcastLikes';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import { useNavigate } from 'react-router-dom';
 import { MdPlaylistAdd } from 'react-icons/md';
+import useCoverImage from '../../hooks/useCoverImage';
 
 interface PodcastCardProps {
   podcast: Podcast;
@@ -107,10 +108,16 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
   const description =
     podcast.description?.trim() ||
     'No description was provided for this podcast yet.';
+  const { url: coverUrl } = useCoverImage({
+    identifier: podcast?.id ?? null,
+    publisher: podcast?.publisher ?? null,
+    enabled: Boolean(podcast?.id && podcast?.publisher),
+    service: 'THUMBNAIL',
+  });
   const coverImage =
     podcast.coverImage && podcast.coverImage.trim().length > 0
       ? podcast.coverImage
-      : radioImg;
+      : coverUrl || radioImg;
   const creatorDisplay = podcast.author?.trim() || podcast.publisher || 'Unknown host';
   const handleNavigate = useCallback(() => {
     if (!podcast.publisher || !podcast.id) return;

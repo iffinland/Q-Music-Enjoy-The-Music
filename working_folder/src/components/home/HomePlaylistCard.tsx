@@ -26,6 +26,7 @@ import { formatDateTime } from '../../utils/metadata';
 import useUploadPlaylistModal from '../../hooks/useUploadPlaylistModal';
 import useSendTipModal from '../../hooks/useSendTipModal';
 import { RiHandCoinLine } from 'react-icons/ri';
+import useCoverImage from '../../hooks/useCoverImage';
 
 const playlistFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites',
@@ -57,7 +58,12 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
   const [favBusy, setFavBusy] = useState(false);
   const [playBusy, setPlayBusy] = useState(false);
 
-  const coverImage = playlist.image || radioImg;
+  const { url: coverUrl } = useCoverImage({
+    identifier: playlist?.id ?? null,
+    publisher: playlist?.user ?? null,
+    enabled: Boolean(playlist?.id && playlist?.user),
+  });
+  const coverImage = playlist.image || coverUrl || radioImg;
 
   const isFavorited = useMemo(
     () => favoritesPlaylist?.some((item) => item.id === playlist.id) ?? false,

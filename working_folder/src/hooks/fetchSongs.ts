@@ -3,8 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 
 import { RootState } from "../state/store";
-import { FavSong, PlayList, SongMeta, addToPlaylistHashMap, setImageCoverHash, upsertFavorite, upsertMyLibrary, upsertMyPlaylists, upsertPlaylists, upsertQueriedPlaylist } from "../state/features/globalSlice";
-import { queueFetchAvatars } from "../wrappers/GlobalWrapper";
+import { FavSong, PlayList, SongMeta, addToPlaylistHashMap, upsertFavorite, upsertMyLibrary, upsertMyPlaylists, upsertPlaylists, upsertQueriedPlaylist } from "../state/features/globalSlice";
 import { searchQdnResources, SearchQdnResourcesParams } from "../utils/qortalApi";
 import { shouldHideQdnResource } from "../utils/qdnResourceFilters";
 
@@ -53,7 +52,6 @@ export const useFetchSongs = () => {
   const username = useSelector((state: RootState) => state.auth?.user?.name);
   const songListLibrary = useSelector((state: RootState) => state.global.songListLibrary);
   const songHash = useSelector((state: RootState) => state.global.songHash);
-  const imageCoverHash = useSelector((state: RootState) => state.global.imageCoverHash);
   const playlistQueried = useSelector((state: RootState) => state.global.playlistQueried);
   const queriedValuePlaylist = useSelector((state: RootState) => state.global.queriedValuePlaylist);
   const songsInStore = useSelector((state: RootState) => state.global?.favorites?.songs);
@@ -68,51 +66,6 @@ export const useFetchSongs = () => {
       return songsInStore[key]
     })
   }, [songsInStore])
-  // in-flight map to coalesce duplicate cover URL fetches per id
-  const coverInflight = React.useRef<Map<string, Promise<string | null>>>(new Map());
-
-  const getImgCover = async (id: string, name: string, retries = 0) => {
-    try {
-      if (!id || !name) return;
-
-      // reuse redux cache first
-      const existing = imageCoverHash[id];
-      if (existing) return;
-
-      // coalesce concurrent requests
-      const inflight = coverInflight.current.get(id);
-      if (inflight) {
-        await inflight;
-        return;
-      }
-
-      const p = (async () => {
-        let url = await qortalRequest({
-          action: "GET_QDN_RESOURCE_URL",
-          name: name,
-          service: "THUMBNAIL",
-          identifier: id
-        });
-
-        if (url === "Resource does not exist") {
-          url = null;
-        }
-
-        if (url) {
-          dispatch(setImageCoverHash({ url, id }));
-        }
-        return url as string | null;
-      })().finally(() => {
-        coverInflight.current.delete(id);
-      });
-
-      coverInflight.current.set(id, p);
-      await p;
-    } catch (error) {
-      // swallow errors; retry strategy could be added if needed
-    }
-  }
-
   const getYourLibrary = useCallback(async (name: string) => {
     try {
       const offset = songListLibrary.length;
@@ -177,19 +130,10 @@ export const useFetchSongs = () => {
       dispatch(upsertMyLibrary(structureData))
 
 
-      for (const content of structureData) {
-        if (content.name && content.id) {
-
-        if (!imageCoverHash[content.id]) {
-          queueFetchAvatars.push(() => getImgCover(content.id, content.name), `${content.name}:${content.id}`)
-            // getImgCover(content.id, content.name)
-          }
-        }
-      }
     } catch (error) {
     } finally {
     }
-  }, [songListLibrary, imageCoverHash]);
+  }, [songListLibrary]);
 
 
   const getLikedSongs = useCallback(async () => {
@@ -251,18 +195,13 @@ export const useFetchSongs = () => {
 
 
 
-        if (!imageCoverHash[object.id]) {
-          queueFetchAvatars.push(() => getImgCover(object.id, object.name), `${object.name}:${object.id}`)
-          // getImgCover(object.id, object.name)
-        }
-
       } catch (error) {
       } finally {
       }
     }
     dispatch(upsertFavorite(songsToSet))
 
-  }, [imageCoverHash, songList, favoriteList]);
+  }, [songList, favoriteList]);
 
 
   const checkStructure = (content: any) => {
@@ -389,7 +328,7 @@ export const useFetchSongs = () => {
     } catch (error) {
     } finally {
     }
-  }, [playlists, imageCoverHash]);
+  }, [playlists]);
 
   const getMyPlaylists = useCallback(async () => {
     try {
@@ -446,7 +385,7 @@ export const useFetchSongs = () => {
     } catch (error) {
     } finally {
     }
-  }, [myPlaylists, imageCoverHash, username]);
+  }, [myPlaylists, username]);
 
   const getPlaylistsQueried = useCallback(async () => {
     try {
@@ -504,7 +443,7 @@ export const useFetchSongs = () => {
     } catch (error) {
     } finally {
     }
-  }, [playlistQueried, imageCoverHash, queriedValuePlaylist]);
+  }, [playlistQueried, queriedValuePlaylist]);
 
 
   return {

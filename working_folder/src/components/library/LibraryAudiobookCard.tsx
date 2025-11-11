@@ -43,6 +43,7 @@ import {
   unlikeAudiobook,
 } from '../../services/audiobookLikes';
 import radioImg from '../../assets/img/enjoy-music.jpg';
+import useCoverImage from '../../hooks/useCoverImage';
 
 const audiobookFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-audiobook-favorites',
@@ -77,7 +78,12 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
   const [isLikePopoverOpen, setIsLikePopoverOpen] = useState(false);
   const likeUsersLoadedRef = useRef(false);
 
-  const coverImage = audiobook.coverImage || radioImg;
+  const { url: coverUrl } = useCoverImage({
+    identifier: audiobook?.id ?? null,
+    publisher: audiobook?.publisher ?? null,
+    enabled: Boolean(audiobook?.id && audiobook?.publisher),
+  });
+  const coverImage = audiobook.coverImage || coverUrl || radioImg;
   const creatorDisplay = audiobook.author?.trim() || audiobook.publisher || 'Unknown narrator';
   const isOwner = useMemo(() => {
     if (!username || !audiobook.publisher) return false;

@@ -27,6 +27,7 @@ import { setAddToDownloads, setCurrentSong } from '../../state/features/globalSl
 import useSendTipModal from '../../hooks/useSendTipModal';
 import { RiHandCoinLine } from 'react-icons/ri';
 import { formatDateTime } from '../../utils/metadata';
+import useCoverImage from '../../hooks/useCoverImage';
 
 const audiobookFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-audiobook-favorites',
@@ -81,7 +82,12 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
     [audiobook.id],
   );
 
-  const coverImage = audiobook.coverImage && audiobook.coverImage.trim().length > 0 ? audiobook.coverImage : radioImg;
+  const { url: coverUrl } = useCoverImage({
+    identifier: audiobook?.id ?? null,
+    publisher: audiobook?.publisher ?? null,
+    enabled: Boolean(audiobook?.id && audiobook?.publisher),
+  });
+  const coverImage = audiobook.coverImage && audiobook.coverImage.trim().length > 0 ? audiobook.coverImage : coverUrl || radioImg;
   const creatorDisplay = audiobook.author?.trim() || audiobook.publisher || 'Unknown narrator';
 
   useEffect(() => {

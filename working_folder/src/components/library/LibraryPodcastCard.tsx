@@ -43,6 +43,7 @@ import {
   unlikePodcast,
 } from '../../services/podcastLikes';
 import radioImg from '../../assets/img/enjoy-music.jpg';
+import useCoverImage from '../../hooks/useCoverImage';
 
 const podcastFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-podcast-favorites',
@@ -77,7 +78,12 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
   const [isLikePopoverOpen, setIsLikePopoverOpen] = useState(false);
   const likeUsersLoadedRef = useRef(false);
 
-  const coverImage = podcast.coverImage || radioImg;
+  const { url: coverUrl } = useCoverImage({
+    identifier: podcast?.id ?? null,
+    publisher: podcast?.publisher ?? null,
+    enabled: Boolean(podcast?.id && podcast?.publisher),
+  });
+  const coverImage = podcast.coverImage || coverUrl || radioImg;
   const creatorDisplay = podcast.author?.trim() || podcast.publisher || 'Unknown host';
   const isOwner = useMemo(() => {
     if (!username || !podcast.publisher) return false;

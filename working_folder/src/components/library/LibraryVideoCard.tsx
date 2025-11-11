@@ -29,6 +29,7 @@ import useSendTipModal from '../../hooks/useSendTipModal';
 import useUploadVideoModal from '../../hooks/useUploadVideoModal';
 import useAddSongToPlaylistModal from '../../hooks/useAddSongToPlaylistModal';
 import radioImg from '../../assets/img/enjoy-music.jpg';
+import useCoverImage from '../../hooks/useCoverImage';
 import { buildVideoShareUrl } from '../../utils/qortalLinks';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
 import {
@@ -66,7 +67,13 @@ export const LibraryVideoCard: React.FC<LibraryVideoCardProps> = ({
   const [likeBusy, setLikeBusy] = useState<boolean>(false);
   const [favoriteBusy, setFavoriteBusy] = useState<boolean>(false);
 
-  const coverImage = video.coverImage || radioImg;
+  const { url: coverUrl } = useCoverImage({
+    identifier: video?.id ?? null,
+    publisher: video?.publisher ?? null,
+    enabled: Boolean(video?.id && video?.publisher),
+    service: 'THUMBNAIL',
+  });
+  const coverImage = video.coverImage || coverUrl || radioImg;
   const isOwner = useMemo(() => {
     if (!username || !video.publisher) return false;
     return username.toLowerCase() === video.publisher.toLowerCase();

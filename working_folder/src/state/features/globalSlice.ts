@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { Song } from '../../types'
 
+const COVER_CACHE_LIMIT = 500;
 
 interface ResourceBase {
   name?: string;
@@ -19,6 +20,7 @@ interface GlobalState {
   userAvatarHash: Record<string, string>
   songHash: Record<string, string>
   imageCoverHash: Record<string, string>
+  imageCoverOrder: string[]
   songListLibrary: Song[]
   queriedValuePlaylist: string;
   currentSong: string | null
@@ -118,6 +120,7 @@ const initialState: GlobalState = {
   downloads: {},
   userAvatarHash: {},
   imageCoverHash: {},
+  imageCoverOrder: [],
   songHash: {},
   songListLibrary: [],
   queriedValuePlaylist: "",
@@ -169,7 +172,19 @@ export const globalSlice = createSlice({
     setImageCoverHash: (state, action) => {
       const imageCover = action.payload;
       if (!imageCover?.id) return;
-      state.imageCoverHash[imageCover.id] = typeof imageCover.url === 'string' ? imageCover.url : '';
+      const normalizedUrl = typeof imageCover.url === 'string' ? imageCover.url : '';
+      const key = imageCover.id;
+      const alreadyCached = Object.prototype.hasOwnProperty.call(state.imageCoverHash, key);
+      state.imageCoverHash[key] = normalizedUrl;
+      if (!alreadyCached) {
+        state.imageCoverOrder.push(key);
+        if (state.imageCoverOrder.length > COVER_CACHE_LIMIT) {
+          const staleKey = state.imageCoverOrder.shift();
+          if (staleKey) {
+            delete state.imageCoverHash[staleKey];
+          }
+        }
+      }
     },
     upsertMyLibrary: (state, action) => {
       action.payload.forEach((song: Song) => {

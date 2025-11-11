@@ -13,6 +13,7 @@ import { Song, Video } from '../../types';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import { useNavigate } from 'react-router-dom';
 import { MdPlaylistAdd } from 'react-icons/md';
+import useCoverImage from '../../hooks/useCoverImage';
 
 interface VideoCardProps {
   video: Video;
@@ -86,10 +87,16 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   likeCount = 0,
 }) => {
   const navigate = useNavigate();
+  const { url: coverUrl } = useCoverImage({
+    identifier: video?.id ?? null,
+    publisher: video?.publisher ?? null,
+    service: 'THUMBNAIL',
+    enabled: Boolean(video?.id && video?.publisher),
+  });
   const coverImage =
     video.coverImage && video.coverImage.trim().length > 0
       ? video.coverImage
-      : radioImg;
+      : coverUrl || radioImg;
   const handleNavigate = useCallback(() => {
     if (!video.publisher || !video.id) return;
     navigate(`/videos/${encodeURIComponent(video.publisher)}/${encodeURIComponent(video.id)}`);

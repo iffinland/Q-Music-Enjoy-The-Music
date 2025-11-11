@@ -27,6 +27,7 @@ import { setAddToDownloads, setCurrentSong } from '../../state/features/globalSl
 import useSendTipModal from '../../hooks/useSendTipModal';
 import { RiHandCoinLine } from 'react-icons/ri';
 import { formatDateTime } from '../../utils/metadata';
+import useCoverImage from '../../hooks/useCoverImage';
 
 const podcastFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-podcast-favorites',
@@ -60,7 +61,13 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
   const [isLikePopoverOpen, setIsLikePopoverOpen] = useState(false);
   const likeUsersLoadedRef = useRef(false);
 
-  const coverImage = podcast.coverImage && podcast.coverImage.trim().length > 0 ? podcast.coverImage : radioImg;
+  const { url: coverUrl } = useCoverImage({
+    identifier: podcast?.id ?? null,
+    publisher: podcast?.publisher ?? null,
+    enabled: Boolean(podcast?.id && podcast?.publisher),
+    service: 'THUMBNAIL',
+  });
+  const coverImage = podcast.coverImage && podcast.coverImage.trim().length > 0 ? podcast.coverImage : coverUrl || radioImg;
   const creatorDisplay = podcast.author?.trim() || podcast.publisher || 'Unknown host';
 
   useEffect(() => {

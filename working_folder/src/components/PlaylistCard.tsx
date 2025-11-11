@@ -36,6 +36,7 @@ import {
 import useUploadPlaylistModal from '../hooks/useUploadPlaylistModal';
 import useSendTipModal from '../hooks/useSendTipModal';
 import { RiHandCoinLine } from 'react-icons/ri';
+import useCoverImage from '../hooks/useCoverImage';
 
 interface PlaylistCardProps {
   data: PlayList;
@@ -63,7 +64,13 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
   const [isFavoriteBusy, setIsFavoriteBusy] = useState<boolean>(false);
   const [isPlayBusy, setIsPlayBusy] = useState<boolean>(false);
 
-  const coverImage = data?.image || radioImg;
+  const { url: coverUrl } = useCoverImage({
+    identifier: data?.id ?? null,
+    publisher: data?.user ?? null,
+    enabled: Boolean(data?.id && data?.user),
+  });
+
+  const coverImage = data?.image || coverUrl || radioImg;
 
   const isFavorited = useMemo(
     () => favoritesPlaylist?.some((playlist) => playlist.id === data.id) ?? false,

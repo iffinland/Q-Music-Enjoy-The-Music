@@ -4,10 +4,8 @@ import Header from "../../components/Header";
 import PlaylistCard from "../../components/PlaylistCard";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../state/store";
-import { queueFetchAvatars } from "../../wrappers/GlobalWrapper";
 import {
   PlayList,
-  setImageCoverHash,
   addToPlaylistHashMap,
   setCurrentPlaylist,
 } from "../../state/features/globalSlice";
@@ -58,13 +56,9 @@ const buildPlaylist = (playlist: any): PlayList => {
 const BrowseAllPlaylists: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const imageCoverHash = useSelector(
-    (state: RootState) => state.global.imageCoverHash
-  );
   const playlistHash = useSelector(
     (state: RootState) => state.global.playlistHash
   );
-  const imageCoverHashRef = useRef(imageCoverHash);
   const playlistHashRef = useRef(playlistHash);
 
   const [playlists, setPlaylists] = useState<PlayList[]>([]);
@@ -75,32 +69,8 @@ const BrowseAllPlaylists: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    imageCoverHashRef.current = imageCoverHash;
-  }, [imageCoverHash]);
-
-  useEffect(() => {
     playlistHashRef.current = playlistHash;
   }, [playlistHash]);
-
-  const getImgCover = useCallback(
-    async (id: string, name: string) => {
-      try {
-        const url = await qortalRequest({
-          action: "GET_QDN_RESOURCE_URL",
-          name,
-          service: "THUMBNAIL",
-          identifier: id,
-        });
-
-        if (url === "Resource does not exist") return;
-
-        dispatch(setImageCoverHash({ url, id }));
-      } catch (err) {
-        console.error(err);
-      }
-    },
-    [dispatch]
-  );
 
   const fetchPlaylistContent = useCallback(
     async (user: string, identifier: string) => {
@@ -218,13 +188,6 @@ const BrowseAllPlaylists: React.FC = () => {
         const playlistUser = playlist?.user;
         if (!playlistId || !playlistUser) continue;
 
-        if (!imageCoverHashRef.current[playlistId]) {
-          queueFetchAvatars.push(
-            () => getImgCover(playlistId, playlistUser),
-            `${playlistUser}:${playlistId}`,
-          );
-        }
-
         if (!playlistHashRef.current[playlistId]) {
           fetchPlaylistContent(playlistUser, playlistId);
         }
@@ -239,7 +202,7 @@ const BrowseAllPlaylists: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [activeSource, fetchPlaylistContent, fetchPlaylistsForPrefix, getImgCover]);
+  }, [activeSource, fetchPlaylistContent, fetchPlaylistsForPrefix]);
 
   useEffect(() => {
     fetchPlaylists();
@@ -406,20 +369,13 @@ const BrowseAllPlaylists: React.FC = () => {
                 mt-4
               "
             >
-              {paginatedPlaylists.map((playlist) => {
-                const cardData: PlayList = {
-                  ...playlist,
-                  image:
-                    imageCoverHashRef.current[playlist.id] || playlist.image,
-                };
-                return (
-                  <PlaylistCard
-                    key={playlist.id}
-                    data={cardData}
-                    onClick={() => handlePlaylistClick(playlist)}
-                  />
-                );
-              })}
+              {paginatedPlaylists.map((playlist) => (
+                <PlaylistCard
+                  key={playlist.id}
+                  data={playlist}
+                  onClick={() => handlePlaylistClick(playlist)}
+                />
+              ))}
             </div>
             {totalPages > 1 && (
               <div className="mt-8 flex justify-center gap-2">

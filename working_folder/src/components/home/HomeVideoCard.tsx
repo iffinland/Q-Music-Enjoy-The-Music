@@ -21,6 +21,7 @@ import { buildVideoShareUrl } from '../../utils/qortalLinks';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { fetchVideoLikeCount, hasUserLikedVideo, likeVideo, unlikeVideo } from '../../services/videoLikes';
 import { buildMetadataEntries, formatDateTime, parseKeyValueMetadata } from '../../utils/metadata';
+import useCoverImage from '../../hooks/useCoverImage';
 
 const videoFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-video-favorites',
@@ -63,7 +64,13 @@ export const HomeVideoCard: React.FC<HomeVideoCardProps> = ({ video }) => {
   const [isFavorited, setIsFavorited] = useState(false);
   const [favBusy, setFavBusy] = useState(false);
 
-  const coverImage = video.coverImage && video.coverImage.trim().length > 0 ? video.coverImage : radioImg;
+  const { url: coverUrl } = useCoverImage({
+    identifier: video?.id ?? null,
+    publisher: video?.publisher ?? null,
+    enabled: Boolean(video?.id && video?.publisher),
+    service: 'THUMBNAIL',
+  });
+  const coverImage = video.coverImage && video.coverImage.trim().length > 0 ? video.coverImage : coverUrl || radioImg;
 
   useEffect(() => {
     let cancelled = false;

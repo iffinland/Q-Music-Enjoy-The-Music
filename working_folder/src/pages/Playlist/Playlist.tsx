@@ -13,7 +13,6 @@ import {
   setCurrentPlaylist,
   setCurrentSong,
   setFavPlaylist,
-  setImageCoverHash,
   setIsLoadingGlobal,
   setNewPlayList,
   removePlaylistById,
@@ -22,7 +21,6 @@ import {
 import { FiShare2, FiTrash2, FiFlag, FiPlay, FiEdit2, FiList, FiChevronUp, FiChevronDown, FiCheck, FiX } from 'react-icons/fi';
 import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
 import { MyContext } from '../../wrappers/DownloadWrapper';
-import { queueFetchAvatars } from '../../wrappers/GlobalWrapper';
 import localforage from 'localforage';
 import likeImg from '../../assets/img/like-button.png';
 import Box from '../../components/Box';
@@ -51,7 +49,6 @@ export const Playlist = () => {
   const dispatch = useDispatch()
   const playlistHash = useSelector((state: RootState) => state.global.playlistHash);
   const { downloadVideo } = useContext(MyContext)
-  const imageCoverHash = useSelector((state: RootState) => state.global.imageCoverHash);
 
   const downloads = useSelector(
     (state: RootState) => state.global.downloads
@@ -151,24 +148,6 @@ export const Playlist = () => {
 
   }, [playlistId, name, playlistHash])
 
-  const getImgCover = async (id: string, name: string, retries = 0) => {
-    try {
-      const url = await qortalRequest({
-        action: "GET_QDN_RESOURCE_URL",
-        name: name,
-        service: "THUMBNAIL",
-        identifier: id
-      });
-
-      if (url === "Resource does not exist") return;
-
-      dispatch(setImageCoverHash({ url, id }));
-    } catch (error) {
-
-
-    }
-  }
-
   const isLiked = useMemo(()=> {
 
     let isLiked = false
@@ -182,19 +161,12 @@ export const Playlist = () => {
    
   }, [playlistId , favoritesPlaylist])
  
-  const songs = useMemo(()=> {
-   
-    const transformSongs = (playListData?.songs || []).map((song: any)=> {
-      if (!imageCoverHash[song?.identifier]) {
-        queueFetchAvatars.push(() => getImgCover(song?.identifier, song?.name), `${song?.name}:${song?.identifier}`)
-      }
-      return {
-        ...song,
-        id: song?.identifier || song?.id
-      }
-    })
-    return transformSongs
-  }, [playListData?.songs, imageCoverHash])
+  const songs = useMemo(() => {
+    return (playListData?.songs || []).map((song: any) => ({
+      ...song,
+      id: song?.identifier || song?.id,
+    }));
+  }, [playListData?.songs]);
 
   React.useEffect(() => {
     if (!playListData?.songs) {

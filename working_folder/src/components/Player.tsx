@@ -24,7 +24,6 @@ import {
   SongMeta,
   setAddToDownloads,
   setCurrentSong,
-  setImageCoverHash,
   setVolumePlayer,
   upsertNowPlayingPlaylist,
 } from '../state/features/globalSlice';
@@ -34,6 +33,7 @@ import { getQdnResourceUrl } from '../utils/qortalApi';
 import { buildSongShareUrl } from '../utils/qortalLinks';
 import useSendTipModal from '../hooks/useSendTipModal';
 import useUploadModal from '../hooks/useUploadModal';
+import useCoverImage from '../hooks/useCoverImage';
 import { fetchSongLikeCount, hasUserLikedSong, likeSong, unlikeSong } from '../services/songLikes';
 
 interface DownloadStatus {
@@ -130,7 +130,11 @@ interface PlayerExternalControls {
 }
 
 const useSongDetails = (song?: Song): SongDetails => {
-  const imageCoverHash = useSelector((state: RootState) => state.global.imageCoverHash);
+  const { url: coverUrl } = useCoverImage({
+    identifier: song?.id ?? null,
+    publisher: song?.name ?? null,
+    enabled: Boolean(song?.id && song?.name),
+  });
 
   return useMemo(() => {
     const title = song?.title?.trim() || 'Unknown title';
@@ -138,10 +142,10 @@ const useSongDetails = (song?: Song): SongDetails => {
     const publisher = song?.name?.trim() || '—';
     const encodedPublisher = song?.name ? encodeURIComponent(song.name) : null;
     const encodedIdentifier = song?.id ? encodeURIComponent(song.id) : null;
-    const coverImage = (song?.id && imageCoverHash[song.id]) || radioImg;
+    const coverImage = coverUrl || radioImg;
 
     return { title, author, publisher, encodedPublisher, encodedIdentifier, coverImage };
-  }, [song, imageCoverHash]);
+  }, [song, coverUrl]);
 };
 
 const useSongLikeState = (song?: Song) => {
@@ -1289,7 +1293,6 @@ const Player = () => {
   const downloads = useSelector(
     (state: RootState) => state.global.downloads as Record<string, DownloadEntry>,
   );
-  const imageCoverHash = useSelector((state: RootState) => state.global.imageCoverHash);
   const volume = useSelector((state: RootState) => state.global.volume);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
@@ -1367,46 +1370,6 @@ const Player = () => {
   }, [status, songItem, refetch]);
 
   useEffect(() => {
-    if (!songItem?.name) return;
-    const candidateIds = [songItem.identifier, songItem.id].filter(
-      (value): value is string => Boolean(value),
-    );
-
-    const hasCover = candidateIds.some((id) => imageCoverHash[id]) || Boolean(songItem.coverImage);
-    if (hasCover) return;
-
-    let isCancelled = false;
-
-    const loadCover = async () => {
-      const identifier = songItem.identifier ?? songItem.id;
-      if (!identifier) return;
-
-      try {
-        const url = await getQdnResourceUrl('THUMBNAIL', songItem.name, identifier);
-        if (
-          !isCancelled &&
-          typeof url === 'string' &&
-          url.trim().length > 0 &&
-          url !== 'Resource does not exist'
-        ) {
-          dispatch(setImageCoverHash({ id: identifier, url }));
-          if (songItem.id && songItem.id !== identifier) {
-            dispatch(setImageCoverHash({ id: songItem.id, url }));
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load cover image', error);
-      }
-    };
-
-    void loadCover();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [dispatch, imageCoverHash, songItem]);
-
-  useEffect(() => {
     if (!songUrl) {
       setPlaybackTimes({ currentTime: 0, duration: 0 });
     }
@@ -1422,11 +1385,13 @@ const Player = () => {
   if (!songItem) return null;
 
   const percentLoaded = Math.round(songItem?.status?.percentLoaded ?? 0);
-  const coverImage =
-    (songItem?.id && imageCoverHash[songItem.id]) ||
-    (songItem?.identifier && imageCoverHash[songItem.identifier]) ||
-    (songItem?.coverImage ?? null) ||
-    radioImg;
+  const { url: playerCoverUrl } = useCoverImage({
+    identifier: songItem?.identifier ?? songItem?.id ?? null,
+    publisher: songItem?.name ?? null,
+    enabled: Boolean(songItem?.name && (songItem?.identifier || songItem?.id)),
+  });
+
+  const coverImage = playerCoverUrl || songItem?.coverImage || radioImg;
 
   return (
     <>
