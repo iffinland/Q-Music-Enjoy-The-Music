@@ -820,10 +820,7 @@ const buildPlaylistTargets = (
     if (multiFileInputRef.current) {
       multiFileInputRef.current.value = '';
     }
-  };
-
-  const handleDraftClick = () => {
-    toast.success('Saved a visual draft - actual persistence will be wired up next.');
+    modal.close();
   };
 
   const handleSingleVideoPublish = async () => {
@@ -949,6 +946,7 @@ const buildPlaylistTargets = (
       if (coverFileInputRef.current) {
         coverFileInputRef.current.value = '';
       }
+      modal.close();
     } catch (error: any) {
       console.error('Failed to publish video', error);
       const message =
@@ -1082,6 +1080,7 @@ const buildPlaylistTargets = (
       if (coverFileInputRef.current) {
         coverFileInputRef.current.value = '';
       }
+      modal.close();
     } catch (error: any) {
       console.error('Failed to publish playlist', error);
       const message =
@@ -1179,6 +1178,7 @@ const buildPlaylistTargets = (
     if (primaryFileInputRef.current) {
       primaryFileInputRef.current.value = '';
     }
+    modal.close();
   };
 
   const renderField = (field: SectionField) => {
@@ -2000,12 +2000,6 @@ const buildPlaylistTargets = (
         </div>
 
         <div className="flex flex-col gap-3 md:flex-row md:justify-end">
-          <Button
-            className="w-full md:w-auto rounded-full border border-sky-500/70 bg-transparent px-8 py-3 text-sky-100 hover:bg-sky-900/60"
-            onClick={handleDraftClick}
-          >
-            Save draft
-          </Button>
           <Button
             className="w-full md:w-auto rounded-full bg-gradient-to-r from-sky-400 to-cyan-300 px-8 py-3 font-semibold text-sky-950 hover:opacity-90"
             onClick={handlePublishClick}

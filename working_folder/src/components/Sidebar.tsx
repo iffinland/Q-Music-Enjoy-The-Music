@@ -29,7 +29,7 @@ const Sidebar = ({ children, songs }: SidebarProps) => {
         return location.pathname
     }, [location])
   const player = usePlayer();
-  const openPublishModal = usePublishContentModal((state) => state.openMulti);
+  const openPublishModal = usePublishContentModal((state) => state.open);
   const matchPath = useCallback((paths: string | string[]) => {
     const list = Array.isArray(paths) ? paths : [paths];
     return list.some((path) => {
