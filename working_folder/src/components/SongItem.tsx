@@ -18,6 +18,7 @@ import { Link, useNavigate } from "react-router-dom";
 import useSendTipModal from "../hooks/useSendTipModal";
 import { fetchSongLikeCount, hasUserLikedSong, likeSong, unlikeSong } from "../services/songLikes";
 import useUploadModal from "../hooks/useUploadModal";
+import useCoverImage from "../hooks/useCoverImage";
 
 interface SongItemProps {
   data: SongMeta;
@@ -28,7 +29,6 @@ const SongItem: React.FC<SongItemProps> = ({
   data,
   onClick
 }) => {
-  const imageCoverHash = useSelector((state: RootState) => state.global.imageCoverHash);
   const username = useSelector((state: RootState) => state.auth.user?.name);
   const { downloadVideo } = useContext(MyContext)
   const downloads = useSelector(
@@ -48,7 +48,12 @@ const SongItem: React.FC<SongItemProps> = ({
     return username.toLowerCase() === data.name.toLowerCase();
   }, [username, data?.name]);
 
-  const coverImage = imageCoverHash[data.id] || radioImg;
+  const { url: coverImageUrl } = useCoverImage({
+    identifier: data?.id,
+    publisher: data?.name,
+    enabled: Boolean(data?.id && data?.name),
+  });
+  const coverImage = coverImageUrl || radioImg;
   const publisherName = data?.name?.trim() || "—";
   const normalizedCreator = typeof data?.author === 'string' ? data.author.trim() : '';
   const creatorDisplay = normalizedCreator || (publisherName !== "—" ? publisherName : 'Unknown artist');

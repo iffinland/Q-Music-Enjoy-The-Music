@@ -11,6 +11,7 @@ import radioImg from "../assets/img/enjoy-music.jpg";
 import { MyContext } from "../wrappers/DownloadWrapper";
 import { setAddToDownloads, setCurrentSong } from "../state/features/globalSlice";
 import { getQdnResourceUrl } from "../utils/qortalApi";
+import useCoverImage from "../hooks/useCoverImage";
 
 interface MediaItemProps {
   data: Song;
@@ -19,13 +20,17 @@ interface MediaItemProps {
 }
 
 const MediaItem: React.FC<MediaItemProps> = ({ data, onClick, showPlayButton = true }) => {
-  const imageCoverHash = useSelector((state: RootState) => state.global.imageCoverHash);
   const downloads = useSelector((state: RootState) => state.global.downloads);
   const { downloadVideo } = useContext(MyContext);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const creatorDisplay = (data?.author?.trim()?.length ? data.author.trim() : '') || data?.name || 'Unknown artist';
+  const { url: coverUrl } = useCoverImage({
+    identifier: data?.id,
+    publisher: data?.name,
+    enabled: Boolean(data?.id && data?.name),
+  });
 
   const handlePlay = useCallback(async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -88,7 +93,7 @@ const MediaItem: React.FC<MediaItemProps> = ({ data, onClick, showPlayButton = t
       )}
       <div className="relative rounded-md min-h-[48px] min-w-[48px] overflow-hidden">
         <img
-          src={imageCoverHash[data?.id] || radioImg}
+          src={coverUrl || radioImg}
           alt={data?.title || 'Song cover'}
           className="object-cover absolute inset-0 w-full h-full"
         />

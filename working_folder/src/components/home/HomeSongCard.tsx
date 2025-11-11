@@ -29,6 +29,7 @@ import HomeCardHoverDetails from './HomeCardHoverDetails';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import { buildMetadataEntries, formatDateTime, parseKeyValueMetadata } from '../../utils/metadata';
 import useUploadModal from '../../hooks/useUploadModal';
+import useCoverImage from '../../hooks/useCoverImage';
 
 interface HomeSongCardProps {
   song: SongMeta;
@@ -38,7 +39,6 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
   const dispatch = useDispatch();
   const { downloadVideo } = useContext(MyContext);
   const downloads = useSelector((state: RootState) => state.global.downloads);
-  const imageCoverHash = useSelector((state: RootState) => state.global.imageCoverHash);
   const username = useSelector((state: RootState) => state.auth.user?.name);
   const sendTipModal = useSendTipModal();
   const navigate = useNavigate();
@@ -48,7 +48,12 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
   const [hasLike, setHasLike] = useState<boolean>(false);
   const [likeBusy, setLikeBusy] = useState(false);
 
-  const coverImage = imageCoverHash[song.id] || radioImg;
+  const { url: coverUrl } = useCoverImage({
+    identifier: song?.id,
+    publisher: song?.name,
+    enabled: Boolean(song?.id && song?.name),
+  });
+  const coverImage = coverUrl || radioImg;
   const publisher = song.name || '—';
   const encodedPublisher = song.name ? encodeURIComponent(song.name) : '';
   const encodedIdentifier = song.id ? encodeURIComponent(song.id) : '';

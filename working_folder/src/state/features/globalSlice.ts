@@ -167,10 +167,9 @@ export const globalSlice = createSlice({
       }
     },
     setImageCoverHash: (state, action) => {
-      const imageCover = action.payload
-      if (imageCover?.id && imageCover?.url) {
-        state.imageCoverHash[imageCover.id] = imageCover?.url
-      }
+      const imageCover = action.payload;
+      if (!imageCover?.id) return;
+      state.imageCoverHash[imageCover.id] = typeof imageCover.url === 'string' ? imageCover.url : '';
     },
     upsertMyLibrary: (state, action) => {
       action.payload.forEach((song: Song) => {
