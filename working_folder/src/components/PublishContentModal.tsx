@@ -418,7 +418,7 @@ const PublishContentModal: React.FC = () => {
   );
   const availablePlaylists = useMemo<PlayList[]>(() => myPlaylists ?? [], [myPlaylists]);
 
-  const currentTypeValues = typeValues[selectedType];
+  const currentTypeValues = typeValues[selectedType] ?? {};
   const isMultiPublish = selectedType === 'multi';
   const showPlaylistShortcuts = !isMultiPublish && selectedType !== 'playlist';
 
