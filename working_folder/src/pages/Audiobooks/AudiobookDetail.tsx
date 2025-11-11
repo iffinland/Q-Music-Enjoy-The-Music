@@ -1,8 +1,9 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Header from '../../components/Header';
 import Box from '../../components/Box';
 import Button from '../../components/Button';
+import GoBackButton from '../../components/GoBackButton';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
 import { Audiobook } from '../../types';
@@ -11,7 +12,7 @@ import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildAudiobookShareUrl } from '../../utils/qortalLinks';
 import { toast } from 'react-hot-toast';
 import moment from 'moment';
-import { FiDownload, FiPlay, FiShare2, FiArrowLeft, FiEdit2 } from 'react-icons/fi';
+import { FiDownload, FiPlay, FiShare2, FiEdit2 } from 'react-icons/fi';
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import { setAddToDownloads, setCurrentSong } from '../../state/features/globalSlice';
 import useUploadAudiobookModal from '../../hooks/useUploadAudiobookModal';
@@ -37,7 +38,6 @@ const formatFileSize = (size?: number): string | null => {
 const AudiobookDetail: React.FC = () => {
   const params = useParams();
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const { downloadVideo } = useContext(MyContext);
   const downloads = useSelector((state: RootState) => state.global.downloads);
   const username = useSelector((state: RootState) => state.auth.user?.name);
@@ -310,14 +310,7 @@ const AudiobookDetail: React.FC = () => {
                 Edit
               </Button>
             )}
-            <Button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="flex items-center justify-center gap-2 rounded-md border border-sky-900/60 bg-slate-900/50 px-5 py-2 text-sky-200/80 transition hover:bg-slate-900/40"
-            >
-              <FiArrowLeft />
-              Go Back
-            </Button>
+            <GoBackButton className="bg-slate-900/50 border border-sky-900/60 px-5 py-2 text-sky-200/80 hover:bg-slate-900/40" />
           </div>
         </div>
       </Header>

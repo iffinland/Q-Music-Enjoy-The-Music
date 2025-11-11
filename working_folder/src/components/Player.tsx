@@ -1,11 +1,21 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import useSound from 'use-sound';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import CircularProgress from '@mui/material/CircularProgress';
-import { AiFillStepBackward, AiFillStepForward } from 'react-icons/ai';
+import { AiFillStepBackward, AiFillStepForward, AiOutlineRetweet } from 'react-icons/ai';
 import { BsPauseFill, BsPlayFill } from 'react-icons/bs';
 import { FiDownload, FiEdit2, FiInfo, FiMaximize2, FiMinimize2, FiShuffle, FiThumbsUp, FiX } from 'react-icons/fi';
 import { HiSpeakerWave, HiSpeakerXMark } from 'react-icons/hi2';
@@ -58,6 +68,11 @@ interface PlayerPlaybackProps {
   onPlaybackStateChange: (isPlaying: boolean) => void;
   onProgressChange?: (progress: { currentTime: number; duration: number }) => void;
   onRegisterControls?: (controls: PlayerExternalControls) => void;
+  isShuffleEnabled: boolean;
+  setIsShuffleEnabled: Dispatch<SetStateAction<boolean>>;
+  repeatMode: RepeatMode;
+  setRepeatMode: Dispatch<SetStateAction<RepeatMode>>;
+  shuffleOrderRef: MutableRefObject<string[]>;
 }
 
 interface PlayerLoadingProps {
@@ -120,6 +135,8 @@ const resolveAuthorName = (entry?: PlaylistSong | Song) => {
 
 const actionButtonClass =
   'flex h-9 w-9 items-center justify-center rounded-md border border-sky-900/50 bg-sky-950/30 text-sky-100 transition hover:border-sky-700 hover:bg-sky-900/50 hover:text-white focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-400/70';
+
+type RepeatMode = 'off' | 'all' | 'one';
 
 interface PlayerExternalControls {
   play: () => void;
@@ -573,7 +590,13 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   onPlaybackStateChange,
   onProgressChange,
   onRegisterControls,
+  isShuffleEnabled,
+  setIsShuffleEnabled,
+  repeatMode,
+  setRepeatMode,
+  shuffleOrderRef,
 }) => {
+  const repeatSequence: RepeatMode[] = ['off', 'all', 'one'];
   const dispatch = useDispatch();
   const { downloadVideo } = useContext(MyContext);
   const volume = useSelector((state: RootState) => state.global.volume);
@@ -584,9 +607,6 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   const downloads = useSelector(
     (state: RootState) => state.global.downloads as Record<string, DownloadEntry>,
   );
-  const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
-  const shuffleOrderRef = useRef<string[]>([]);
-
   const details = useSongDetails(song);
   const {
     handleOpenDetails,
@@ -787,6 +807,11 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
     onend: () => {
       setIsPlaying(false);
       onPlaybackStateChange(false);
+      if (repeatMode === 'one') {
+        sound?.seek(0);
+        play();
+        return;
+      }
       void handlePlaylistNavigation('next');
     },
     onpause: () => {
@@ -851,6 +876,12 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
       play();
     }
   }, [isLoaded, isPlaying, pause, play]);
+
+  useEffect(() => {
+    if (repeatMode === 'off') {
+      shuffleOrderRef.current = [];
+    }
+  }, [repeatMode, shuffleOrderRef]);
 
   const handleProgressChange = useCallback(
     (value: number) => {
@@ -928,6 +959,29 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
               aria-label="Toggle shuffle"
             >
               <FiShuffle size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const nextIndex =
+                  (repeatSequence.indexOf(repeatMode) + 1) % repeatSequence.length;
+                setRepeatMode(repeatSequence[nextIndex]);
+              }}
+              className={`${actionButtonClass} ${
+                repeatMode !== 'off' ? '!bg-sky-800/70 !border-sky-500/70' : ''
+              }`}
+              title={`Repeat: ${repeatMode}`}
+              aria-label={`Repeat: ${repeatMode}`}
+            >
+              <AiOutlineRetweet
+                size={18}
+                className={repeatMode === 'one' ? 'text-amber-300' : undefined}
+              />
+              {repeatMode === 'one' && (
+                <span className="absolute -bottom-1 right-1 text-[10px] font-bold text-amber-200">
+                  1
+                </span>
+              )}
             </button>
             <button
               type="button"
@@ -1035,6 +1089,8 @@ interface MiniPlayerProps {
   author: string;
   isPlaying: boolean;
   isLoaded: boolean;
+  isShuffleEnabled: boolean;
+  repeatMode: RepeatMode;
   progress: { currentTime: number; duration: number };
   onExpand: () => void;
   onPlayPause?: () => void;
@@ -1055,6 +1111,8 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
   author,
   isPlaying,
   isLoaded,
+  isShuffleEnabled,
+  repeatMode,
   progress,
   onExpand,
   onPlayPause,
@@ -1178,16 +1236,16 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
         }`}
       >
         <div className="flex flex-1 flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="relative h-14 w-14 overflow-hidden rounded-lg border border-sky-900/60 bg-sky-950/60">
-                <img
-                  src={coverImage}
-                  alt={title}
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-              </div>
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="relative h-14 w-14 overflow-hidden rounded-lg border border-sky-900/60 bg-sky-950/60">
+                  <img
+                    src={coverImage}
+                    alt={title}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={onPrevious}
@@ -1218,11 +1276,21 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
                 >
                   <AiFillStepForward size={18} />
                 </button>
+                </div>
               </div>
-            </div>
-            <button
-              type="button"
-              onClick={onExpand}
+              <div className="flex items-center gap-1 text-xs font-semibold text-sky-200/80" data-no-drag>
+                {isShuffleEnabled && (
+                  <span className="rounded-full bg-sky-900/60 px-2 py-0.5">SHF</span>
+                )}
+                {repeatMode !== 'off' && (
+                  <span className="rounded-full bg-sky-900/60 px-2 py-0.5">
+                    REP{repeatMode === 'one' ? '1' : ''}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={onExpand}
               className="flex items-center gap-2 rounded-full bg-amber-400 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow transition hover:bg-amber-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
               title="Open full player"
               aria-label="Open full player"
@@ -1390,6 +1458,9 @@ const Player = () => {
     (state: RootState) => state.global.downloads as Record<string, DownloadEntry>,
   );
   const volume = useSelector((state: RootState) => state.global.volume);
+  const shuffleOrderRef = useRef<string[]>([]);
+  const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [playbackTimes, setPlaybackTimes] = useState({ currentTime: 0, duration: 0 });
@@ -1478,6 +1549,12 @@ const Player = () => {
     [dispatch],
   );
 
+  const { url: playerCoverUrl } = useCoverImage({
+    identifier: songItem?.identifier ?? songItem?.id ?? null,
+    publisher: songItem?.name ?? null,
+    enabled: Boolean(songItem?.name && (songItem?.identifier || songItem?.id)),
+  });
+
   const handleClosePlayer = useCallback(() => {
     if (externalControls?.pause) {
       externalControls.pause();
@@ -1485,17 +1562,15 @@ const Player = () => {
     dispatch(setCurrentSong(null));
     dispatch(setCurrentPlaylist('nowPlayingPlaylist'));
     dispatch(setNowPlayingPlaylist([]));
+    shuffleOrderRef.current = [];
+    setIsShuffleEnabled(false);
+    setRepeatMode('off');
     setIsCollapsed(false);
   }, [dispatch, externalControls]);
 
   if (!songItem) return null;
 
   const percentLoaded = Math.round(songItem?.status?.percentLoaded ?? 0);
-  const { url: playerCoverUrl } = useCoverImage({
-    identifier: songItem?.identifier ?? songItem?.id ?? null,
-    publisher: songItem?.name ?? null,
-    enabled: Boolean(songItem?.name && (songItem?.identifier || songItem?.id)),
-  });
 
   const coverImage = playerCoverUrl || songItem?.coverImage || radioImg;
 
@@ -1535,6 +1610,11 @@ const Player = () => {
                   setPlaybackTimes({ currentTime, duration })
                 }
                 onRegisterControls={setExternalControls}
+                isShuffleEnabled={isShuffleEnabled}
+                setIsShuffleEnabled={setIsShuffleEnabled}
+                repeatMode={repeatMode}
+                setRepeatMode={setRepeatMode}
+                shuffleOrderRef={shuffleOrderRef}
               />
             ) : (
               <PlayerLoading
@@ -1556,6 +1636,8 @@ const Player = () => {
           author={songItem?.author || 'Unknown artist'}
           isPlaying={externalControls?.isPlaying ?? isAudioPlaying}
           isLoaded={externalControls?.isLoaded ?? false}
+          isShuffleEnabled={isShuffleEnabled}
+          repeatMode={repeatMode}
           progress={playbackTimes}
           onExpand={() => setIsCollapsed(false)}
           onPlayPause={

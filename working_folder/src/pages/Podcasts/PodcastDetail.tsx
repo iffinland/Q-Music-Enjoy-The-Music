@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Header from '../../components/Header';
 import Box from '../../components/Box';
 import Button from '../../components/Button';
+import GoBackButton from '../../components/GoBackButton';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
 import { Podcast } from '../../types';
@@ -11,7 +12,7 @@ import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildPodcastShareUrl } from '../../utils/qortalLinks';
 import { toast } from 'react-hot-toast';
 import moment from 'moment';
-import { FiDownload, FiPlay, FiShare2, FiArrowLeft, FiEdit2 } from 'react-icons/fi';
+import { FiDownload, FiPlay, FiShare2, FiEdit2 } from 'react-icons/fi';
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import { setAddToDownloads, setCurrentSong } from '../../state/features/globalSlice';
 import useUploadPodcastModal from '../../hooks/useUploadPodcastModal';
@@ -310,14 +311,7 @@ const PodcastDetail: React.FC = () => {
                 Edit
               </Button>
             )}
-            <Button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="flex items-center justify-center gap-2 rounded-md border border-sky-900/60 bg-slate-900/50 px-5 py-2 text-sky-200/80 transition hover:bg-slate-900/40"
-            >
-              <FiArrowLeft />
-              Go Back
-            </Button>
+            <GoBackButton className="bg-slate-900/50 border border-sky-900/60 px-5 py-2 text-sky-200/80 hover:bg-slate-900/40" />
           </div>
         </div>
       </Header>

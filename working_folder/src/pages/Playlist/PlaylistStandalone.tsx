@@ -18,6 +18,7 @@ import { objectToBase64 } from '../../utils/toBase64';
 import { shouldHideQdnResource } from '../../utils/qdnResourceFilters';
 import { cachedSearchQdnResources } from '../../services/resourceCache';
 import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../../hooks/usePlaylistPlayback';
+import GoBackButton from '../../components/GoBackButton';
 
 const favoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites'
@@ -352,7 +353,8 @@ export const PlaylistStandalone = ({
         marginBottom: '80px'
       }}
     >
-      <Header className="rounded-t-lg bg-gradient-to-b from-sky-900/80 via-sky-950/40 to-transparent">
+      <Header className="rounded-t-lg bg-gradient-to-b from-sky-900/80 via-sky-950/40 to-transparent space-y-4">
+        <GoBackButton />
       <div className="mt-20">
         <div 
           className="

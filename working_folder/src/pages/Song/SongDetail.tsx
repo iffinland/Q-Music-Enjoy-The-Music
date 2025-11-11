@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState, useContext } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Header from '../../components/Header';
 import Box from '../../components/Box';
 import Button from '../../components/Button';
+import GoBackButton from '../../components/GoBackButton';
 import Textarea from '../../components/TextArea';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
@@ -23,7 +24,6 @@ const DEFAULT_COVER =
 const SongDetail: React.FC = () => {
   const params = useParams();
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const { downloadVideo } = useContext(MyContext);
   const uploadModal = useUploadModal();
   const username = useSelector((state: RootState) => state.auth.user?.name);
@@ -353,12 +353,7 @@ const SongDetail: React.FC = () => {
                 Edit
               </Button>
             )}
-            <Button
-              onClick={() => navigate(-1)}
-              className="flex items-center justify-center gap-2 rounded-md border border-sky-900/60 bg-slate-900/50 px-5 py-2 text-sky-200/80 transition hover:bg-slate-900/40"
-            >
-              Go Back
-            </Button>
+            <GoBackButton className="bg-slate-900/50 border border-sky-900/60 px-5 py-2 text-sky-200/80 hover:bg-slate-900/40" />
           </div>
         </div>
       </Header>

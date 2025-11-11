@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Header from '../../components/Header';
 import Box from '../../components/Box';
 import Button from '../../components/Button';
+import GoBackButton from '../../components/GoBackButton';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
 import { Video } from '../../types';
@@ -11,7 +12,7 @@ import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildVideoShareUrl } from '../../utils/qortalLinks';
 import { toast } from 'react-hot-toast';
 import moment from 'moment';
-import { FiDownload, FiPlay, FiShare2, FiArrowLeft } from 'react-icons/fi';
+import { FiDownload, FiPlay, FiShare2 } from 'react-icons/fi';
 import {
   Favorites,
   removeFavSong,
@@ -35,7 +36,6 @@ const DEFAULT_COVER =
 const VideoDetail: React.FC = () => {
   const params = useParams();
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const username = useSelector((state: RootState) => state.auth.user?.name);
   const favorites = useSelector((state: RootState) => state.global.favorites);
 
@@ -134,10 +134,6 @@ const VideoDetail: React.FC = () => {
 
     loadLikeInfo();
   }, [video, username]);
-
-  const handleGoBack = useCallback(() => {
-    navigate('/videos');
-  }, [navigate]);
 
   const handleShareVideo = useCallback(async () => {
     if (!video) return;
@@ -275,14 +271,7 @@ const VideoDetail: React.FC = () => {
     <div className="px-4 py-6">
       <Header>
         <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            onClick={handleGoBack}
-            className="flex items-center gap-2 bg-sky-900/60 text-sky-100 hover:bg-sky-800/80 md:w-auto"
-          >
-            <FiArrowLeft />
-            Back to videos
-          </Button>
+          <GoBackButton className="bg-sky-900/60 text-sky-100 hover:bg-sky-800/80 md:w-auto" label="Go Back" />
           <h1 className="text-3xl font-bold text-white">Video detail</h1>
         </div>
       </Header>

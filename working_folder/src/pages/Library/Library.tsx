@@ -16,8 +16,9 @@ import { RootState } from '../../state/store';
 import { MyPlaylists } from '../Playlists/MyPlaylists';
 import { FavPlaylists } from '../Playlists/FavPlaylists';
 import { IoMdCloudUpload } from 'react-icons/io';
+import GoBackButton from '../../components/GoBackButton';
 import { toast } from 'react-hot-toast';
-import { setAddToDownloads, setCurrentPlaylist, setCurrentSong } from '../../state/features/globalSlice';
+import { setAddToDownloads, setCurrentPlaylist, setCurrentSong, setNowPlayingPlaylist } from '../../state/features/globalSlice';
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
 import likeImg from '../../assets/img/like-button.png';
@@ -418,6 +419,7 @@ export const Library: React.FC = () => {
 
     const firstLikedSong = favoriteList[0];
     dispatch(setCurrentPlaylist('likedPlaylist'));
+    dispatch(setNowPlayingPlaylist(favoriteList));
 
     try {
       if (
@@ -541,7 +543,8 @@ export const Library: React.FC = () => {
 
   return (
     <Box className="overflow-hidden">
-      <Header className="rounded-t-lg bg-gradient-to-b from-sky-900/80 via-sky-950/40 to-transparent">
+      <Header className="rounded-t-lg bg-gradient-to-b from-sky-900/80 via-sky-950/40 to-transparent space-y-4">
+        <GoBackButton />
         <div className="mt-5 mb-5 flex flex-wrap gap-3">
           <button
             className={`${

@@ -37,6 +37,7 @@ import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../../hooks/usePla
 import useUploadPlaylistModal from '../../hooks/useUploadPlaylistModal';
 import MediaItem from '../../components/MediaItem';
 import { Song } from '../../types';
+import GoBackButton from '../../components/GoBackButton';
 
 const favoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites'
@@ -526,7 +527,8 @@ export const Playlist = () => {
 
   return (
     <Box className="overflow-hidden">
-      <Header className="rounded-t-lg bg-gradient-to-b from-sky-900/80 via-sky-950/40 to-transparent">
+      <Header className="rounded-t-lg bg-gradient-to-b from-sky-900/80 via-sky-950/40 to-transparent space-y-4">
+        <GoBackButton />
         <div className="mt-12 flex flex-col gap-6 lg:flex-row">
           <div className="flex-shrink-0">
             <div className="relative h-32 w-32 overflow-hidden rounded-lg border border-sky-900/60 bg-sky-950/60 lg:h-44 lg:w-44">

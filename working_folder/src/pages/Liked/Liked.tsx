@@ -6,12 +6,13 @@ import { useFetchSongs } from '../../hooks/fetchSongs'
 import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '../../state/store'
 import { FaPlay } from 'react-icons/fa'
-import { setAddToDownloads, setCurrentPlaylist, setCurrentSong } from '../../state/features/globalSlice'
+import { setAddToDownloads, setCurrentPlaylist, setCurrentSong, setNowPlayingPlaylist } from '../../state/features/globalSlice'
 import { MyContext } from '../../wrappers/DownloadWrapper'
 import { FavPlaylists } from '../Playlists/FavPlaylists'
 import Box from '../../components/Box';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
 import likeImg from '../../assets/img/like-button.png'
+import GoBackButton from '../../components/GoBackButton';
 export const Liked = () => {
   const favoriteList = useSelector((state: RootState) => state.global.favoriteList);
   const favorites = useSelector((state: RootState) => state.global.favorites);
@@ -30,6 +31,7 @@ export const Liked = () => {
     dispatch(
       setCurrentPlaylist('likedPlaylist')
     )
+    dispatch(setNowPlayingPlaylist(favoriteList))
     if(firstLikedSong?.status?.status === 'READY' || downloads[firstLikedSong.id]?.status?.status === 'READY'){
       const resolvedUrl = await getQdnResourceUrl('AUDIO', firstLikedSong.name, firstLikedSong.id);
       dispatch(setAddToDownloads({
@@ -60,7 +62,8 @@ export const Liked = () => {
   return (
  
     <Box className="overflow-hidden">
-    <Header className="rounded-t-lg bg-gradient-to-b from-sky-900/80 via-sky-950/40 to-transparent">
+    <Header className="rounded-t-lg bg-gradient-to-b from-sky-900/80 via-sky-950/40 to-transparent space-y-4">
+    <GoBackButton />
     <div className="mt-5 mb-5 flex flex-wrap gap-3">
          <button
                   className={ `${mode === 'songs' ? 'bg-sky-900/70 border border-sky-500/40': 'border border-sky-900/40 bg-transparent hover:bg-sky-900/40'} text-sky-100 px-4 py-2 rounded transition` }

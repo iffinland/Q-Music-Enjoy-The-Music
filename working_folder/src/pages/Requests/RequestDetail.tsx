@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Header from '../../components/Header';
 import Button from '../../components/Button';
+import GoBackButton from '../../components/GoBackButton';
 import {
   fetchRequestsFromQdn,
 } from '../../services/qdnRequests';
@@ -19,7 +20,6 @@ const formatTimestamp = (value?: number) => {
 
 const RequestDetail: React.FC = () => {
   const { publisher, requestId } = useParams();
-  const navigate = useNavigate();
 
   const [request, setRequest] = useState<SongRequest | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -59,10 +59,6 @@ const RequestDetail: React.FC = () => {
     loadRequest();
   }, [loadRequest]);
 
-  const handleGoBack = useCallback(() => {
-    navigate('/requests');
-  }, [navigate]);
-
   return (
     <div className="px-4 py-6 space-y-6">
       <Header>
@@ -80,16 +76,12 @@ const RequestDetail: React.FC = () => {
         ) : error ? (
           <div className="space-y-4 text-center text-sky-200/70">
             <p>{error}</p>
-            <Button onClick={handleGoBack} className="bg-sky-800/70 hover:bg-sky-700 text-white">
-              Back to requests
-            </Button>
+            <GoBackButton className="bg-sky-800/70 hover:bg-sky-700 text-white" label="Back to requests" />
           </div>
         ) : !request ? (
           <div className="space-y-4 text-center text-sky-200/70">
             <p>Request not available.</p>
-            <Button onClick={handleGoBack} className="bg-sky-800/70 hover:bg-sky-700 text-white">
-              Back to requests
-            </Button>
+            <GoBackButton className="bg-sky-800/70 hover:bg-sky-700 text-white" label="Back to requests" />
           </div>
         ) : (
           <div className="space-y-6">
@@ -121,12 +113,7 @@ const RequestDetail: React.FC = () => {
             />
 
             <div className="flex flex-wrap gap-3">
-              <Button
-                onClick={handleGoBack}
-                className="rounded-md bg-sky-800/80 px-5 py-3 font-semibold text-white shadow-lg shadow-sky-950/40 transition hover:bg-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
-              >
-                Back to list
-              </Button>
+              <GoBackButton className="bg-sky-800/80 px-5 py-3 font-semibold text-white shadow-lg shadow-sky-950/40 hover:bg-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400" label="Back to list" />
             </div>
           </div>
         )}
