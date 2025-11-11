@@ -1,6 +1,7 @@
 import { Video } from '../types';
-import { searchQdnResources, fetchQdnResource, getQdnResourceUrl } from '../utils/qortalApi';
+import { fetchQdnResource, getQdnResourceUrl } from '../utils/qortalApi';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
+import { cachedSearchQdnResources } from './resourceCache';
 
 const VIDEO_IDENTIFIER_PREFIX = 'enjoymusic_video_';
 const VIDEO_LIKE_IDENTIFIER_PREFIX = 'video_like_';
@@ -210,7 +211,7 @@ export const fetchVideos = async (options: FetchVideosOptions = {}): Promise<Vid
   let batches = 0;
 
   while (batches < MAX_FETCH_BATCHES) {
-    const payload = await searchQdnResources({
+    const payload = await cachedSearchQdnResources({
       mode: 'ALL',
       service: 'DOCUMENT',
       query: VIDEO_IDENTIFIER_PREFIX,
@@ -272,7 +273,7 @@ export const fetchVideoByIdentifier = async (
 ): Promise<Video | null> => {
   try {
     const [videoResults, document, thumbnailUrl] = await Promise.all([
-      searchQdnResources({
+      cachedSearchQdnResources({
         mode: 'ALL',
         service: 'VIDEO',
         name: publisher,
@@ -339,7 +340,7 @@ export const fetchVideosByPublisher = async (
   if (!publisher) return [];
 
   const limit = Math.max(1, options.limit ?? 100);
-  const results = await searchQdnResources({
+  const results = await cachedSearchQdnResources({
     mode: 'ALL',
     service: 'DOCUMENT',
     name: publisher,
@@ -389,7 +390,7 @@ export const fetchVideosByPublisher = async (
 export const fetchVideoByGlobalIdentifier = async (identifier: string): Promise<Video | null> => {
   if (!identifier) return null;
 
-  const lookup = await searchQdnResources({
+  const lookup = await cachedSearchQdnResources({
     mode: 'ALL',
     service: 'DOCUMENT',
     identifier,

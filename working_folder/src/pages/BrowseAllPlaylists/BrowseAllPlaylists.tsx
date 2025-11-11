@@ -11,7 +11,7 @@ import {
 } from "../../state/features/globalSlice";
 import { CircularProgress } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { searchQdnResources } from "../../utils/qortalApi";
+import { cachedSearchQdnResources } from "../../services/resourceCache";
 import { shouldHideQdnResource } from "../../utils/qdnResourceFilters";
 
 type SourceKey = "ALL" | "QMUSIC" | "EARBUMP";
@@ -109,7 +109,7 @@ const BrowseAllPlaylists: React.FC = () => {
 
     while (batches < MAX_FETCH_BATCHES) {
       try {
-        const responseData = await searchQdnResources({
+        const responseData = await cachedSearchQdnResources({
           mode: "ALL",
           service: "PLAYLIST",
           query: prefix,

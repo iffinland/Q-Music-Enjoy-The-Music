@@ -11,11 +11,12 @@ import { MyContext } from '../../wrappers/DownloadWrapper'
 import localforage from 'localforage'
 import likeImg from '../../assets/img/like-button.png'
 import Box from '../../components/Box';
-import { searchQdnResources, getQdnResourceUrl } from '../../utils/qortalApi';
+import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildPlaylistShareUrl } from '../../utils/qortalLinks';
 import { toast } from 'react-hot-toast';
 import { objectToBase64 } from '../../utils/toBase64';
 import { shouldHideQdnResource } from '../../utils/qdnResourceFilters';
+import { cachedSearchQdnResources } from '../../services/resourceCache';
 
 const favoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites'
@@ -43,7 +44,7 @@ export const PlaylistStandalone = ({
       if (!name || !playlistId) return
       dispatch(setIsLoadingGlobal(true))
 
-      const responseDataSearch = await searchQdnResources({
+      const responseDataSearch = await cachedSearchQdnResources({
         mode: 'ALL',
         service: 'PLAYLIST',
         query: 'enjoymusic_playlist_',

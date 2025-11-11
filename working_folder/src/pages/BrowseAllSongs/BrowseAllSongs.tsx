@@ -5,7 +5,7 @@ import SongItem from "../../components/SongItem";
 import useOnPlay from "../../hooks/useOnPlay";
 import { SongMeta } from "../../state/features/globalSlice";
 import { CircularProgress } from "@mui/material";
-import { searchQdnResources } from "../../utils/qortalApi";
+import { cachedSearchQdnResources } from "../../services/resourceCache";
 import { shouldHideQdnResource } from "../../utils/qdnResourceFilters";
 import SortControls from "../../components/common/SortControls";
 import { MUSIC_CATEGORIES } from "../../constants/categories";
@@ -115,7 +115,7 @@ const BrowseAllSongs: React.FC = () => {
 
       while (batches < MAX_FETCH_BATCHES) {
         try {
-          const responseData = await searchQdnResources({
+          const responseData = await cachedSearchQdnResources({
             mode: 'ALL',
             service: 'AUDIO',
             query: prefix,

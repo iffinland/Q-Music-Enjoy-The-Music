@@ -1,9 +1,10 @@
 import { PlayList, SongMeta } from '../state/features/globalSlice';
 import { parseSongMeta } from './songs';
-import { searchQdnResources, SearchQdnResourcesParams } from '../utils/qortalApi';
+import { SearchQdnResourcesParams } from '../utils/qortalApi';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { Audiobook, Podcast, Video } from '../types';
 import { enrichVideosWithDocuments } from './videos';
+import { cachedSearchQdnResources } from './resourceCache';
 
 type Resource = Record<string, unknown> & {
   identifier?: string;
@@ -46,7 +47,7 @@ const combinePrefixResults = async (
   prefixes: readonly string[],
   buildParams: (prefix: string) => SearchQdnResourcesParams,
 ) => {
-  const settled = await Promise.allSettled(prefixes.map((prefix) => searchQdnResources(buildParams(prefix))));
+  const settled = await Promise.allSettled(prefixes.map((prefix) => cachedSearchQdnResources(buildParams(prefix))));
   const combined = settled
     .filter(isFulfilled)
     .flatMap((entry) => (Array.isArray(entry.value) ? entry.value : [])) as Resource[];

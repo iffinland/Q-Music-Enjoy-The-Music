@@ -4,7 +4,8 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { RootState } from "../state/store";
 import { FavSong, PlayList, SongMeta, addToPlaylistHashMap, upsertFavorite, upsertMyLibrary, upsertMyPlaylists, upsertPlaylists, upsertQueriedPlaylist } from "../state/features/globalSlice";
-import { searchQdnResources, SearchQdnResourcesParams } from "../utils/qortalApi";
+import { SearchQdnResourcesParams } from "../utils/qortalApi";
+import { cachedSearchQdnResources } from "../services/resourceCache";
 import { shouldHideQdnResource } from "../utils/qdnResourceFilters";
 
 const SONG_PREFIXES = ["enjoymusic_song_", "earbump_song_"] as const;
@@ -17,7 +18,7 @@ const combinePrefixResults = async (
   buildParams: (prefix: string) => SearchQdnResourcesParams,
 ) => {
   const settled = await Promise.allSettled(
-    prefixes.map((prefix) => searchQdnResources(buildParams(prefix)))
+    prefixes.map((prefix) => cachedSearchQdnResources(buildParams(prefix)))
   );
 
   const combined = settled
@@ -142,7 +143,7 @@ export const useFetchSongs = () => {
     const songsToSet = []
     for (const song of songs) {
       try {
-        const responseData = await searchQdnResources({
+        const responseData = await cachedSearchQdnResources({
           mode: 'ALL',
           service: song.service,
           identifier: song.identifier,

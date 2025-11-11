@@ -1,6 +1,7 @@
 import { Audiobook } from '../types';
-import { searchQdnResources, fetchQdnResource, getQdnResourceUrl, getQdnResourceStatus } from '../utils/qortalApi';
+import { fetchQdnResource, getQdnResourceUrl, getQdnResourceStatus } from '../utils/qortalApi';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
+import { cachedSearchQdnResources } from './resourceCache';
 
 const AUDIOBOOK_IDENTIFIER_PREFIX = 'enjoymusic_audiobooks_';
 const FETCH_LIMIT = 25;
@@ -58,7 +59,7 @@ export const fetchAudiobooks = async (options: FetchAudiobooksOptions = {}): Pro
 
   while (batches < MAX_FETCH_BATCHES && !shouldStop) {
     const nextBatchSize = Math.min(FETCH_LIMIT, Math.max(1, targetLimit - aggregated.length));
-    const payload = await searchQdnResources({
+    const payload = await cachedSearchQdnResources({
       mode: 'ALL',
       service: 'DOCUMENT',
       query: AUDIOBOOK_IDENTIFIER_PREFIX,
@@ -207,7 +208,7 @@ export const fetchAudiobookByIdentifier = async (
 ): Promise<Audiobook | null> => {
   try {
     const [audioResults, document, thumbnailUrl] = await Promise.all([
-      searchQdnResources({
+      cachedSearchQdnResources({
         mode: 'ALL',
         service: 'AUDIO',
         name: publisher,
@@ -310,7 +311,7 @@ export const fetchAudiobooksByPublisher = async (
   if (!publisher) return [];
 
   const limit = Math.max(1, options.limit ?? 100);
-  const results = await searchQdnResources({
+  const results = await cachedSearchQdnResources({
     mode: 'ALL',
     service: 'DOCUMENT',
     name: publisher,
@@ -355,7 +356,7 @@ export const fetchAudiobooksByPublisher = async (
 export const fetchAudiobookByGlobalIdentifier = async (identifier: string): Promise<Audiobook | null> => {
   if (!identifier) return null;
 
-  const lookup = await searchQdnResources({
+  const lookup = await cachedSearchQdnResources({
     mode: 'ALL',
     service: 'DOCUMENT',
     identifier,

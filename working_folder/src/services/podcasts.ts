@@ -1,6 +1,7 @@
 import { Podcast } from '../types';
-import { searchQdnResources, fetchQdnResource, getQdnResourceUrl, getQdnResourceStatus } from '../utils/qortalApi';
+import { fetchQdnResource, getQdnResourceUrl, getQdnResourceStatus } from '../utils/qortalApi';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
+import { cachedSearchQdnResources } from './resourceCache';
 
 const PODCAST_IDENTIFIER_PREFIX = 'enjoymusic_podcast_';
 const FETCH_LIMIT = 25;
@@ -58,7 +59,7 @@ export const fetchPodcasts = async (options: FetchPodcastsOptions = {}): Promise
 
   while (batches < MAX_FETCH_BATCHES && !shouldStop) {
     const nextBatchSize = Math.min(FETCH_LIMIT, Math.max(1, targetLimit - aggregated.length));
-    const payload = await searchQdnResources({
+    const payload = await cachedSearchQdnResources({
       mode: 'ALL',
       service: 'DOCUMENT',
       query: PODCAST_IDENTIFIER_PREFIX,
@@ -207,7 +208,7 @@ export const fetchPodcastByIdentifier = async (
 ): Promise<Podcast | null> => {
   try {
     const [audioResults, document, thumbnailUrl] = await Promise.all([
-      searchQdnResources({
+      cachedSearchQdnResources({
         mode: 'ALL',
         service: 'AUDIO',
         name: publisher,
@@ -310,7 +311,7 @@ export const fetchPodcastsByPublisher = async (
   if (!publisher) return [];
 
   const limit = Math.max(1, options.limit ?? 100);
-  const results = await searchQdnResources({
+  const results = await cachedSearchQdnResources({
     mode: 'ALL',
     service: 'DOCUMENT',
     name: publisher,
@@ -355,7 +356,7 @@ export const fetchPodcastsByPublisher = async (
 export const fetchPodcastByGlobalIdentifier = async (identifier: string): Promise<Podcast | null> => {
   if (!identifier) return null;
 
-  const lookup = await searchQdnResources({
+  const lookup = await cachedSearchQdnResources({
     mode: 'ALL',
     service: 'DOCUMENT',
     identifier,

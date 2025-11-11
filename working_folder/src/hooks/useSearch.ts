@@ -1,7 +1,7 @@
 
 import { useCallback, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { searchQdnResources } from '../utils/qortalApi';
+import { cachedSearchQdnResources } from '../services/resourceCache';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { PlayList, SongMeta } from '../state/features/globalSlice';
 import { Podcast } from '../types';
@@ -60,7 +60,7 @@ export const useSearch = () => {
 
     const searchWithPrefix = async (service: string, prefix: string) => {
       const [byMetadata, byIdentifier] = await Promise.all([
-        searchQdnResources({
+        cachedSearchQdnResources({
           mode: 'ALL',
           service,
           query,
@@ -70,7 +70,7 @@ export const useSearch = () => {
           excludeBlocked: true,
           includeStatus: true,
         }),
-        searchQdnResources({
+        cachedSearchQdnResources({
           mode: 'ALL',
           service,
           identifier: prefix,
