@@ -6,6 +6,7 @@ import { RootState } from '../../state/store';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   PlayList,
+  SongReference,
   addToPlaylistHashMap,
   removeFavPlaylist,
   setAddToDownloads,
@@ -16,8 +17,9 @@ import {
   setIsLoadingGlobal,
   setNewPlayList,
   removePlaylistById,
+  upsertMyPlaylists,
 } from '../../state/features/globalSlice';
-import { FiShare2, FiTrash2, FiFlag, FiPlay, FiEdit2 } from 'react-icons/fi';
+import { FiShare2, FiTrash2, FiFlag, FiPlay, FiEdit2, FiList, FiChevronUp, FiChevronDown, FiCheck, FiX } from 'react-icons/fi';
 import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import { queueFetchAvatars } from '../../wrappers/GlobalWrapper';
@@ -31,6 +33,8 @@ import { objectToBase64 } from '../../utils/toBase64';
 import { shouldHideQdnResource } from '../../utils/qdnResourceFilters';
 import HomeActionButton from '../../components/home/HomeActionButton';
 import useUploadPlaylistModal from '../../hooks/useUploadPlaylistModal';
+import MediaItem from '../../components/MediaItem';
+import { Song } from '../../types';
 
 const favoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites'
@@ -53,6 +57,9 @@ export const Playlist = () => {
     (state: RootState) => state.global.downloads
   )
   const [playListData, setPlaylistData] = useState<any>(null)
+  const [isReordering, setIsReordering] = useState(false);
+  const [reorderedSongs, setReorderedSongs] = useState<SongReference[]>([]);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
 
   const getPlaylistData = React.useCallback(async (name: string, id: string) => {
     try {
@@ -188,6 +195,93 @@ export const Playlist = () => {
     })
     return transformSongs
   }, [playListData?.songs, imageCoverHash])
+
+  React.useEffect(() => {
+    if (!playListData?.songs) {
+      setReorderedSongs([]);
+      return;
+    }
+    setReorderedSongs(playListData.songs.map((song: SongReference) => ({ ...song })));
+  }, [playListData?.songs]);
+
+  const hasSongs = Boolean(playListData?.songs && playListData.songs.length > 0);
+  const isOwner = Boolean(username && username === playListData?.user);
+
+  const hasOrderChanged = React.useMemo(() => {
+    if (!playListData?.songs || playListData.songs.length !== reorderedSongs.length) {
+      return false;
+    }
+
+    return playListData.songs.some(
+      (song: SongReference, index: number) =>
+        song.identifier !== reorderedSongs[index]?.identifier,
+    );
+  }, [playListData?.songs, reorderedSongs]);
+
+  const moveSong = React.useCallback((index: number, direction: 'up' | 'down') => {
+    setReorderedSongs((prev) => {
+      const next = [...prev];
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      return next;
+    });
+  }, []);
+
+  const cancelReorder = React.useCallback(() => {
+    setIsReordering(false);
+    setReorderedSongs(playListData?.songs ? playListData.songs.map((song: SongReference) => ({ ...song })) : []);
+  }, [playListData?.songs]);
+
+  const handleSaveOrder = React.useCallback(async () => {
+    if (!isOwner) {
+      toast.error('Ainult playlisti omanik saab järjekorda muuta.');
+      return;
+    }
+    if (!playListData || !playListData?.id) return;
+    if (!hasOrderChanged) {
+      setIsReordering(false);
+      return;
+    }
+    try {
+      setIsSavingOrder(true);
+      const playlistPayload = {
+        songs: reorderedSongs,
+        title: playListData.title,
+        description: playListData.description,
+        image: playListData.image ?? null,
+      };
+      const playlistData64 = await objectToBase64(playlistPayload);
+      await qortalRequest({
+        action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+        resources: [
+          {
+            name: playListData.user || username,
+            service: 'PLAYLIST',
+            data64: playlistData64,
+            title: (playListData.title || '').slice(0, 55),
+            description: (playListData.description || '').slice(0, 4000),
+            identifier: playListData.id,
+          },
+        ],
+      });
+
+      const updatedPlaylist = {
+        ...playListData,
+        songs: reorderedSongs.map((song) => ({ ...song })),
+      };
+      setPlaylistData(updatedPlaylist);
+      dispatch(addToPlaylistHashMap(updatedPlaylist));
+      dispatch(upsertMyPlaylists([updatedPlaylist]));
+      dispatch(setNewPlayList(updatedPlaylist));
+      toast.success('Playlisti järjekord on uuendatud.');
+      setIsReordering(false);
+    } catch (error) {
+      toast.error('Playlisti järjekorra uuendamine ebaõnnestus.');
+    } finally {
+      setIsSavingOrder(false);
+    }
+  }, [dispatch, hasOrderChanged, isOwner, playListData, reorderedSongs, username]);
 
   const onClickPlaylist = () => {
     if (!username) {
@@ -374,8 +468,6 @@ export const Playlist = () => {
    
   }
 
-  const hasSongs = Boolean(playListData?.songs && playListData.songs.length > 0);
-  const isOwner = username && username === playListData?.user;
   const LikeIcon = isLiked ? AiFillHeart : AiOutlineHeart;
 
   const actionButtons = (
@@ -404,6 +496,16 @@ export const Playlist = () => {
       >
         <LikeIcon size={18} />
       </HomeActionButton>
+      {isOwner && (
+        <HomeActionButton
+          onClick={() => setIsReordering((prev) => !prev)}
+          title={isReordering ? 'Lõpeta järjestamine' : 'Järjesta lugusid'}
+          aria-label="Reorder playlist songs"
+          active={isReordering}
+        >
+          <FiList size={16} />
+        </HomeActionButton>
+      )}
       {isOwner ? (
         <HomeActionButton
           onClick={handleDeletePlaylist}
@@ -466,12 +568,95 @@ export const Playlist = () => {
           </div>
         </div>
       </Header>
-      {playListData && (
+      {playListData && !isReordering && (
         <SearchContent
           songs={songs}
           showInlineActions={false}
           enableInlinePlay={false}
+          sortStrategy="none"
+          showCategoryFilter={false}
         />
+      )}
+      {isOwner && isReordering && (
+        <div className="flex flex-col gap-4 px-6 py-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm text-sky-100">
+              Kasuta nooli, et muuta lugude järjekorda ja salvesta muudatused.
+            </p>
+            <div className="ml-auto flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleSaveOrder}
+                disabled={!hasOrderChanged || isSavingOrder}
+                className="inline-flex items-center gap-2 rounded-full border border-emerald-500/60 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-600/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FiCheck size={16} />
+                Salvesta
+              </button>
+              <button
+                type="button"
+                onClick={cancelReorder}
+                disabled={isSavingOrder}
+                className="inline-flex items-center gap-2 rounded-full border border-sky-900/70 px-4 py-2 text-sm font-semibold text-sky-100 transition hover:bg-sky-900/60 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FiX size={16} />
+                Loobu
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            {reorderedSongs.length === 0 ? (
+              <p className="text-sky-200/80">Playlistis ei ole ühtegi lugu.</p>
+            ) : (
+              reorderedSongs.map((song, index) => {
+                const id = song?.identifier || (song as any)?.id;
+                const name = song?.name;
+                if (!id || !name) return null;
+                const mediaSong: Song = {
+                  id,
+                  name,
+                  title: song?.title || 'Nimetu lugu',
+                  author: song?.author || (song as any)?.artist,
+                  service: song?.service,
+                  status: (song as any)?.status,
+                };
+                return (
+                  <div
+                    key={`${id}-${index}`}
+                    className="flex w-full items-center gap-3 rounded-lg border border-sky-900/60 bg-sky-950/40 p-2"
+                  >
+                    <span className="w-6 text-right text-sm text-sky-300">
+                      {index + 1}.
+                    </span>
+                    <div className="flex-1">
+                      <MediaItem data={mediaSong} showPlayButton={false} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() => moveSong(index, 'up')}
+                        disabled={index === 0}
+                        aria-label="Liiguta lugu üles"
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-sky-900/60 bg-sky-950/60 text-sky-200/80 transition hover:bg-sky-900/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <FiChevronUp size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveSong(index, 'down')}
+                        disabled={index === reorderedSongs.length - 1}
+                        aria-label="Liiguta lugu alla"
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-sky-900/60 bg-sky-950/60 text-sky-200/80 transition hover:bg-sky-900/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <FiChevronDown size={16} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
       )}
     </Box>
   );

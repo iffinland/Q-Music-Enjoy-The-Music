@@ -14,6 +14,8 @@ interface SearchContentProps {
   songs: Song[];
   showInlineActions?: boolean;
   enableInlinePlay?: boolean;
+  sortStrategy?: 'timestamp' | 'none';
+  showCategoryFilter?: boolean;
 }
 
 const getSongTimestamp = (song: Song) => {
@@ -38,6 +40,8 @@ const SearchContent: React.FC<SearchContentProps> = ({
   songs,
   showInlineActions = true,
   enableInlinePlay = true,
+  sortStrategy = 'timestamp',
+  showCategoryFilter = true,
 }) => {
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [selectedCategory, setSelectedCategory] = useState<string>(
@@ -45,6 +49,7 @@ const SearchContent: React.FC<SearchContentProps> = ({
   );
 
   const availableCategories = useMemo(() => {
+    if (!showCategoryFilter) return [];
     const normalizedSet = new Set<string>();
     songs.forEach((song) => {
       const category = getSongCategory(song);
@@ -61,14 +66,20 @@ const SearchContent: React.FC<SearchContentProps> = ({
       }
     });
     return base;
-  }, [songs]);
+  }, [showCategoryFilter, songs]);
 
   const displaySongs = useMemo(() => {
-    const filtered = songs.filter((song) => {
-      if (selectedCategory === ALL_CATEGORIES_VALUE) return true;
-      const category = getSongCategory(song) ?? UNCATEGORIZED_LABEL;
-      return category.toLowerCase() === selectedCategory.toLowerCase();
-    });
+    const filtered = showCategoryFilter
+      ? songs.filter((song) => {
+          if (selectedCategory === ALL_CATEGORIES_VALUE) return true;
+          const category = getSongCategory(song) ?? UNCATEGORIZED_LABEL;
+          return category.toLowerCase() === selectedCategory.toLowerCase();
+        })
+      : songs;
+
+    if (sortStrategy === 'none') {
+      return filtered;
+    }
 
     return filtered
       .slice()
@@ -76,7 +87,7 @@ const SearchContent: React.FC<SearchContentProps> = ({
         const delta = getSongTimestamp(b) - getSongTimestamp(a);
         return sortOrder === "desc" ? delta : -delta;
       });
-  }, [songs, selectedCategory, sortOrder]);
+  }, [songs, selectedCategory, sortOrder, sortStrategy, showCategoryFilter]);
 
   const onPlay = useOnPlay(displaySongs);
 
@@ -85,7 +96,7 @@ const SearchContent: React.FC<SearchContentProps> = ({
 
   return (
     <div className="flex flex-col gap-y-3">
-      {songs.length > 0 && (
+      {songs.length > 0 && (sortStrategy !== 'none' || showCategoryFilter) && (
         <SortControls
           className="px-6"
           sortOrder={sortOrder}
@@ -93,6 +104,8 @@ const SearchContent: React.FC<SearchContentProps> = ({
           categories={availableCategories}
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
+          hideOrderControls={sortStrategy === 'none'}
+          hideCategoryControl={!showCategoryFilter}
         />
       )}
       <div className="flex flex-col gap-y-2 w-full px-6">

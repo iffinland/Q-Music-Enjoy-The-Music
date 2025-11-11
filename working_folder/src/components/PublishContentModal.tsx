@@ -11,7 +11,7 @@ import Input from './Input';
 import Textarea from './TextArea';
 import Button from './Button';
 import usePublishContentModal from '../hooks/usePublishContentModal';
-import { PublishType, MultiEntryType, MultiPublishPayload } from '../types/publish';
+import { PublishType, MultiEntryType, MultiPublishPayload, PlaylistTarget } from '../types/publish';
 import {
   AUDIOBOOK_CATEGORIES,
   MUSIC_CATEGORIES,
@@ -21,6 +21,7 @@ import {
 } from '../constants/categories';
 import { objectToBase64, toBase64 } from '../utils/toBase64';
 import { RootState } from '../state/store';
+import { PlayList } from '../state/features/globalSlice';
 
 type FieldVariant = 'text' | 'number' | 'textarea' | 'select';
 
@@ -161,29 +162,6 @@ const TYPE_SECTIONS: Record<PublishType, TypeSection[]> = {
         { name: 'mood', label: 'Mood', placeholder: 'e.g. late-night ride' },
         { name: 'language', label: 'Language', placeholder: 'e.g. English / instrumental' },
         { name: 'bpm', label: 'Tempo (BPM)', placeholder: 'e.g. 118', variant: 'number' },
-        {
-          name: 'explicit',
-          label: 'Contains explicit content?',
-          variant: 'select',
-          options: [
-            { label: 'No', value: 'no' },
-            { label: 'Yes', value: 'yes' },
-          ],
-        },
-      ],
-    },
-    {
-      id: 'audio-release',
-      title: 'Release context',
-      description: 'Album or label information helps listeners orient themselves.',
-      fields: [
-        { name: 'album', label: 'Album / collection', placeholder: 'e.g. Midnight Rides' },
-        {
-          name: 'supportingNotes',
-          label: 'Supporting notes',
-          placeholder: 'Guest artists, writing credits, recording story...',
-          variant: 'textarea',
-        },
       ],
     },
   ],
@@ -204,29 +182,6 @@ const TYPE_SECTIONS: Record<PublishType, TypeSection[]> = {
         { name: 'season', label: 'Season', placeholder: 'e.g. 3' },
         { name: 'episode', label: 'Episode', placeholder: 'e.g. 12' },
         { name: 'duration', label: 'Duration', placeholder: 'e.g. 42 min' },
-        {
-          name: 'explicit',
-          label: 'Content rating',
-          variant: 'select',
-          options: [
-            { label: 'Suitable for everyone', value: 'clean' },
-            { label: 'Explicit / adult themes', value: 'explicit' },
-          ],
-        },
-      ],
-    },
-    {
-      id: 'podcast-distribution',
-      title: 'Distribution & CTA',
-      description: 'Share RSS feeds, landing pages or calls-to-action.',
-      fields: [
-        { name: 'rssFeed', label: 'RSS feed / link', placeholder: 'https://...' },
-        {
-          name: 'callToAction',
-          label: 'Call to action',
-          placeholder: 'Join our Telegram, share questions, support us...',
-          variant: 'textarea',
-        },
       ],
     },
   ],
@@ -248,20 +203,6 @@ const TYPE_SECTIONS: Record<PublishType, TypeSection[]> = {
         { name: 'chapter', label: 'Chapter', placeholder: 'e.g. Chapter 5' },
         { name: 'narrator', label: 'Narrator', placeholder: 'e.g. Peter Teller' },
         { name: 'duration', label: 'Duration', placeholder: 'e.g. 1h 12m' },
-      ],
-    },
-    {
-      id: 'audiobook-context',
-      title: 'Synopsis & license',
-      description: 'Explain usage rights and set expectations.',
-      fields: [
-        {
-          name: 'summary',
-          label: 'Short summary',
-          placeholder: 'Who is it for, what is the mood, key hook...',
-          variant: 'textarea',
-        },
-        { name: 'license', label: 'License', placeholder: 'e.g. CC BY-NC' },
       ],
     },
   ],
@@ -287,15 +228,6 @@ const TYPE_SECTIONS: Record<PublishType, TypeSection[]> = {
           label: 'Subtitles',
           placeholder: 'Upload references or links to subtitle files',
         },
-      ],
-    },
-    {
-      id: 'video-cta',
-      title: 'Branding & CTA',
-      description: 'Guide viewers to the next action.',
-      fields: [
-        { name: 'ctaHeadline', label: 'CTA headline', placeholder: 'e.g. Join the tour' },
-        { name: 'ctaLink', label: 'CTA link', placeholder: 'https://...' },
       ],
     },
   ],
@@ -324,20 +256,6 @@ const TYPE_SECTIONS: Record<PublishType, TypeSection[]> = {
           ],
         },
         { name: 'collaborators', label: 'Collaborators', placeholder: 'e.g. @dj-moon, @crystalwave' },
-      ],
-    },
-    {
-      id: 'playlist-notes',
-      title: 'Curator notes',
-      description: 'Share how you curate and how often it updates.',
-      fields: [
-        {
-          name: 'curationNotes',
-          label: 'Selection notes',
-          variant: 'textarea',
-          placeholder: 'Explain what unites the tracks...',
-        },
-        { name: 'updateFrequency', label: 'Update cadence', placeholder: 'e.g. first Friday of each month' },
       ],
     },
   ],
@@ -473,6 +391,7 @@ const buildPlaylistIdentifier = (title: string) => {
 const PublishContentModal: React.FC = () => {
   const modal = usePublishContentModal();
   const username = useSelector((state: RootState) => state.auth?.user?.name);
+  const myPlaylists = useSelector((state: RootState) => state.global.myPlaylists);
   const [selectedType, setSelectedType] = useState<PublishType>('audio');
   const [baseValues, setBaseValues] = useState<BaseValues>(() => createInitialBaseValues());
   const [typeValues, setTypeValues] = useState<TypeSpecificValues>(() => createInitialTypeValues());
@@ -488,14 +407,20 @@ const PublishContentModal: React.FC = () => {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [isVideoPublishing, setIsVideoPublishing] = useState(false);
   const [isPlaylistPublishing, setIsPlaylistPublishing] = useState(false);
+  const [singlePlaylistSelection, setSinglePlaylistSelection] = useState<string[]>([]);
+  const [singleNewPlaylist, setSingleNewPlaylist] = useState({ enabled: false, title: '', description: '' });
+  const [multiPlaylistSelection, setMultiPlaylistSelection] = useState<string[]>([]);
+  const [multiNewPlaylist, setMultiNewPlaylist] = useState({ enabled: false, title: '', description: '' });
 
   const currentOption = useMemo(
     () => PUBLISH_OPTIONS.find((option) => option.id === selectedType) ?? PUBLISH_OPTIONS[0],
     [selectedType],
   );
+  const availablePlaylists = useMemo<PlayList[]>(() => myPlaylists ?? [], [myPlaylists]);
 
   const currentTypeValues = typeValues[selectedType];
   const isMultiPublish = selectedType === 'multi';
+  const showPlaylistShortcuts = !isMultiPublish && selectedType !== 'playlist';
 
   const resetState = () => {
     setBaseValues(createInitialBaseValues());
@@ -506,6 +431,10 @@ const PublishContentModal: React.FC = () => {
     setBulkCategoryValue('');
     setPrimaryFile(null);
     setCoverFile(null);
+    setSinglePlaylistSelection([]);
+    setSingleNewPlaylist({ enabled: false, title: '', description: '' });
+    setMultiPlaylistSelection([]);
+    setMultiNewPlaylist({ enabled: false, title: '', description: '' });
     if (multiFileInputRef.current) {
       multiFileInputRef.current.value = '';
     }
@@ -596,6 +525,24 @@ const PublishContentModal: React.FC = () => {
     }
   };
 
+  const handleSinglePlaylistAdd = (playlistId: string) => {
+    if (!playlistId) return;
+    setSinglePlaylistSelection((prev) => (prev.includes(playlistId) ? prev : [...prev, playlistId]));
+  };
+
+  const handleSinglePlaylistRemove = (playlistId: string) => {
+    setSinglePlaylistSelection((prev) => prev.filter((id) => id !== playlistId));
+  };
+
+  const handleMultiPlaylistAdd = (playlistId: string) => {
+    if (!playlistId) return;
+    setMultiPlaylistSelection((prev) => (prev.includes(playlistId) ? prev : [...prev, playlistId]));
+  };
+
+  const handleMultiPlaylistRemove = (playlistId: string) => {
+    setMultiPlaylistSelection((prev) => prev.filter((id) => id !== playlistId));
+  };
+
   const handleMultiFileSelection = (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -668,6 +615,46 @@ const formatFileSize = (bytes: number) => {
 const formatTitleFromFilename = (fileName: string) => {
   const withoutExtension = fileName.replace(/\.[^/.]+$/, '');
   return withoutExtension.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+};
+
+const clonePlaylistTargets = (targets: PlaylistTarget[]): PlaylistTarget[] =>
+  targets.map((target) =>
+    target.type === 'new'
+      ? {
+          type: 'new',
+          title: target.title,
+          description: target.description,
+          sharedKey: target.sharedKey,
+        }
+      : {
+          type: 'existing',
+          playlistId: target.playlistId,
+        },
+  );
+
+const buildPlaylistTargets = (
+  existingIds: string[],
+  newPlaylist: { enabled: boolean; title: string; description: string },
+  options?: { sharedKey?: string },
+): PlaylistTarget[] => {
+  const targets: PlaylistTarget[] = [];
+  existingIds.forEach((playlistId) => {
+    if (playlistId.trim().length > 0) {
+      targets.push({
+        type: 'existing',
+        playlistId,
+      });
+    }
+  });
+  if (newPlaylist.enabled && newPlaylist.title.trim().length > 0) {
+    targets.push({
+      type: 'new',
+      title: newPlaylist.title.trim(),
+      description: newPlaylist.description.trim() || undefined,
+      sharedKey: options?.sharedKey,
+    });
+  }
+  return targets;
 };
 
   const highlightEntries = useMemo(
@@ -793,6 +780,12 @@ const formatTitleFromFilename = (fileName: string) => {
       return;
     }
 
+    const multiPlaylistTargetsConfig = buildPlaylistTargets(
+      multiPlaylistSelection,
+      multiNewPlaylist,
+      multiNewPlaylist.enabled ? { sharedKey: `multi-${Date.now().toString(36)}` } : undefined,
+    );
+
     const payloads: MultiPublishPayload[] = multiEntries.map((entry) => ({
       id: entry.id,
       type: entry.type,
@@ -809,6 +802,8 @@ const formatTitleFromFilename = (fileName: string) => {
       collectionTitle: baseValues.title || undefined,
       collectionDescription: baseValues.description || undefined,
       supportPrice: baseValues.price || undefined,
+      playlistTargets:
+        multiPlaylistTargetsConfig.length > 0 ? clonePlaylistTargets(multiPlaylistTargetsConfig) : undefined,
     }));
 
     if (typeof window !== 'undefined') {
@@ -1142,6 +1137,8 @@ const formatTitleFromFilename = (fileName: string) => {
       return;
     }
 
+    const singlePlaylistTargets = buildPlaylistTargets(singlePlaylistSelection, singleNewPlaylist);
+
     const payload: MultiPublishPayload = {
       id: `${selectedType}-${Date.now()}`,
       type: selectedType as MultiEntryType,
@@ -1159,6 +1156,9 @@ const formatTitleFromFilename = (fileName: string) => {
       collectionDescription: baseValues.description || undefined,
       supportPrice: baseValues.price || undefined,
     };
+    if (singlePlaylistTargets.length > 0) {
+      payload.playlistTargets = clonePlaylistTargets(singlePlaylistTargets);
+    }
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
@@ -1299,119 +1299,121 @@ const formatTitleFromFilename = (fileName: string) => {
               </div>
             </section>
             {isMultiPublish ? (
-              <section className="rounded-2xl border border-sky-900/70 bg-sky-950/40 p-4 md:p-5">
-                <p className="text-xs uppercase tracking-[0.2em] text-sky-200/80 font-semibold mb-3">
-                  2. Upload your folder
-                </p>
-                <div className="flex flex-col gap-4">
-                  <div className="rounded-2xl border border-dashed border-sky-800 bg-sky-900/40 p-5 text-center">
-                    <p className="text-sm font-semibold text-white">Drop audio files or browse your device</p>
-                    <p className="text-xs text-sky-200/80 mt-1">
-                      Supports MP3, WAV, FLAC, AAC, OGG — perfect for songs, podcasts and audiobook chapters.
-                    </p>
-                    <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => multiFileInputRef.current?.click()}
-                        className="rounded-full bg-sky-500/80 px-5 py-2 text-sm font-semibold text-sky-950 hover:bg-sky-400 transition"
-                      >
-                        Select files
-                      </button>
-                      {multiEntries.length > 0 && (
+              <>
+                <section className="rounded-2xl border border-sky-900/70 bg-sky-950/40 p-4 md:p-5">
+                  <p className="text-xs uppercase tracking-[0.2em] text-sky-200/80 font-semibold mb-3">
+                    2. Upload your folder
+                  </p>
+                  <div className="flex flex-col gap-4">
+                    <div className="rounded-2xl border border-dashed border-sky-800 bg-sky-900/40 p-5 text-center">
+                      <p className="text-sm font-semibold text-white">Drop audio files or browse your device</p>
+                      <p className="text-xs text-sky-200/80 mt-1">
+                        Supports MP3, WAV, FLAC, AAC, OGG — perfect for songs, podcasts and audiobook chapters.
+                      </p>
+                      <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
                         <button
                           type="button"
-                          onClick={handleClearMultiEntries}
-                          className="rounded-full border border-sky-500/60 px-5 py-2 text-sm text-sky-100 hover:bg-sky-900/60 transition"
+                          onClick={() => multiFileInputRef.current?.click()}
+                          className="rounded-full bg-sky-500/80 px-5 py-2 text-sm font-semibold text-sky-950 hover:bg-sky-400 transition"
                         >
-                          Clear selection
+                          Select files
                         </button>
-                      )}
+                        {multiEntries.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleClearMultiEntries}
+                            className="rounded-full border border-sky-500/60 px-5 py-2 text-sm text-sky-100 hover:bg-sky-900/60 transition"
+                          >
+                            Clear selection
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <input
+                      ref={multiFileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept="audio/*"
+                      multiple
+                      onChange={handleMultiFileSelection}
+                    />
                   </div>
-                  <input
-                    ref={multiFileInputRef}
-                    type="file"
-                    className="hidden"
-                    accept="audio/*"
-                    multiple
-                    onChange={handleMultiFileSelection}
-                  />
-                </div>
-                {multiEntries.length > 0 && (
-                  <div className="rounded-2xl border border-sky-900/70 bg-sky-950/30 p-4 flex flex-col gap-4">
-                    <div className="flex flex-col gap-2">
-                      <p className="text-xs uppercase tracking-[0.3em] text-sky-200/80">Bulk helpers</p>
-                      <p className="text-sm text-sky-200/70">
-                        Speed up catalog prep by applying shared settings or auto-filling missing titles.
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-                      <button
-                        type="button"
-                        onClick={handleFillTitlesFromFilenames}
-                        className="rounded-full border border-sky-500/60 px-4 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-900/60 transition"
-                      >
-                        Use filenames for empty titles
-                      </button>
-                      <select
-                        className="rounded-md border border-sky-900/60 bg-sky-950/70 px-3 py-2 text-xs text-white focus:outline-none"
-                        value={bulkTypeSelection}
-                        onChange={(event) => {
-                          const value = event.target.value as MultiEntryType | '';
-                          setBulkTypeSelection(value);
-                          if (!value) return;
-                          handleSetAllTypes(value);
-                          setBulkTypeSelection('');
-                          toast.success(`Set type to ${value} for all entries`);
-                        }}
-                      >
-                        <option value="">Set type for all entries</option>
-                        {MULTI_ENTRY_TYPES.map((type) => (
-                          <option key={type.value} value={type.value}>
-                            {type.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-3 md:flex-row md:items-end md:gap-4">
-                      <label className="flex flex-col gap-1 text-xs text-sky-100/80">
-                        Target type
+                  {multiEntries.length > 0 && (
+                    <div className="rounded-2xl border border-sky-900/70 bg-sky-950/30 p-4 flex flex-col gap-4">
+                      <div className="flex flex-col gap-2">
+                        <p className="text-xs uppercase tracking-[0.3em] text-sky-200/80">Bulk helpers</p>
+                        <p className="text-sm text-sky-200/70">
+                          Speed up catalog prep by applying shared settings or auto-filling missing titles.
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+                        <button
+                          type="button"
+                          onClick={handleFillTitlesFromFilenames}
+                          className="rounded-full border border-sky-500/60 px-4 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-900/60 transition"
+                        >
+                          Use filenames for empty titles
+                        </button>
                         <select
                           className="rounded-md border border-sky-900/60 bg-sky-950/70 px-3 py-2 text-xs text-white focus:outline-none"
-                          value={bulkCategoryType}
-                          onChange={(event) => setBulkCategoryType(event.target.value as MultiEntryType)}
+                          value={bulkTypeSelection}
+                          onChange={(event) => {
+                            const value = event.target.value as MultiEntryType | '';
+                            setBulkTypeSelection(value);
+                            if (!value) return;
+                            handleSetAllTypes(value);
+                            setBulkTypeSelection('');
+                            toast.success(`Set type to ${value} for all entries`);
+                          }}
                         >
+                          <option value="">Set type for all entries</option>
                           {MULTI_ENTRY_TYPES.map((type) => (
                             <option key={type.value} value={type.value}>
                               {type.label}
                             </option>
                           ))}
                         </select>
-                      </label>
-                      <label className="flex flex-col gap-1 text-xs text-sky-100/80 flex-1">
-                        Category to apply
-                        <select
-                          className="w-full rounded-md border border-sky-900/60 bg-sky-950/70 px-3 py-2 text-xs text-white focus:outline-none"
-                          value={bulkCategoryValue}
-                          onChange={(event) => setBulkCategoryValue(event.target.value)}
+                      </div>
+                      <div className="flex flex-col gap-3 md:flex-row md:items-end md:gap-4">
+                        <label className="flex flex-col gap-1 text-xs text-sky-100/80">
+                          Target type
+                          <select
+                            className="rounded-md border border-sky-900/60 bg-sky-950/70 px-3 py-2 text-xs text-white focus:outline-none"
+                            value={bulkCategoryType}
+                            onChange={(event) => setBulkCategoryType(event.target.value as MultiEntryType)}
+                          >
+                            {MULTI_ENTRY_TYPES.map((type) => (
+                              <option key={type.value} value={type.value}>
+                                {type.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs text-sky-100/80 flex-1">
+                          Category to apply
+                          <select
+                            className="w-full rounded-md border border-sky-900/60 bg-sky-950/70 px-3 py-2 text-xs text-white focus:outline-none"
+                            value={bulkCategoryValue}
+                            onChange={(event) => setBulkCategoryValue(event.target.value)}
+                          >
+                            <option value="">Select a category</option>
+                            {bulkCategoryOptions.map((category) => (
+                              <option key={category} value={category}>
+                                {category}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleApplyCategoryToType}
+                          className="rounded-full bg-sky-500/80 px-4 py-2 text-xs font-semibold text-sky-950 hover:bg-sky-400 transition"
                         >
-                          <option value="">Select a category</option>
-                          {bulkCategoryOptions.map((category) => (
-                            <option key={category} value={category}>
-                              {category}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleApplyCategoryToType}
-                        className="rounded-full bg-sky-500/80 px-4 py-2 text-xs font-semibold text-sky-950 hover:bg-sky-400 transition"
-                      >
-                        Apply to {bulkCategoryType} entries
-                      </button>
+                          Apply to {bulkCategoryType} entries
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
                   {multiEntries.length === 0 ? (
                     <p className="text-sm text-sky-200/80">
                       After picking files, each entry appears here so you can assign a content type, title and category
@@ -1510,8 +1512,93 @@ const formatTitleFromFilename = (fileName: string) => {
                       })}
                     </div>
                   )}
-                </div>
-              </section>
+                </section>
+                <section className="rounded-2xl border border-sky-900/70 bg-sky-950/40 p-4 md:p-5">
+                  <p className="text-xs uppercase tracking-[0.2em] text-sky-200/80 font-semibold mb-3">
+                    Playlists for this folder
+                  </p>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="flex flex-col gap-2">
+                      <p className="text-sm font-semibold text-white">Add every entry to existing playlists</p>
+                      <select
+                        className="rounded-md border border-sky-900/60 bg-sky-950/70 px-3 py-2 text-sm text-white focus:outline-none"
+                        value=""
+                        onChange={(event) => handleMultiPlaylistAdd(event.target.value)}
+                      >
+                        <option value="">Select a playlist</option>
+                        {availablePlaylists.map((playlist) => (
+                          <option key={playlist.id} value={playlist.id}>
+                            {playlist.title || 'Untitled playlist'}
+                          </option>
+                        ))}
+                      </select>
+                      {multiPlaylistSelection.length === 0 ? (
+                        <p className="text-xs text-sky-200/70">No target playlists selected.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {multiPlaylistSelection.map((id) => {
+                            const playlist = availablePlaylists.find((item) => item.id === id);
+                            if (!playlist) return null;
+                            return (
+                              <button
+                                key={id}
+                                type="button"
+                                onClick={() => handleMultiPlaylistRemove(id)}
+                                className="group flex items-center gap-2 rounded-full border border-sky-800/80 bg-sky-900/40 px-3 py-1 text-xs text-sky-100 hover:border-sky-500/80"
+                              >
+                                <span>{playlist.title || 'Untitled playlist'}</span>
+                                <span className="text-sky-400/80 group-hover:text-sky-200">×</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      <label className="flex items-center gap-2 text-sm text-sky-100/80">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-sky-700 bg-sky-950 text-sky-500 focus:ring-sky-500"
+                          checked={multiNewPlaylist.enabled}
+                          onChange={(event) =>
+                            setMultiNewPlaylist((prev) => ({ ...prev, enabled: event.target.checked }))
+                          }
+                        />
+                        Create a new playlist from these entries
+                      </label>
+                      {multiNewPlaylist.enabled ? (
+                        <>
+                          <Input
+                            placeholder="Playlist title"
+                            value={multiNewPlaylist.title}
+                            onChange={(event) =>
+                              setMultiNewPlaylist((prev) => ({ ...prev, title: event.target.value }))
+                            }
+                          />
+                          <Textarea
+                            rows={3}
+                            placeholder="Short description or curator notes"
+                            value={multiNewPlaylist.description}
+                            onChange={(event) =>
+                              setMultiNewPlaylist((prev) => ({
+                                ...prev,
+                                description: event.target.value,
+                              }))
+                            }
+                          />
+                        </>
+                      ) : (
+                        <p className="text-xs text-sky-200/70">
+                          Toggle on to generate a playlist from this folder once all entries finish publishing.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-sky-200/60 mt-3">
+                    Playlist actions apply to every entry in this folder.
+                  </p>
+                </section>
+              </>
             ) : (
               <>
                 <section className="grid gap-4 lg:grid-cols-2">
@@ -1605,9 +1692,97 @@ const formatTitleFromFilename = (fileName: string) => {
                     </div>
                   </div>
 
+                  {showPlaylistShortcuts && (
+                    <div className="rounded-2xl border border-sky-900/70 bg-sky-950/40 p-4 md:p-5">
+                      <p className="text-xs uppercase tracking-[0.2em] text-sky-200/80 font-semibold mb-3">
+                        3. Playlists & collections
+                      </p>
+                      <div className="grid gap-4 md:grid-cols-2">
+                      <div className="flex flex-col gap-2">
+                        <p className="text-sm font-semibold text-white">Attach to existing playlists</p>
+                        <select
+                          className="rounded-md border border-sky-900/60 bg-sky-950/70 px-3 py-2 text-sm text-white focus:outline-none"
+                          value=""
+                          onChange={(event) => handleSinglePlaylistAdd(event.target.value)}
+                        >
+                          <option value="">Select a playlist</option>
+                          {availablePlaylists.map((playlist) => (
+                            <option key={playlist.id} value={playlist.id}>
+                              {playlist.title || 'Untitled playlist'}
+                            </option>
+                          ))}
+                        </select>
+                        {singlePlaylistSelection.length === 0 ? (
+                          <p className="text-xs text-sky-200/70">No playlists selected yet.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {singlePlaylistSelection.map((id) => {
+                              const playlist = availablePlaylists.find((item) => item.id === id);
+                              if (!playlist) return null;
+                              return (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  onClick={() => handleSinglePlaylistRemove(id)}
+                                  className="group flex items-center gap-2 rounded-full border border-sky-800/80 bg-sky-900/40 px-3 py-1 text-xs text-sky-100 hover:border-sky-500/80"
+                                >
+                                  <span>{playlist.title || 'Untitled playlist'}</span>
+                                  <span className="text-sky-400/80 group-hover:text-sky-200">×</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-3">
+                        <label className="flex items-center gap-2 text-sm text-sky-100/80">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-sky-700 bg-sky-950 text-sky-500 focus:ring-sky-500"
+                            checked={singleNewPlaylist.enabled}
+                            onChange={(event) =>
+                              setSingleNewPlaylist((prev) => ({ ...prev, enabled: event.target.checked }))
+                            }
+                          />
+                          Create a new playlist once this publishes
+                        </label>
+                        {singleNewPlaylist.enabled ? (
+                          <>
+                            <Input
+                              placeholder="Playlist title"
+                              value={singleNewPlaylist.title}
+                              onChange={(event) =>
+                                setSingleNewPlaylist((prev) => ({ ...prev, title: event.target.value }))
+                              }
+                            />
+                            <Textarea
+                              rows={3}
+                              placeholder="Short description or curator notes"
+                              value={singleNewPlaylist.description}
+                              onChange={(event) =>
+                                setSingleNewPlaylist((prev) => ({
+                                  ...prev,
+                                  description: event.target.value,
+                                }))
+                              }
+                            />
+                          </>
+                        ) : (
+                          <p className="text-xs text-sky-200/70">
+                            Enable the toggle to spin up a brand new playlist automatically.
+                          </p>
+                        )}
+                      </div>
+                      </div>
+                      <p className="text-[11px] text-sky-200/60 mt-3">
+                        We will queue playlist updates as soon as the publish finishes.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="rounded-2xl border border-sky-900/70 bg-sky-950/40 p-4 md:p-5">
                     <p className="text-xs uppercase tracking-[0.2em] text-sky-200/80 font-semibold mb-3">
-                      3. Files & artwork
+                      {showPlaylistShortcuts ? '4. Files & artwork' : '3. Files & artwork'}
                     </p>
                     <div className="flex flex-col gap-4">
                       <label className="flex flex-col gap-2 text-sm text-sky-100/80">
