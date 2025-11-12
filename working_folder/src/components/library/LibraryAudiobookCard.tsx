@@ -44,6 +44,7 @@ import {
 } from '../../services/audiobookLikes';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import useCoverImage from '../../hooks/useCoverImage';
+import { buildDownloadFilename } from '../../utils/downloadFilename';
 
 const audiobookFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-audiobook-favorites',
@@ -287,9 +288,13 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
 
         const anchor = document.createElement('a');
         anchor.href = directUrl;
-        anchor.download =
-          audiobook.audioFilename ||
-          `${audiobook.title?.replace(/\s+/g, '_') || audiobook.id}.audio`;
+        anchor.download = buildDownloadFilename({
+          preferredFilename: audiobook.audioFilename,
+          title: audiobook.title,
+          fallbackId: audiobook.id,
+          resolvedUrl: directUrl,
+          mimeType: audiobook.audioMimeType,
+        });
         anchor.rel = 'noopener';
         document.body.appendChild(anchor);
         anchor.click();

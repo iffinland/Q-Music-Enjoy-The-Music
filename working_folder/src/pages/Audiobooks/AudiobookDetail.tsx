@@ -10,6 +10,7 @@ import { Audiobook } from '../../types';
 import { fetchAudiobookByIdentifier } from '../../services/audiobooks';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildAudiobookShareUrl } from '../../utils/qortalLinks';
+import { buildDownloadFilename } from '../../utils/downloadFilename';
 import { toast } from 'react-hot-toast';
 import moment from 'moment';
 import { FiDownload, FiPlay, FiShare2, FiEdit2 } from 'react-icons/fi';
@@ -138,9 +139,13 @@ const AudiobookDetail: React.FC = () => {
 
       const anchor = document.createElement('a');
       anchor.href = resolvedUrl;
-      anchor.download =
-        audiobook.audioFilename ||
-        `${audiobook.title?.replace(/\s+/g, '_') || audiobook.id}.audio`;
+      anchor.download = buildDownloadFilename({
+        preferredFilename: audiobook.audioFilename,
+        title: audiobook.title,
+        fallbackId: audiobook.id,
+        resolvedUrl,
+        mimeType: audiobook.audioMimeType,
+      });
       anchor.rel = 'noopener';
       document.body.appendChild(anchor);
       anchor.click();

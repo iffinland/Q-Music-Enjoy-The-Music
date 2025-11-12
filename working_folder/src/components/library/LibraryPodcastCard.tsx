@@ -44,6 +44,7 @@ import {
 } from '../../services/podcastLikes';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import useCoverImage from '../../hooks/useCoverImage';
+import { buildDownloadFilename } from '../../utils/downloadFilename';
 
 const podcastFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-podcast-favorites',
@@ -287,9 +288,13 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
 
         const anchor = document.createElement('a');
         anchor.href = directUrl;
-        anchor.download =
-          podcast.audioFilename ||
-          `${podcast.title?.replace(/\s+/g, '_') || podcast.id}.audio`;
+        anchor.download = buildDownloadFilename({
+          preferredFilename: podcast.audioFilename,
+          title: podcast.title,
+          fallbackId: podcast.id,
+          resolvedUrl: directUrl,
+          mimeType: podcast.audioMimeType,
+        });
         anchor.rel = 'noopener';
         document.body.appendChild(anchor);
         anchor.click();

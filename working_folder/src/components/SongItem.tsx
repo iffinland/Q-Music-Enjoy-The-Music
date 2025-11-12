@@ -19,6 +19,7 @@ import useSendTipModal from "../hooks/useSendTipModal";
 import { fetchSongLikeCount, hasUserLikedSong, likeSong, unlikeSong } from "../services/songLikes";
 import useUploadModal from "../hooks/useUploadModal";
 import useCoverImage from "../hooks/useCoverImage";
+import { buildDownloadFilename } from '../utils/downloadFilename';
 
 interface SongItemProps {
   data: SongMeta;
@@ -183,7 +184,11 @@ const SongItem: React.FC<SongItemProps> = ({
 
       const anchor = document.createElement('a');
       anchor.href = resolvedUrl;
-      anchor.download = `${(data.title || data.id || 'song').replace(/\s+/g, '_')}.audio`;
+      anchor.download = buildDownloadFilename({
+        title: data.title,
+        fallbackId: data.id,
+        resolvedUrl,
+      });
       anchor.rel = 'noopener';
       document.body.appendChild(anchor);
       anchor.click();

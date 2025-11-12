@@ -30,6 +30,7 @@ import radioImg from '../../assets/img/enjoy-music.jpg';
 import { buildMetadataEntries, formatDateTime, parseKeyValueMetadata } from '../../utils/metadata';
 import useUploadModal from '../../hooks/useUploadModal';
 import useCoverImage from '../../hooks/useCoverImage';
+import { buildDownloadFilename } from '../../utils/downloadFilename';
 
 interface HomeSongCardProps {
   song: SongMeta;
@@ -148,7 +149,11 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
 
       const anchor = document.createElement('a');
       anchor.href = resolvedUrl;
-      anchor.download = `${song.title?.replace(/\s+/g, '_') || song.id}.audio`;
+      anchor.download = buildDownloadFilename({
+        title: song.title,
+        fallbackId: song.id,
+        resolvedUrl,
+      });
       anchor.rel = 'noopener';
       document.body.appendChild(anchor);
       anchor.click();

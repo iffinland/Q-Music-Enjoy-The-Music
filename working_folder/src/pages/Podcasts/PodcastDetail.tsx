@@ -10,6 +10,7 @@ import { Podcast } from '../../types';
 import { fetchPodcastByIdentifier } from '../../services/podcasts';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildPodcastShareUrl } from '../../utils/qortalLinks';
+import { buildDownloadFilename } from '../../utils/downloadFilename';
 import { toast } from 'react-hot-toast';
 import moment from 'moment';
 import { FiDownload, FiPlay, FiShare2, FiEdit2 } from 'react-icons/fi';
@@ -139,9 +140,13 @@ const PodcastDetail: React.FC = () => {
 
       const anchor = document.createElement('a');
       anchor.href = resolvedUrl;
-      anchor.download =
-        podcast.audioFilename ||
-        `${podcast.title?.replace(/\s+/g, '_') || podcast.id}.audio`;
+      anchor.download = buildDownloadFilename({
+        preferredFilename: podcast.audioFilename,
+        title: podcast.title,
+        fallbackId: podcast.id,
+        resolvedUrl,
+        mimeType: podcast.audioMimeType,
+      });
       anchor.rel = 'noopener';
       document.body.appendChild(anchor);
       anchor.click();

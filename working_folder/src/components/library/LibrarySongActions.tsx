@@ -32,6 +32,7 @@ import {
 } from '../../services/songLikes';
 import HomeActionButton from '../home/HomeActionButton';
 import LikeButton from '../LikeButton';
+import { buildDownloadFilename } from '../../utils/downloadFilename';
 
 interface LibrarySongActionsProps {
   song: Song;
@@ -197,10 +198,11 @@ export const LibrarySongActions: React.FC<LibrarySongActionsProps> = ({
 
         const anchor = document.createElement('a');
         anchor.href = resolvedUrl;
-        anchor.download = `${(song.title || song.id || 'song').replace(
-          /\s+/g,
-          '_',
-        )}.audio`;
+        anchor.download = buildDownloadFilename({
+          title: song.title,
+          fallbackId: song.id,
+          resolvedUrl,
+        });
         anchor.rel = 'noopener';
         document.body.appendChild(anchor);
         anchor.click();

@@ -28,6 +28,7 @@ import useSendTipModal from '../../hooks/useSendTipModal';
 import { RiHandCoinLine } from 'react-icons/ri';
 import { formatDateTime } from '../../utils/metadata';
 import useCoverImage from '../../hooks/useCoverImage';
+import { buildDownloadFilename } from '../../utils/downloadFilename';
 
 const audiobookFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-audiobook-favorites',
@@ -168,7 +169,13 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
 
       const anchor = document.createElement('a');
       anchor.href = directUrl;
-      anchor.download = `${audiobook.title?.replace(/\s+/g, '_') || audiobook.id}.audio`;
+      anchor.download = buildDownloadFilename({
+        preferredFilename: audiobook.audioFilename,
+        title: audiobook.title,
+        fallbackId: audiobook.id,
+        resolvedUrl: directUrl,
+        mimeType: audiobook.audioMimeType,
+      });
       anchor.rel = 'noopener';
       document.body.appendChild(anchor);
       anchor.click();

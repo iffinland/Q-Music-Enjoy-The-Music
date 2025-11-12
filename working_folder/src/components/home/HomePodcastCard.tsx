@@ -28,6 +28,7 @@ import useSendTipModal from '../../hooks/useSendTipModal';
 import { RiHandCoinLine } from 'react-icons/ri';
 import { formatDateTime } from '../../utils/metadata';
 import useCoverImage from '../../hooks/useCoverImage';
+import { buildDownloadFilename } from '../../utils/downloadFilename';
 
 const podcastFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-podcast-favorites',
@@ -148,7 +149,13 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
 
       const anchor = document.createElement('a');
       anchor.href = directUrl;
-      anchor.download = `${podcast.title?.replace(/\s+/g, '_') || podcast.id}.audio`;
+      anchor.download = buildDownloadFilename({
+        preferredFilename: podcast.audioFilename,
+        title: podcast.title,
+        fallbackId: podcast.id,
+        resolvedUrl: directUrl,
+        mimeType: podcast.audioMimeType,
+      });
       anchor.rel = 'noopener';
       document.body.appendChild(anchor);
       anchor.click();

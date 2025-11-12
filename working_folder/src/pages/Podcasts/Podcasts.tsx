@@ -21,6 +21,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
 import { Favorites, removeFavSong, setAddToDownloads, setCurrentSong, setFavSong } from '../../state/features/globalSlice';
 import { deleteHostedData, deleteQdnResource, getQdnResourceUrl } from '../../utils/qortalApi';
+import { buildDownloadFilename } from '../../utils/downloadFilename';
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import localforage from 'localforage';
 import {
@@ -462,9 +463,13 @@ const Podcasts: React.FC = () => {
       if (directUrl) {
         const anchor = document.createElement('a');
         anchor.href = directUrl;
-        anchor.download =
-          podcast.audioFilename ||
-          `${podcast.title?.replace(/\s+/g, '_') || podcast.id}.audio`;
+        anchor.download = buildDownloadFilename({
+          preferredFilename: podcast.audioFilename,
+          title: podcast.title,
+          fallbackId: podcast.id,
+          resolvedUrl: directUrl,
+          mimeType: podcast.audioMimeType,
+        });
         anchor.rel = 'noopener';
         document.body.appendChild(anchor);
         anchor.click();
@@ -501,9 +506,13 @@ const Podcasts: React.FC = () => {
         if (refreshedUrl) {
           const anchor = document.createElement('a');
           anchor.href = refreshedUrl;
-          anchor.download =
-            podcast.audioFilename ||
-            `${podcast.title?.replace(/\s+/g, '_') || podcast.id}.audio`;
+          anchor.download = buildDownloadFilename({
+            preferredFilename: podcast.audioFilename,
+            title: podcast.title,
+            fallbackId: podcast.id,
+            resolvedUrl: refreshedUrl,
+            mimeType: podcast.audioMimeType,
+          });
           anchor.rel = 'noopener';
           document.body.appendChild(anchor);
           anchor.click();

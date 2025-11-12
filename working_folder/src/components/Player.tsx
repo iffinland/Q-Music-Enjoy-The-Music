@@ -43,6 +43,7 @@ import { Song } from '../types';
 import { MyContext } from '../wrappers/DownloadWrapper';
 import { getQdnResourceUrl } from '../utils/qortalApi';
 import { buildSongShareUrl } from '../utils/qortalLinks';
+import { buildDownloadFilename } from '../utils/downloadFilename';
 import useSendTipModal from '../hooks/useSendTipModal';
 import useUploadModal from '../hooks/useUploadModal';
 import useCoverImage from '../hooks/useCoverImage';
@@ -332,7 +333,11 @@ const useSongActions = (song?: Song) => {
 
       const anchor = document.createElement('a');
       anchor.href = resolvedUrl;
-      anchor.download = `${(song.title || song.id || 'song').replace(/\s+/g, '_')}.audio`;
+      anchor.download = buildDownloadFilename({
+        title: song.title,
+        fallbackId: song.id,
+        resolvedUrl,
+      });
       anchor.rel = 'noopener';
       document.body.appendChild(anchor);
       anchor.click();
