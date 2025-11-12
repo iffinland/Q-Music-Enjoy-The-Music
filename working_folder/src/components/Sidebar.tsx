@@ -167,10 +167,10 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ songs, routes, onNaviga
         <button
           type="button"
           onClick={handleDonateClick}
-          className="donate-button-glow flex flex-col items-center gap-1 rounded-lg border border-amber-300/80 bg-gradient-to-r from-amber-400/90 via-orange-500/90 to-pink-500/80 px-5 py-3 text-center text-sm font-semibold text-slate-900 shadow-lg shadow-amber-500/40 transition hover:scale-[1.01] hover:shadow-amber-400/70"
+          className="donate-button-glow flex flex-col items-center gap-0.5 rounded-lg border border-amber-300/80 bg-gradient-to-r from-amber-400/90 via-orange-500/90 to-pink-500/80 px-4 py-2 text-center text-sm font-semibold text-slate-900 shadow-lg shadow-amber-500/40 transition hover:scale-[1.01] hover:shadow-amber-400/70"
         >
           Donate Project
-          <span className="text-xs font-medium text-slate-900/80">
+          <span className="text-[11px] font-medium text-slate-900/80">
             Supports Q-Music development
           </span>
         </button>

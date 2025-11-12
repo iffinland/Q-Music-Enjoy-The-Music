@@ -5,9 +5,32 @@ import { cachedSearchQdnResources } from './resourceCache';
 
 const PODCAST_LIKE_PREFIX = 'podcast_like_';
 const LIKE_FETCH_LIMIT = 50;
+const MAX_IDENTIFIER_LENGTH = 64;
 
-export const buildPodcastLikeIdentifier = (podcastId: string): string =>
-  `${PODCAST_LIKE_PREFIX}${podcastId}`;
+const makeDeterministicSuffix = (value: string): string => {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash.toString(36);
+};
+
+export const buildPodcastLikeIdentifier = (podcastId: string): string => {
+  const baseId = (podcastId || '').trim();
+  const candidate = `${PODCAST_LIKE_PREFIX}${baseId}`;
+
+  if (candidate.length <= MAX_IDENTIFIER_LENGTH) {
+    return candidate;
+  }
+
+  const suffix = makeDeterministicSuffix(baseId);
+  const maxIdPortionLength = Math.max(
+    1,
+    MAX_IDENTIFIER_LENGTH - PODCAST_LIKE_PREFIX.length - suffix.length - 1,
+  );
+  const trimmed = baseId.slice(0, maxIdPortionLength);
+  return `${PODCAST_LIKE_PREFIX}${trimmed}_${suffix}`;
+};
 
 export const fetchPodcastLikeCount = async (podcastId: string): Promise<number> => {
   let offset = 0;

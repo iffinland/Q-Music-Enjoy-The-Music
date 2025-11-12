@@ -171,7 +171,7 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
       }));
     } catch (error) {
       console.error('Failed to download song', error);
-      toast.error('Laulu allalaadimine ebaõnnestus.');
+      toast.error('Failed to download the song.');
     }
   }, [dispatch, song]);
 
@@ -196,9 +196,9 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
         document.execCommand('copy');
         document.body.removeChild(ta);
       }
-      toast.success('Link kopeeritud!');
+      toast.success('Link copied!');
     } catch (error) {
-      toast.error('Ei saanud linki kopeerida.');
+      toast.error('Failed to copy the link.');
     }
   }, [song.id, song.name]);
 
@@ -206,7 +206,7 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
     event.stopPropagation();
 
     if (!username) {
-      toast.error('Logi sisse, et meeldimisi lisada.');
+      toast.error('Sign in to add likes.');
       return;
     }
 
@@ -224,7 +224,7 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
         setLikeCount((prev) => (prev ?? 0) + 1);
       }
     } catch (error) {
-      toast.error('Meeldimise uuendamine ebaõnnestus.');
+      toast.error('Failed to update like.');
     } finally {
       setLikeBusy(false);
     }
@@ -232,11 +232,11 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
 
   const handleTip = useCallback(() => {
     if (!username) {
-      toast.error('Logi sisse, et jätta tippi.');
+      toast.error('Sign in to send tips.');
       return;
     }
     if (!song.name) {
-      toast.error('Loo autori nimi puudub.');
+      toast.error('Creator information is missing.');
       return;
     }
     sendTipModal.open(song.name);
@@ -324,7 +324,7 @@ export const HomeSongCard: React.FC<HomeSongCardProps> = ({ song }) => {
             {song.title || 'Untitled song'}
           </p>
           <p className="text-xs font-medium text-sky-300" title={song.author || undefined}>
-            {song.author || 'Autor teadmata'}
+            {song.author || 'Author unknown'}
           </p>
           <p className="text-[11px] text-sky-400/80" title={publisher}>
             {publisher}

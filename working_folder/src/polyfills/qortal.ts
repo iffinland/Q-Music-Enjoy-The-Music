@@ -3,8 +3,8 @@ const globalWindow = window as typeof window & {
   qortalRequestWithTimeout?: (...args: any[]) => Promise<any>;
 };
 
-// Taasta algne minimalistlik polyfill ainult arenduse hoiatuseks,
-// kuid ära lisa ajapiiranguid ega offline-mocke, et mitte häirida Qortal bridge'i.
+// Restore the minimalist polyfill purely for development warnings without
+// introducing timeouts or offline mocks that could interfere with the Qortal bridge.
 if (typeof globalWindow.qortalRequest !== 'function') {
   globalWindow.qortalRequest = async (...args: any[]) => {
     console.warn('qortalRequest is not available in this environment.', ...args);
@@ -18,4 +18,3 @@ if (typeof globalWindow.qortalRequestWithTimeout !== 'function') {
     throw new Error('qortalRequestWithTimeout is not available in this environment.');
   };
 }
-

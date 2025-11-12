@@ -109,13 +109,13 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
   const handlePlay = useCallback(async () => {
     const readyPlaylist = await ensurePlaylistSongs(playlist);
     if (!readyPlaylist || !readyPlaylist.songs || readyPlaylist.songs.length === 0) {
-      toast.error('Playlist on tühi.');
+      toast.error('Playlist is empty.');
       return;
     }
 
     const head = readyPlaylist.songs[0];
     if (!head?.identifier || !head?.name) {
-      toast.error('Loo info puudulik.');
+      toast.error('Track information is incomplete.');
       return;
     }
 
@@ -154,7 +154,7 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
 
       dispatch(setCurrentSong(head.identifier));
     } catch (error) {
-      toast.error('Playlisti esitamine ebaõnnestus.');
+      toast.error('Failed to start playlist playback.');
     } finally {
       setPlayBusy(false);
     }
@@ -162,7 +162,7 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
 
   const handleToggleFavorite = useCallback(async () => {
     if (!username) {
-      toast.error('Logi sisse, et lemmikuid hallata.');
+      toast.error('Sign in to manage favorites.');
       return;
     }
 
@@ -183,7 +183,7 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
         dispatch(setFavPlaylist(playlist));
       }
     } catch (error) {
-      toast.error('Lemmiku uuendamine ebaõnnestus.');
+      toast.error('Failed to update favorite.');
     } finally {
       setFavBusy(false);
     }
@@ -193,7 +193,7 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
     event.stopPropagation();
 
     if (!username) {
-      toast.error('Logi sisse, et meeldimisi lisada.');
+      toast.error('Sign in to add likes.');
       return;
     }
 
@@ -211,7 +211,7 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
         setLikeCount((prev) => (prev ?? 0) + 1);
       }
     } catch (error) {
-      toast.error('Meeldimise uuendamine ebaõnnestus.');
+      toast.error('Failed to update like.');
     } finally {
       setLikeBusy(false);
     }
@@ -219,7 +219,7 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
 
   const handleShare = useCallback(async () => {
     if (!playlist.user) {
-      toast.error('Koostaja puudub.');
+      toast.error('Publisher information is missing.');
       return;
     }
 
@@ -238,9 +238,9 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
         document.execCommand('copy');
         document.body.removeChild(ta);
       }
-      toast.success('Playlisti link kopeeritud!');
+      toast.success('Playlist link copied!');
     } catch (error) {
-      toast.error('Linki ei õnnestunud kopeerida.');
+      toast.error('Failed to copy the link.');
     }
   }, [playlist.id, playlist.user]);
 
@@ -251,7 +251,7 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
 
   const handleDownload = useCallback(async () => {
     if (!playlist.user) {
-      toast.error('Koostaja puudub.');
+      toast.error('Publisher information is missing.');
       return;
     }
 
@@ -264,7 +264,7 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
       });
 
       if (!resource) {
-        toast.error('Playlisti sisu ei leitud allalaadimiseks.');
+        toast.error('Playlist content was not found for download.');
         return;
       }
 
@@ -276,20 +276,20 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
-      toast.success('Playlisti fail salvestatud.');
+      toast.success('Playlist file saved.');
     } catch (error) {
       console.error('Failed to download playlist', error);
-      toast.error('Playlisti ei õnnestunud alla laadida.');
+      toast.error('Failed to download the playlist.');
     }
   }, [playlist.id, playlist.title, playlist.user]);
 
   const handleTip = useCallback(() => {
     if (!username) {
-      toast.error('Logi sisse, et jätta tippi.');
+      toast.error('Sign in to send tips.');
       return;
     }
     if (!playlist.user) {
-      toast.error('Playlisti koostaja puudub.');
+      toast.error('Playlist creator information is missing.');
       return;
     }
     sendTipModal.open(playlist.user);
@@ -297,7 +297,7 @@ export const HomePlaylistCard: React.FC<HomePlaylistCardProps> = ({ playlist }) 
 
   const handleEdit = useCallback(() => {
     if (!isOwner) {
-      toast.error('Vaid koostaja saab playlisti muuta.');
+      toast.error('Only the playlist creator can make changes.');
       return;
     }
     dispatch(setNewPlayList(playlist));

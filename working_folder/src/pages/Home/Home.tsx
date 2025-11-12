@@ -8,6 +8,7 @@ import HomePlaylistCard from '../../components/home/HomePlaylistCard';
 import HomePodcastCard from '../../components/home/HomePodcastCard';
 import HomeAudiobookCard from '../../components/home/HomeAudiobookCard';
 import HomeVideoCard from '../../components/home/HomeVideoCard';
+import qmusicLogo from '../../assets/img/qmusic.png';
 
 const SectionSkeleton: React.FC<{ items?: number; variant?: 'default' | 'compact' }> = ({ items = 6, variant = 'default' }) => {
   const itemClass = variant === 'compact' ? 'h-32 w-36 md:h-32 md:w-40' : 'h-44 w-44';
@@ -26,7 +27,7 @@ const ErrorNotice: React.FC<{ message: string; onRetry: () => void }> = ({ messa
   <div className="rounded-lg border border-red-500/40 bg-red-900/40 px-4 py-3 text-sm text-red-100">
     <p className="mb-2 font-semibold">{message}</p>
     <Button onClick={onRetry} className="w-auto bg-red-600/80 px-4 py-2 text-xs uppercase tracking-wide">
-      Proovi uuesti
+      Try again
     </Button>
   </div>
 );
@@ -42,7 +43,7 @@ const HomeSection: React.FC<{
   viewAllTo?: string;
   viewAllLabel?: string;
   children: React.ReactNode;
-}> = ({ title, viewAllTo, viewAllLabel = 'Vaata kõiki', children }) => (
+}> = ({ title, viewAllTo, viewAllLabel = 'View all', children }) => (
   <section className="space-y-3">
     <div className="flex items-center justify-between gap-3">
       <h2 className="text-xl font-semibold text-white md:text-2xl">{title}</h2>
@@ -59,16 +60,12 @@ const HomeSection: React.FC<{
   </section>
 );
 
-const basePath = import.meta.env.BASE_URL && import.meta.env.BASE_URL.length > 0 ? import.meta.env.BASE_URL : '/';
-const normalizedBase = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
-const logoUrl = `${normalizedBase || ''}/qmusic.png`;
-
 const HomeHero = () => (
   <section className="rounded-2xl border border-sky-900/60 bg-gradient-to-br from-sky-950/85 via-sky-900/60 to-sky-950/80 px-4 py-5 shadow-lg sm:px-6 sm:py-6">
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <h1 className="text-2xl font-bold text-white md:text-3xl">
         <span className="inline-flex items-center gap-3">
-          <img src={logoUrl} alt="Q-Music logo" className="h-9 w-9 shrink-0" />
+          <img src={qmusicLogo} alt="Q-Music logo" className="h-9 w-9 shrink-0" />
           Enjoy and share music, podcasts, and audiobooks with the Q-Music community
         </span>
       </h1>
@@ -130,7 +127,7 @@ export const Home = () => {
 
         {shouldShowError && (
           <ErrorNotice
-            message="Uusima sisu laadimine ebaõnnestus. Kontrolli ühendust ja proovi uuesti."
+            message="Failed to load the latest content. Check your connection and try again."
             onRetry={refresh}
           />
         )}

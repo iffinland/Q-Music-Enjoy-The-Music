@@ -11,7 +11,6 @@ import { fetchPodcasts } from '../../services/podcasts';
 import { Podcast, Song } from '../../types';
 import { CircularProgress } from '@mui/material';
 import useUploadPodcastModal from '../../hooks/useUploadPodcastModal';
-import usePublishContentModal from '../../hooks/usePublishContentModal';
 import useSendTipModal from '../../hooks/useSendTipModal';
 import useAddSongToPlaylistModal from '../../hooks/useAddSongToPlaylistModal';
 import { toast } from 'react-hot-toast';
@@ -56,7 +55,6 @@ const Podcasts: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const mountedRef = useRef(true);
   const uploadPodcastModal = useUploadPodcastModal();
-  const openPublishModal = usePublishContentModal((state) => state.open);
   const sendTipModal = useSendTipModal();
   const addSongToPlaylistModal = useAddSongToPlaylistModal();
   const location = useLocation();
@@ -764,12 +762,7 @@ const Podcasts: React.FC = () => {
   return (
     <div className="px-4 py-6">
       <Header>
-        <PodcastToolbar
-          slogan={SLOGAN}
-          sortOrder={sortOrder}
-          onSortChange={setSortOrder}
-          onPublishClick={() => openPublishModal('podcast')}
-        />
+        <PodcastToolbar slogan={SLOGAN} />
       </Header>
 
       <div className="mt-6 flex flex-col gap-6">

@@ -213,7 +213,7 @@ export const Playlist = () => {
 
   const handleSaveOrder = React.useCallback(async () => {
     if (!isOwner) {
-      toast.error('Ainult playlisti omanik saab järjekorda muuta.');
+      toast.error('Only the playlist owner can reorder tracks.');
       return;
     }
     if (!playListData || !playListData?.id) return;
@@ -252,10 +252,10 @@ export const Playlist = () => {
       dispatch(addToPlaylistHashMap(updatedPlaylist));
       dispatch(upsertMyPlaylists([updatedPlaylist]));
       dispatch(setNewPlayList(updatedPlaylist));
-      toast.success('Playlisti järjekord on uuendatud.');
+      toast.success('Playlist order updated.');
       setIsReordering(false);
     } catch (error) {
-      toast.error('Playlisti järjekorra uuendamine ebaõnnestus.');
+      toast.error('Failed to update playlist order.');
     } finally {
       setIsSavingOrder(false);
     }
@@ -469,7 +469,7 @@ export const Playlist = () => {
     <div className="flex flex-wrap items-center gap-2">
       <HomeActionButton
         onClick={onClickPlayPlaylist}
-        title="Esita"
+        title="Play"
         aria-label="Play playlist"
         disabled={!hasSongs}
       >
@@ -477,14 +477,14 @@ export const Playlist = () => {
       </HomeActionButton>
       <HomeActionButton
         onClick={handleSharePlaylist}
-        title="Jaga"
+        title="Share"
         aria-label="Share playlist"
       >
         <FiShare2 size={16} />
       </HomeActionButton>
       <HomeActionButton
         onClick={handleLike}
-        title={isLiked ? 'Eemalda meeldimine' : 'Meeldib'}
+        title={isLiked ? 'Remove like' : 'Like'}
         aria-label="Toggle like"
         active={isLiked}
         className={isLiked ? 'text-emerald-300 hover:text-white' : undefined}
@@ -494,7 +494,7 @@ export const Playlist = () => {
       {isOwner && (
         <HomeActionButton
           onClick={() => setIsReordering((prev) => !prev)}
-          title={isReordering ? 'Lõpeta järjestamine' : 'Järjesta lugusid'}
+          title={isReordering ? 'Finish reordering' : 'Reorder songs'}
           aria-label="Reorder playlist songs"
           active={isReordering}
         >
@@ -577,7 +577,7 @@ export const Playlist = () => {
         <div className="flex flex-col gap-4 px-6 py-6">
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm text-sky-100">
-              Kasuta nooli, et muuta lugude järjekorda ja salvesta muudatused.
+              Use the arrows to reorder songs and save your changes.
             </p>
             <div className="ml-auto flex flex-wrap gap-2">
               <button
@@ -602,7 +602,7 @@ export const Playlist = () => {
           </div>
           <div className="flex flex-col gap-2">
             {reorderedSongs.length === 0 ? (
-              <p className="text-sky-200/80">Playlistis ei ole ühtegi lugu.</p>
+              <p className="text-sky-200/80">This playlist does not contain any songs.</p>
             ) : (
               reorderedSongs.map((song, index) => {
                 const id = song?.identifier || (song as any)?.id;
@@ -632,7 +632,7 @@ export const Playlist = () => {
                         type="button"
                         onClick={() => moveSong(index, 'up')}
                         disabled={index === 0}
-                        aria-label="Liiguta lugu üles"
+                        aria-label="Move song up"
                         className="flex h-8 w-8 items-center justify-center rounded-full border border-sky-900/60 bg-sky-950/60 text-sky-200/80 transition hover:bg-sky-900/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <FiChevronUp size={16} />
@@ -641,7 +641,7 @@ export const Playlist = () => {
                         type="button"
                         onClick={() => moveSong(index, 'down')}
                         disabled={index === reorderedSongs.length - 1}
-                        aria-label="Liiguta lugu alla"
+                        aria-label="Move song down"
                         className="flex h-8 w-8 items-center justify-center rounded-full border border-sky-900/60 bg-sky-950/60 text-sky-200/80 transition hover:bg-sky-900/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <FiChevronDown size={16} />

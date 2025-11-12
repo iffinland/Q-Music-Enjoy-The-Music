@@ -113,7 +113,7 @@ export const HomeVideoCard: React.FC<HomeVideoCardProps> = ({ video }) => {
 
   const handlePlay = useCallback(() => {
     if (!video.publisher) {
-      toast.error('Video avaldaja puudub.');
+      toast.error('Video publisher information is missing.');
       return;
     }
     navigate(destination);
@@ -123,7 +123,7 @@ export const HomeVideoCard: React.FC<HomeVideoCardProps> = ({ video }) => {
     event.stopPropagation();
 
     if (!username) {
-      toast.error('Logi sisse, et meeldimisi lisada.');
+      toast.error('Sign in to add likes.');
       return;
     }
 
@@ -141,7 +141,7 @@ export const HomeVideoCard: React.FC<HomeVideoCardProps> = ({ video }) => {
         setLikeCount((prev) => (prev ?? 0) + 1);
       }
     } catch (error) {
-      toast.error('Meeldimise uuendamine ebaõnnestus.');
+      toast.error('Failed to update like.');
     } finally {
       setLikeBusy(false);
     }
@@ -163,7 +163,7 @@ export const HomeVideoCard: React.FC<HomeVideoCardProps> = ({ video }) => {
         setIsFavorited(true);
       }
     } catch (error) {
-      toast.error('Lemmiku uuendamine ebaõnnestus.');
+      toast.error('Failed to update favorite.');
     } finally {
       setFavBusy(false);
     }
@@ -171,7 +171,7 @@ export const HomeVideoCard: React.FC<HomeVideoCardProps> = ({ video }) => {
 
   const handleShare = useCallback(async () => {
     if (!video.publisher) {
-      toast.error('Avaldaja puudu.');
+      toast.error('Publisher information is missing.');
       return;
     }
 
@@ -190,22 +190,22 @@ export const HomeVideoCard: React.FC<HomeVideoCardProps> = ({ video }) => {
         document.execCommand('copy');
         document.body.removeChild(ta);
       }
-      toast.success('Video link kopeeritud!');
+      toast.success('Video link copied!');
     } catch (error) {
-      toast.error('Linki ei saanud kopeerida.');
+      toast.error('Failed to copy the link.');
     }
   }, [video]);
 
   const handleDownload = useCallback(async () => {
     if (!video.publisher) {
-      toast.error('Avaldaja puudu.');
+      toast.error('Publisher information is missing.');
       return;
     }
 
     try {
       const downloadUrl = await getQdnResourceUrl('VIDEO', video.publisher, video.id);
       if (!downloadUrl) {
-        toast.error('Video fail pole hetkel saadaval.');
+        toast.error('Video file is not available yet.');
         return;
       }
 
@@ -216,9 +216,9 @@ export const HomeVideoCard: React.FC<HomeVideoCardProps> = ({ video }) => {
       document.body.appendChild(anchor);
       anchor.click();
       document.body.removeChild(anchor);
-      toast.success('Video laadimine käivitatud.');
+      toast.success('Video download started.');
     } catch (error) {
-      toast.error('Video allalaadimine ebaõnnestus.');
+      toast.error('Failed to download the video.');
     }
   }, [video]);
 
@@ -325,7 +325,7 @@ export const HomeVideoCard: React.FC<HomeVideoCardProps> = ({ video }) => {
         {(() => {
           const actionNodes: ReactNode[] = [
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handlePlay(); }} title="Vaata" aria-label="Play video">
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handlePlay(); }} title="Play" aria-label="Play video">
                 <FiPlay size={14} />
               </HomeActionButton>
             ),
@@ -334,7 +334,7 @@ export const HomeVideoCard: React.FC<HomeVideoCardProps> = ({ video }) => {
                 onClick={(event) => {
                   handleLike(event);
                 }}
-                title={hasLiked ? 'Eemalda meeldimine' : 'Meeldib'}
+                title={hasLiked ? 'Remove like' : 'Like'}
                 aria-label="Toggle like"
                 active={hasLiked}
                 disabled={likeBusy}
@@ -347,17 +347,17 @@ export const HomeVideoCard: React.FC<HomeVideoCardProps> = ({ video }) => {
               </HomeActionButton>
             ),
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleFavorite(); }} title={isFavorited ? 'Eemalda lemmikutest' : 'Lisa lemmikutesse'} aria-label="Toggle favorite" active={isFavorited} disabled={favBusy}>
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleFavorite(); }} title={isFavorited ? 'Remove from favorites' : 'Add to favorites'} aria-label="Toggle favorite" active={isFavorited} disabled={favBusy}>
                 <FavoriteIcon size={16} />
               </HomeActionButton>
             ),
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleShare(); }} title="Jaga" aria-label="Share video">
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleShare(); }} title="Share" aria-label="Share video">
                 <FiShare2 size={14} />
               </HomeActionButton>
             ),
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleDownload(); }} title="Lae alla" aria-label="Download video">
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleDownload(); }} title="Download" aria-label="Download video">
                 <FiDownload size={14} />
               </HomeActionButton>
             ),

@@ -348,7 +348,7 @@ const VideoDetail: React.FC = () => {
                     <div className="mt-3 grid gap-3 md:grid-cols-2">
                       {video.author && (
                         <div>
-                          <p className="text-xs font-medium uppercase text-sky-400">Esitaja või bänd</p>
+                          <p className="text-xs font-medium uppercase text-sky-400">Artist or band</p>
                           <p className="text-sm text-sky-100/90">{video.author}</p>
                         </div>
                       )}

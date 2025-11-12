@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { cachedSearchQdnResources } from "../../services/resourceCache";
 import { loadPlaylistMeta } from "../../services/playlistLoader";
 import { shouldHideQdnResource } from "../../utils/qdnResourceFilters";
+import SortControls from "../../components/common/SortControls";
 
 type SourceKey = "ALL" | "QMUSIC" | "EARBUMP";
 type AlphabetKey = "ALL" | string;
@@ -54,6 +55,22 @@ const buildPlaylist = (playlist: any): PlayList => {
   };
 };
 
+const ALL_CATEGORIES_VALUE = "ALL";
+const UNCATEGORIZED_LABEL = "Uncategorized";
+
+const getPlaylistTimestamp = (playlist: PlayList) => {
+  const candidate = playlist.updated ?? playlist.created ?? 0;
+  return typeof candidate === "number" ? candidate : 0;
+};
+
+const getPlaylistCategory = (playlist: PlayList): string | null => {
+  const candidate =
+    playlist.categoryName || playlist.category || (playlist as any)?.genre || null;
+  if (!candidate || typeof candidate !== "string") return null;
+  const trimmed = candidate.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const BrowseAllPlaylists: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -68,6 +85,10 @@ const BrowseAllPlaylists: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    ALL_CATEGORIES_VALUE,
+  );
 
   useEffect(() => {
     playlistHashRef.current = playlistHash;
@@ -202,6 +223,7 @@ const BrowseAllPlaylists: React.FC = () => {
     if (source === activeSource) return;
     setActiveSource(source);
     setActiveLetter("ALL");
+    setSelectedCategory(ALL_CATEGORIES_VALUE);
     setCurrentPage(1);
   };
 
@@ -212,30 +234,78 @@ const BrowseAllPlaylists: React.FC = () => {
   };
 
   const filteredPlaylists = useMemo(() => {
-    if (activeLetter === "ALL") {
-      return playlists;
+    const letterFiltered =
+      activeLetter === "ALL"
+        ? playlists
+        : playlists.filter((playlist) => {
+            const titleFirstLetter = (playlist.title || "")
+              .trim()
+              .charAt(0)
+              .toUpperCase();
+            const creatorFirstLetter = (playlist.user || "")
+              .trim()
+              .charAt(0)
+              .toUpperCase();
+
+            return (
+              titleFirstLetter === activeLetter ||
+              creatorFirstLetter === activeLetter
+            );
+          });
+
+    return letterFiltered.filter((playlist) => {
+      if (selectedCategory === ALL_CATEGORIES_VALUE) return true;
+      const category =
+        getPlaylistCategory(playlist) ?? UNCATEGORIZED_LABEL;
+      return category === selectedCategory;
+    });
+  }, [playlists, activeLetter, selectedCategory]);
+
+  const sortedPlaylists = useMemo(() => {
+    return filteredPlaylists
+      .slice()
+      .sort((a, b) => {
+        const delta = getPlaylistTimestamp(b) - getPlaylistTimestamp(a);
+        return sortOrder === "desc" ? delta : -delta;
+      });
+  }, [filteredPlaylists, sortOrder]);
+
+  const availableCategories = useMemo(() => {
+    const bucket = new Set<string>();
+    let hasUncategorized = false;
+
+    playlists.forEach((playlist) => {
+      const category = getPlaylistCategory(playlist);
+      if (category) {
+        bucket.add(category);
+      } else {
+        hasUncategorized = true;
+      }
+    });
+
+    const sorted = Array.from(bucket).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" }),
+    );
+
+    if (hasUncategorized) {
+      sorted.push(UNCATEGORIZED_LABEL);
     }
 
-    return playlists.filter((playlist) => {
-      const titleFirstLetter = (playlist.title || "")
-        .trim()
-        .charAt(0)
-        .toUpperCase();
-      const creatorFirstLetter = (playlist.user || "")
-        .trim()
-        .charAt(0)
-        .toUpperCase();
+    return sorted;
+  }, [playlists]);
 
-      return (
-        titleFirstLetter === activeLetter ||
-        creatorFirstLetter === activeLetter
-      );
-    });
-  }, [playlists, activeLetter]);
+  useEffect(() => {
+    if (
+      selectedCategory !== ALL_CATEGORIES_VALUE &&
+      !availableCategories.includes(selectedCategory)
+    ) {
+      setSelectedCategory(ALL_CATEGORIES_VALUE);
+    }
+  }, [availableCategories, selectedCategory]);
 
   const totalPages = Math.max(
     1,
-    Math.ceil(filteredPlaylists.length / PAGE_SIZE)
+    Math.ceil(sortedPlaylists.length / PAGE_SIZE)
   );
 
   useEffect(() => {
@@ -246,7 +316,7 @@ const BrowseAllPlaylists: React.FC = () => {
 
   const currentPageSafe = Math.min(currentPage, totalPages);
   const startIndex = (currentPageSafe - 1) * PAGE_SIZE;
-  const paginatedPlaylists = filteredPlaylists.slice(
+  const paginatedPlaylists = sortedPlaylists.slice(
     startIndex,
     startIndex + PAGE_SIZE
   );
@@ -346,6 +416,14 @@ const BrowseAllPlaylists: React.FC = () => {
           </div>
         ) : (
           <>
+            <SortControls
+              className="mb-4"
+              sortOrder={sortOrder}
+              onSortOrderChange={setSortOrder}
+              categories={availableCategories}
+              selectedCategory={selectedCategory}
+              onCategoryChange={setSelectedCategory}
+            />
             <div
               className="
                 grid 

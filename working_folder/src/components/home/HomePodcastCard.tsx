@@ -135,7 +135,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
 
       dispatch(setCurrentSong(podcast.id));
     } catch (error) {
-      toast.error('Podcasti esitamine ebaõnnestus.');
+      toast.error('Failed to start podcast playback.');
     }
   }, [creatorDisplay, dispatch, downloadVideo, downloads, podcast]);
 
@@ -143,7 +143,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
     try {
       const directUrl = await getQdnResourceUrl('AUDIO', podcast.publisher, podcast.id);
       if (!directUrl) {
-        toast.error('Fail pole veel saadaval.');
+        toast.error('File is not available yet.');
         return;
       }
 
@@ -172,7 +172,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
         author: creatorDisplay,
       }));
     } catch (error) {
-      toast.error('Podcasti allalaadimine ebaõnnestus.');
+      toast.error('Failed to download the podcast.');
     }
   }, [creatorDisplay, dispatch, podcast]);
 
@@ -201,7 +201,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
     event.stopPropagation();
 
     if (!username) {
-      toast.error('Logi sisse, et meeldimisi lisada.');
+      toast.error('Sign in to add likes.');
       return;
     }
 
@@ -219,7 +219,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
         setLikeCount((prev) => (prev ?? 0) + 1);
       }
     } catch (error) {
-      toast.error('Meeldimise uuendamine ebaõnnestus.');
+      toast.error('Failed to update like.');
     } finally {
       setLikeBusy(false);
     }
@@ -241,7 +241,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
         setIsFavorited(true);
       }
     } catch (error) {
-      toast.error('Lemmiku uuendamine ebaõnnestus.');
+      toast.error('Failed to update favorite.');
     } finally {
       setFavBusy(false);
     }
@@ -249,7 +249,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
 
   const handleShare = useCallback(async () => {
     if (!podcast.publisher) {
-      toast.error('Avaldaja puudu.');
+      toast.error('Publisher information is missing.');
       return;
     }
 
@@ -268,19 +268,19 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
         document.execCommand('copy');
         document.body.removeChild(ta);
       }
-      toast.success('Podcasti link kopeeritud!');
+      toast.success('Podcast link copied!');
     } catch (error) {
-      toast.error('Linki ei saanud kopeerida.');
+      toast.error('Failed to copy the link.');
     }
   }, [podcast]);
 
   const handleTip = useCallback(() => {
     if (!username) {
-      toast.error('Logi sisse, et tippida.');
+      toast.error('Sign in to send tips.');
       return;
     }
     if (!podcast.publisher) {
-      toast.error('Autor puudub.');
+      toast.error('Creator information is missing.');
       return;
     }
     sendTipModal.open(podcast.publisher);
@@ -361,7 +361,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
         {(() => {
           const actionNodes: ReactNode[] = [
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handlePlay(); }} title="Esita" aria-label="Play podcast">
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handlePlay(); }} title="Play" aria-label="Play podcast">
                 <FiPlay size={14} />
               </HomeActionButton>
             ),
@@ -377,7 +377,7 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
                   onClick={(event) => {
                     handleLike(event);
                   }}
-                  title={hasLiked ? 'Eemalda meeldimine' : 'Meeldib'}
+                  title={hasLiked ? 'Remove like' : 'Like'}
                   aria-label="Toggle like"
                   active={hasLiked}
                   disabled={likeBusy}
@@ -409,22 +409,22 @@ export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => 
               </div>
             ),
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleFavorite(); }} title={isFavorited ? 'Eemalda lemmikutest' : 'Lisa lemmikutesse'} aria-label="Toggle favorite" active={isFavorited} disabled={favBusy}>
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleFavorite(); }} title={isFavorited ? 'Remove from favorites' : 'Add to favorites'} aria-label="Toggle favorite" active={isFavorited} disabled={favBusy}>
                 <FavoriteIcon size={16} />
               </HomeActionButton>
             ),
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleShare(); }} title="Jaga" aria-label="Share podcast">
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleShare(); }} title="Share" aria-label="Share podcast">
                 <FiShare2 size={14} />
               </HomeActionButton>
             ),
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleDownload(); }} title="Lae alla" aria-label="Download podcast">
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleDownload(); }} title="Download" aria-label="Download podcast">
                 <FiDownload size={14} />
               </HomeActionButton>
             ),
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleTip(); }} title="Jäta tippi" aria-label="Send tip">
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleTip(); }} title="Send tip" aria-label="Send tip">
                 <RiHandCoinLine size={14} />
               </HomeActionButton>
             ),

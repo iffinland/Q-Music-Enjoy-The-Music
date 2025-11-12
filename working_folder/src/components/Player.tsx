@@ -136,6 +136,7 @@ const resolveAuthorName = (entry?: PlaylistSong | Song) => {
 
 const actionButtonClass =
   'flex h-9 w-9 items-center justify-center rounded-md border border-sky-900/50 bg-sky-950/30 text-sky-100 transition hover:border-sky-700 hover:bg-sky-900/50 hover:text-white focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-400/70';
+const compactActionButtonClass = `${actionButtonClass} !h-8 !w-8 text-[13px]`;
 
 type RepeatMode = 'off' | 'all' | 'one';
 
@@ -418,8 +419,9 @@ const SongHeader: React.FC<{
   details: SongDetails;
   onOpenDetails: () => void;
   className?: string;
-}> = ({ details, onOpenDetails, className }) => (
-  <div className={`flex items-center gap-3 sm:gap-4 ${className ?? ''}`}>
+  actions?: React.ReactNode;
+}> = ({ details, onOpenDetails, className, actions }) => (
+  <div className={`flex items-start gap-3 sm:gap-4 ${className ?? ''}`}>
     <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md border border-sky-900/50 bg-sky-950/40 sm:h-14 sm:w-14">
       <img
         src={details.coverImage}
@@ -428,7 +430,7 @@ const SongHeader: React.FC<{
         loading="lazy"
       />
     </div>
-    <div className="min-w-0">
+    <div className="min-w-0 flex-1">
       <button
         type="button"
         onClick={onOpenDetails}
@@ -438,6 +440,7 @@ const SongHeader: React.FC<{
         {details.title}
       </button>
       <p className="truncate text-xs text-sky-200/80 sm:text-sm">{details.author}</p>
+      {actions ? <div className="mt-1.5">{actions}</div> : null}
     </div>
   </div>
 );
@@ -459,11 +462,20 @@ const QuickActions: React.FC<QuickActionsProps> = ({
   compact = false,
 }) => {
   const containerClass = compact
-    ? 'flex flex-wrap items-center gap-2'
+    ? 'flex flex-wrap items-center gap-1.5'
     : 'flex flex-col gap-2';
   const rowClass = compact
-    ? 'flex flex-wrap items-center gap-2'
+    ? 'flex flex-wrap items-center gap-1.5'
     : 'flex flex-wrap gap-2';
+  const iconSize = compact ? 16 : 18;
+  const baseButtonClass = compact ? compactActionButtonClass : actionButtonClass;
+  const likeButtonClass = compact
+    ? `${compactActionButtonClass} !w-auto min-w-[2.5rem] px-2 ${
+        hasSongLike ? '!bg-sky-800/70 !border-sky-600/80' : ''
+      }`
+    : `${actionButtonClass} !w-auto min-w-[3.25rem] px-3 ${
+        hasSongLike ? '!bg-sky-800/70 !border-sky-600/80' : ''
+      }`;
 
   return (
     <div className={`${containerClass}${className ? ` ${className}` : ''}`}>
@@ -471,82 +483,82 @@ const QuickActions: React.FC<QuickActionsProps> = ({
         <button
           type="button"
           onClick={onOpenDetails}
-          className={actionButtonClass}
+          className={baseButtonClass}
           title="Open song detail info page"
-        aria-label="Open song detail info page"
-      >
-        <FiInfo size={18} />
-      </button>
-      <LikeButton
-        songId={song.id}
-        name={song.name}
-        service={song.service || 'AUDIO'}
-        songData={favoriteSongData}
-        className={`${actionButtonClass} `}
-        activeClassName="!bg-emerald-600/80 !border-emerald-400/80 hover:!bg-emerald-500/80"
-        inactiveClassName="!bg-sky-950/40 !border-sky-900/60 hover:!bg-sky-900/50"
-        iconSize={18}
-        title="Add to Favorites"
-        ariaLabel="Add to Favorites"
-      />
-      <AddToPlaylistButton
-        song={song}
-        iconSize={18}
-        className={`${actionButtonClass} !p-0`}
-      />
-      <button
-        type="button"
-        onClick={onToggleSongLike}
-        disabled={isProcessingLike}
-        className={`${actionButtonClass} !w-auto min-w-[3.25rem] px-3 ${hasSongLike ? '!bg-sky-800/70 !border-sky-600/80' : ''}`}
-        title="Like It"
-        aria-label="Like It"
-      >
-        <FiThumbsUp size={18} />
-        <span className="ml-1 text-xs font-semibold">{songLikeCount ?? '—'}</span>
-      </button>
-    </div>
-    <div className={rowClass}>
-      <button
-        type="button"
-        onClick={onCopyLink}
-        className={actionButtonClass}
-        title="Copy link & Share It"
-        aria-label="Copy link & Share It"
-      >
-        <LuCopy size={18} />
-      </button>
-      <button
-        type="button"
-        onClick={onDownload}
-        className={actionButtonClass}
-        title="Download this"
-        aria-label="Download this"
-      >
-        <FiDownload size={18} />
-      </button>
-      <button
-        type="button"
-        onClick={onSendTip}
-        className={actionButtonClass}
-        title="Send Tips to Publisher"
-        aria-label="Send Tips to Publisher"
-      >
-        <RiHandCoinLine size={18} />
-      </button>
-      {isOwner && onEdit && (
+          aria-label="Open song detail info page"
+        >
+          <FiInfo size={iconSize} />
+        </button>
+        <LikeButton
+          songId={song.id}
+          name={song.name}
+          service={song.service || 'AUDIO'}
+          songData={favoriteSongData}
+          className={baseButtonClass}
+          activeClassName="!bg-emerald-600/80 !border-emerald-400/80 hover:!bg-emerald-500/80"
+          inactiveClassName="!bg-sky-950/40 !border-sky-900/60 hover:!bg-sky-900/50"
+          iconSize={iconSize}
+          title="Add to Favorites"
+          ariaLabel="Add to Favorites"
+        />
+        <AddToPlaylistButton
+          song={song}
+          iconSize={iconSize}
+          className={`${baseButtonClass} !p-0`}
+        />
         <button
           type="button"
-          onClick={onEdit}
-          className={actionButtonClass}
-          title="Edit song"
-          aria-label="Edit song"
+          onClick={onToggleSongLike}
+          disabled={isProcessingLike}
+          className={likeButtonClass}
+          title="Like It"
+          aria-label="Like It"
         >
-          <FiEdit2 size={18} />
+          <FiThumbsUp size={iconSize - 1} />
+          <span className="ml-1 text-[11px] font-semibold">{songLikeCount ?? '—'}</span>
         </button>
-      )}
+      </div>
+      <div className={rowClass}>
+        <button
+          type="button"
+          onClick={onCopyLink}
+          className={baseButtonClass}
+          title="Copy link & Share It"
+          aria-label="Copy link & Share It"
+        >
+          <LuCopy size={iconSize} />
+        </button>
+        <button
+          type="button"
+          onClick={onDownload}
+          className={baseButtonClass}
+          title="Download this"
+          aria-label="Download this"
+        >
+          <FiDownload size={iconSize} />
+        </button>
+        <button
+          type="button"
+          onClick={onSendTip}
+          className={baseButtonClass}
+          title="Send Tips to Publisher"
+          aria-label="Send Tips to Publisher"
+        >
+          <RiHandCoinLine size={iconSize} />
+        </button>
+        {isOwner && onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className={baseButtonClass}
+            title="Edit song"
+            aria-label="Edit song"
+          >
+            <FiEdit2 size={iconSize} />
+          </button>
+        )}
+      </div>
     </div>
-  </div>
   );
 };
 
@@ -953,7 +965,24 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
           <SongHeader
             details={details}
             onOpenDetails={handleOpenDetails}
-            className="order-1 flex min-w-[200px] flex-1 md:min-w-[220px] md:flex-none"
+            className="order-1 min-w-[200px] flex-1 md:min-w-[220px] md:flex-none"
+            actions={
+              <QuickActions
+                song={song}
+                favoriteSongData={favoriteSongData}
+                onOpenDetails={handleOpenDetails}
+                onCopyLink={handleCopyLink}
+                onDownload={handleDownload}
+                onSendTip={handleSendTip}
+                onToggleSongLike={handleToggleSongLike}
+                songLikeCount={songLikeCount}
+                hasSongLike={hasSongLike}
+                isProcessingLike={isProcessingLike}
+                isOwner={isOwner}
+                onEdit={handleEdit}
+                compact
+              />
+            }
           />
           <div className="order-2 flex items-center justify-center gap-2 md:order-3 md:flex-none">
             <button
@@ -1025,27 +1054,11 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
               <AiFillStepForward size={18} />
             </button>
           </div>
-          <QuickActions
-            song={song}
-            favoriteSongData={favoriteSongData}
-            onOpenDetails={handleOpenDetails}
-            onCopyLink={handleCopyLink}
-            onDownload={handleDownload}
-            onSendTip={handleSendTip}
-            onToggleSongLike={handleToggleSongLike}
-            songLikeCount={songLikeCount}
-            hasSongLike={hasSongLike}
-            isProcessingLike={isProcessingLike}
-            isOwner={isOwner}
-            onEdit={handleEdit}
-            compact
-            className="order-3 flex w-full flex-wrap justify-start gap-2 md:order-2 md:w-auto md:flex-1 md:justify-center"
-          />
           <VolumeControl
             volume={volume}
             onVolumeChange={setVolume}
             onToggleMute={toggleMute}
-            className="order-4 w-full md:order-4 md:ml-auto md:w-auto md:flex-shrink-0"
+            className="order-3 w-full md:order-3 md:ml-auto md:w-auto md:flex-shrink-0"
           />
         </div>
         <div className="mt-3 flex flex-col gap-2">
@@ -1405,33 +1418,34 @@ const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded, onPr
           <SongHeader
             details={details}
             onOpenDetails={handleOpenDetails}
-            className="order-1 flex min-w-[200px] flex-1 md:min-w-[220px] md:flex-none"
+            className="order-1 min-w-[200px] flex-1 md:min-w-[220px] md:flex-none"
+            actions={
+              <QuickActions
+                song={song}
+                favoriteSongData={favoriteSongData}
+                onOpenDetails={handleOpenDetails}
+                onCopyLink={handleCopyLink}
+                onDownload={handleDownload}
+                onSendTip={handleSendTip}
+                onToggleSongLike={handleToggleSongLike}
+                songLikeCount={songLikeCount}
+                hasSongLike={hasSongLike}
+                isProcessingLike={isProcessingLike}
+                isOwner={isOwner}
+                onEdit={handleEdit}
+                compact
+              />
+            }
           />
           <div className="order-2 flex items-center gap-2 text-sky-200/70 md:order-3">
             <CircularProgress size={18} />
             <span className="text-[11px] font-semibold uppercase tracking-wide">Loading</span>
           </div>
-          <QuickActions
-            song={song}
-            favoriteSongData={favoriteSongData}
-            onOpenDetails={handleOpenDetails}
-            onCopyLink={handleCopyLink}
-            onDownload={handleDownload}
-            onSendTip={handleSendTip}
-            onToggleSongLike={handleToggleSongLike}
-            songLikeCount={songLikeCount}
-            hasSongLike={hasSongLike}
-            isProcessingLike={isProcessingLike}
-            isOwner={isOwner}
-            onEdit={handleEdit}
-            compact
-            className="order-3 flex w-full flex-wrap justify-start gap-2 md:order-2 md:w-auto md:flex-1 md:justify-center"
-          />
           <VolumeControl
             volume={volume}
             onVolumeChange={setVolume}
             onToggleMute={toggleMute}
-            className="order-4 w-full md:order-4 md:ml-auto md:w-auto md:flex-shrink-0"
+            className="order-3 w-full md:order-3 md:ml-auto md:w-auto md:flex-shrink-0"
           />
         </div>
         <div className="mt-3 flex flex-col gap-2">

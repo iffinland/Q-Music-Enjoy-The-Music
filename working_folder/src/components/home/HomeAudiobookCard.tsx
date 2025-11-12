@@ -155,7 +155,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
 
       dispatch(setCurrentSong(audiobook.id));
     } catch (error) {
-      toast.error('Audiobooki esitamine ebaõnnestus.');
+      toast.error('Failed to start audiobook playback.');
     }
   }, [creatorDisplay, dispatch, downloadVideo, downloads, audiobook]);
 
@@ -163,7 +163,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
     try {
       const directUrl = await getQdnResourceUrl('AUDIO', audiobook.publisher, audiobook.id);
       if (!directUrl) {
-        toast.error('Fail pole veel saadaval.');
+        toast.error('File is not available yet.');
         return;
       }
 
@@ -192,7 +192,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
         author: creatorDisplay,
       }));
     } catch (error) {
-      toast.error('Audiobooki allalaadimine ebaõnnestus.');
+      toast.error('Failed to download the audiobook.');
     }
   }, [creatorDisplay, dispatch, audiobook]);
 
@@ -200,7 +200,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
     event.stopPropagation();
 
     if (!username) {
-      toast.error('Logi sisse, et meeldimisi lisada.');
+      toast.error('Sign in to add likes.');
       return;
     }
 
@@ -218,7 +218,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
         setLikeCount((prev) => (prev ?? 0) + 1);
       }
     } catch (error) {
-      toast.error('Meeldimise uuendamine ebaõnnestus.');
+      toast.error('Failed to update like.');
     } finally {
       setLikeBusy(false);
     }
@@ -240,7 +240,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
         setIsFavorited(true);
       }
     } catch (error) {
-      toast.error('Lemmiku uuendamine ebaõnnestus.');
+      toast.error('Failed to update favorite.');
     } finally {
       setFavBusy(false);
     }
@@ -248,7 +248,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
 
   const handleShare = useCallback(async () => {
     if (!audiobook.publisher) {
-      toast.error('Avaldaja puudu.');
+      toast.error('Publisher information is missing.');
       return;
     }
 
@@ -267,19 +267,19 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
         document.execCommand('copy');
         document.body.removeChild(ta);
       }
-      toast.success('Audiobooki link kopeeritud!');
+      toast.success('Audiobook link copied!');
     } catch (error) {
-      toast.error('Linki ei saanud kopeerida.');
+      toast.error('Failed to copy the link.');
     }
   }, [audiobook]);
 
   const handleTip = useCallback(() => {
     if (!username) {
-      toast.error('Logi sisse, et tippida.');
+      toast.error('Sign in to send tips.');
       return;
     }
     if (!audiobook.publisher) {
-      toast.error('Autor puudub.');
+      toast.error('Creator information is missing.');
       return;
     }
     sendTipModal.open(audiobook.publisher);
@@ -360,7 +360,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
         {(() => {
           const actionNodes: ReactNode[] = [
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handlePlay(); }} title="Esita" aria-label="Play audiobook">
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handlePlay(); }} title="Play" aria-label="Play audiobook">
                 <FiPlay size={14} />
               </HomeActionButton>
             ),
@@ -376,7 +376,7 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
                   onClick={(event) => {
                     handleLike(event);
                   }}
-                  title={hasLiked ? 'Eemalda meeldimine' : 'Meeldib'}
+                  title={hasLiked ? 'Remove like' : 'Like'}
                   aria-label="Toggle like"
                   active={hasLiked}
                   disabled={likeBusy}
@@ -408,22 +408,22 @@ export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook 
               </div>
             ),
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleFavorite(); }} title={isFavorited ? 'Eemalda lemmikutest' : 'Lisa lemmikutesse'} aria-label="Toggle favorite" active={isFavorited} disabled={favBusy}>
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleFavorite(); }} title={isFavorited ? 'Remove from favorites' : 'Add to favorites'} aria-label="Toggle favorite" active={isFavorited} disabled={favBusy}>
                 <FavoriteIcon size={16} />
               </HomeActionButton>
             ),
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleShare(); }} title="Jaga" aria-label="Share audiobook">
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleShare(); }} title="Share" aria-label="Share audiobook">
                 <FiShare2 size={14} />
               </HomeActionButton>
             ),
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleDownload(); }} title="Lae alla" aria-label="Download audiobook">
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleDownload(); }} title="Download" aria-label="Download audiobook">
                 <FiDownload size={14} />
               </HomeActionButton>
             ),
             (
-              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleTip(); }} title="Jäta tippi" aria-label="Send tip">
+              <HomeActionButton onClick={(event) => { event.stopPropagation(); handleTip(); }} title="Send tip" aria-label="Send tip">
                 <RiHandCoinLine size={14} />
               </HomeActionButton>
             ),
