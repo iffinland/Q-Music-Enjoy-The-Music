@@ -44,57 +44,58 @@ export const buildQortalResourceUrl = (service: string, name: string, identifier
   return `qortal://${base}${resourcePath}`;
 };
 
+const buildShareQuery = (entries: Record<string, string>) => {
+  const params = new URLSearchParams(entries);
+  params.set('autoplay', '1');
+  return params.toString();
+};
+
 export const buildSongShareUrl = (name: string, identifier: string): string => {
   const base = normalizeBase(getQdnBase());
-  const params = new URLSearchParams({
+  const query = buildShareQuery({
     type: 'song',
     play: identifier,
     publisher: name,
   });
-
-  return `qortal://${base}//?${params.toString()}`;
+  return `qortal://${base}//?${query}`;
 };
 
 export const buildPlaylistShareUrl = (name: string, identifier: string): string => {
   const base = normalizeBase(getQdnBase());
-  const params = new URLSearchParams({
+  const query = buildShareQuery({
     type: 'playlist',
     playlist: identifier,
     playlistPublisher: name,
   });
-
-  return `qortal://${base}//?${params.toString()}`;
+  return `qortal://${base}//?${query}`;
 };
 
 export const buildPodcastShareUrl = (name: string, identifier: string): string => {
   const base = normalizeBase(getQdnBase());
-  const params = new URLSearchParams({
+  const query = buildShareQuery({
     type: 'podcast',
     podcast: identifier,
     podcastPublisher: name,
   });
-
-  return `qortal://${base}//?${params.toString()}`;
+  return `qortal://${base}//?${query}`;
 };
 
 export const buildAudiobookShareUrl = (name: string, identifier: string): string => {
   const base = normalizeBase(getQdnBase());
-  const params = new URLSearchParams({
+  const query = buildShareQuery({
     type: 'audiobook',
     audiobook: identifier,
     audiobookPublisher: name,
   });
-
-  return `qortal://${base}//?${params.toString()}`;
+  return `qortal://${base}//?${query}`;
 };
 
 export const buildVideoShareUrl = (name: string, identifier: string): string => {
   const base = normalizeBase(getQdnBase());
-  const params = new URLSearchParams({
+  const query = buildShareQuery({
     type: 'video',
     video: identifier,
     videoPublisher: name,
   });
-
-  return `qortal://${base}//?${params.toString()}`;
+  return `qortal://${base}//?${query}`;
 };

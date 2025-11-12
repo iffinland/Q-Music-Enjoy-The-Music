@@ -17,6 +17,7 @@ import { MyContext } from "./DownloadWrapper";
 import { fetchSongByIdentifier } from "../services/songs";
 import { fetchVideoByIdentifier } from "../services/videos";
 import { fetchPodcastByIdentifier } from "../services/podcasts";
+import { fetchAudiobookByIdentifier } from "../services/audiobooks";
 import { useNavigate } from "react-router-dom";
 import { initMultiPublishQueue } from "../services/multiPublishQueue";
 
@@ -168,7 +169,7 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
     const playlistPublisher = params.get('playlistPublisher');
     if (playlistId && playlistPublisher) {
       autoPlayHandledRef.current = true;
-      cleanupParams(['playlist', 'playlistPublisher', 'type']);
+      cleanupParams(['playlist', 'playlistPublisher', 'type', 'autoplay']);
       navigate(`/playlists/${encodeURIComponent(playlistPublisher)}/${encodeURIComponent(playlistId)}`, {
         replace: true,
       });
@@ -211,8 +212,52 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
       } catch (error) {
         console.error('Failed to autoplay podcast from shared link', error);
       } finally {
-        cleanupParams(['podcast', 'podcastPublisher', 'type']);
+        cleanupParams(['podcast', 'podcastPublisher', 'type', 'autoplay']);
         navigate(`/podcasts/${encodeURIComponent(podcastPublisher)}/${encodeURIComponent(podcastId)}`, {
+          replace: true,
+        });
+      }
+      return;
+    }
+
+    const audiobookId = params.get('audiobook');
+    const audiobookPublisher = params.get('audiobookPublisher');
+    if (audiobookId && audiobookPublisher) {
+      autoPlayHandledRef.current = true;
+      try {
+        const audiobookMeta = await fetchAudiobookByIdentifier(audiobookPublisher, audiobookId);
+        if (audiobookMeta) {
+          const resolvedUrl = await getQdnResourceUrl('AUDIO', audiobookPublisher, audiobookId);
+
+          if (resolvedUrl) {
+            dispatch(setAddToDownloads({
+              name: audiobookPublisher,
+              service: 'AUDIO',
+              id: audiobookId,
+              identifier: audiobookId,
+              url: resolvedUrl,
+              status: audiobookMeta.status,
+              title: audiobookMeta.title || '',
+              author: audiobookPublisher,
+            }));
+          } else {
+            downloadVideo({
+              name: audiobookPublisher,
+              service: 'AUDIO',
+              identifier: audiobookId,
+              title: audiobookMeta.title || '',
+              author: audiobookPublisher,
+              id: audiobookId,
+            });
+          }
+
+          dispatch(setCurrentSong(audiobookId));
+        }
+      } catch (error) {
+        console.error('Failed to autoplay audiobook from shared link', error);
+      } finally {
+        cleanupParams(['audiobook', 'audiobookPublisher', 'type', 'autoplay']);
+        navigate(`/audiobooks/${encodeURIComponent(audiobookPublisher)}/${encodeURIComponent(audiobookId)}`, {
           replace: true,
         });
       }
@@ -228,7 +273,7 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
       } catch (error) {
         console.error('Failed to fetch video for shared link', error);
       } finally {
-        cleanupParams(['video', 'videoPublisher', 'type']);
+        cleanupParams(['video', 'videoPublisher', 'type', 'autoplay']);
         navigate(`/videos/${encodeURIComponent(videoPublisher)}/${encodeURIComponent(videoId)}`, {
           replace: true,
         });
@@ -283,7 +328,7 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
     } catch (error) {
       console.error('Failed to autoplay song from shared link', error);
     } finally {
-      cleanupParams(['play', 'publisher', 'type']);
+      cleanupParams(['play', 'publisher', 'type', 'autoplay']);
     }
   }, [dispatch, downloadVideo, navigate]);
 
