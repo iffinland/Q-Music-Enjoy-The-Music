@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   FiArrowLeft,
   FiCornerUpRight,
@@ -14,6 +14,7 @@ import {
   FiMessageCircle,
   FiPlusCircle,
   FiRefreshCcw,
+  FiShare2,
   FiSend,
 } from 'react-icons/fi';
 import { HiOutlineLockClosed } from 'react-icons/hi';
@@ -44,6 +45,7 @@ import {
   updateDiscussionReply,
 } from '../../services/discussionBoards';
 import { readLastReadTimestamp, persistLastReadTimestamp } from '../../utils/discussionsReadState';
+import { buildDiscussionShareUrl } from '../../utils/qortalLinks';
 
 const replyAccessOptions: Array<{ label: string; value: ReplyAccess; helper: string }> = [
   {
@@ -72,6 +74,25 @@ const formatTimestamp = (value?: number) => {
   }
 };
 
+const copyToClipboard = async (value: string) => {
+  if (!value) {
+    throw new Error('Nothing to copy');
+  }
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.style.position = 'fixed';
+  textarea.style.top = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+};
+
 const formatChips = (value: string) => value
   .split(',')
   .map((chip) => chip.trim())
@@ -80,6 +101,7 @@ const formatChips = (value: string) => value
 const DiscussionBoards: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { threads, isLoading, error, unreadThreadIds, lastReadTimestamp } = useSelector(
     (state: RootState) => state.discussions,
   );
@@ -87,6 +109,7 @@ const DiscussionBoards: React.FC = () => {
   const hasUnread = unreadThreadIds.length > 0;
   const lastReadHydratedRef = useRef(false);
   const replyComposerRef = useRef<HTMLDivElement | null>(null);
+  const queryHydratedRef = useRef(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showComposer, setShowComposer] = useState(false);
@@ -114,6 +137,7 @@ const DiscussionBoards: React.FC = () => {
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [replyEditDraft, setReplyEditDraft] = useState('');
   const [replyingTo, setReplyingTo] = useState<DiscussionReply | null>(null);
+  const [replyScrollTarget, setReplyScrollTarget] = useState<string | null>(null);
 
   const [isPublishingThread, setIsPublishingThread] = useState(false);
   const [isSavingThreadEdit, setIsSavingThreadEdit] = useState(false);
@@ -148,6 +172,20 @@ const DiscussionBoards: React.FC = () => {
   useEffect(() => {
     loadThreads();
   }, [loadThreads]);
+
+  useEffect(() => {
+    if (queryHydratedRef.current) return;
+    const params = new URLSearchParams(location.search);
+    const threadIdFromQuery = params.get('thread');
+    const replyIdFromQuery = params.get('reply');
+    if (threadIdFromQuery) {
+      setSelectedThreadId(threadIdFromQuery);
+    }
+    if (replyIdFromQuery) {
+      setReplyScrollTarget(replyIdFromQuery);
+    }
+    queryHydratedRef.current = true;
+  }, [location.search]);
 
   useEffect(() => {
     if (lastReadHydratedRef.current) return;
@@ -238,6 +276,19 @@ const DiscussionBoards: React.FC = () => {
     grouped.forEach((bucket) => bucket.sort((a, b) => (a.created ?? 0) - (b.created ?? 0)));
     return grouped;
   }, [selectedThread]);
+
+  useEffect(() => {
+    if (!replyScrollTarget) return;
+    const element = document.getElementById(`reply-${replyScrollTarget}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.classList.add('ring-2', 'ring-orange-400/80');
+      setTimeout(() => {
+        element.classList.remove('ring-2', 'ring-orange-400/80');
+      }, 2000);
+      setReplyScrollTarget(null);
+    }
+  }, [replyScrollTarget, selectedThread, repliesByParent]);
 
   const handleCreateThread = async () => {
     if (!username) {
@@ -346,12 +397,34 @@ const DiscussionBoards: React.FC = () => {
     }
   };
 
+  const handleShareLink = async (threadId: string, replyId?: string | null) => {
+    const shareUrl = buildDiscussionShareUrl(threadId, replyId);
+    if (!shareUrl) {
+      toast.error('Ei saa linki koostada.');
+      return;
+    }
+    try {
+      await copyToClipboard(shareUrl);
+      toast.success('Link kopeeritud lõikelauale.');
+    } catch (err) {
+      console.error('Failed to copy link', err);
+      toast.error('Linki kopeerimine ebaõnnestus.');
+    }
+  };
+
   const toggleThreadEdit = (threadId: string) => {
     setSelectedThreadId(threadId);
     setEditingThreadId((prev) => (prev === threadId ? null : threadId));
   };
 
-  const beginReplyTo = (reply: DiscussionReply) => {
+  const focusReplyComposer = (reply: DiscussionReply | null = null) => {
+    setReplyingTo(reply);
+    setTimeout(() => {
+      replyComposerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+  };
+
+  const beginReplyTo = (reply: DiscussionReply | null) => {
     if (!username) {
       toast.error('Log in to reply.');
       return;
@@ -360,10 +433,7 @@ const DiscussionBoards: React.FC = () => {
       toast.error('Replies are restricted for this thread.');
       return;
     }
-    setReplyingTo(reply);
-    setTimeout(() => {
-      replyComposerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 0);
+    focusReplyComposer(reply);
   };
 
   const handleSelectThread = (threadId: string, isThreadUnread: boolean) => {
@@ -402,7 +472,7 @@ const DiscussionBoards: React.FC = () => {
         : 'rounded-xl border border-slate-800/60 bg-slate-900/40 px-4 py-3';
 
       return (
-        <div key={reply.id} className="space-y-2">
+        <div key={reply.id} id={`reply-${reply.id}`} className="space-y-2">
           <div
             className={`${containerClasses} transition`}
             style={{ marginLeft: depth ? depth * 18 : 0 }}
@@ -434,6 +504,14 @@ const DiscussionBoards: React.FC = () => {
               >
                 <FiCornerUpRight className="text-sm" />
                 Reply
+              </button>
+              <button
+                type="button"
+                onClick={() => handleShareLink(selectedThread.id, reply.id)}
+                className="flex items-center gap-1 rounded-md border border-slate-700/70 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:bg-slate-900/70"
+              >
+                <FiShare2 className="text-sm" />
+                Share
               </button>
               {canEdit && (
                 isEditing ? (
@@ -913,15 +991,33 @@ const DiscussionBoards: React.FC = () => {
                     By {selectedThread.publisher} · {formatTimestamp(selectedThread.created)}
                   </p>
                 </div>
-                {username === selectedThread.publisher && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {isUserAllowedToReply && selectedThread.status !== 'locked' && (
+                    <Button
+                      className="flex items-center justify-center gap-2 rounded-md border border-orange-500/60 bg-orange-500/20 px-4 py-2 text-sm font-semibold text-orange-100 hover:bg-orange-500/30"
+                      onClick={() => beginReplyTo(null)}
+                    >
+                      <FiCornerUpRight />
+                      Reply
+                    </Button>
+                  )}
                   <Button
-                    className="flex items-center justify-center gap-2 rounded-md border border-sky-700/70 bg-slate-900/60 px-5 py-2 text-sm font-semibold text-sky-100 hover:bg-slate-900/80 md:w-auto"
-                    onClick={() => toggleThreadEdit(selectedThread.id)}
+                    className="flex items-center justify-center gap-2 rounded-md border border-slate-700/70 bg-slate-900/50 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-900/70"
+                    onClick={() => handleShareLink(selectedThread.id)}
                   >
-                    <FiEdit3 />
-                    {editingThreadId === selectedThread.id ? 'Cancel edit' : 'Edit thread'}
+                    <FiShare2 />
+                    Share
                   </Button>
-                )}
+                  {username === selectedThread.publisher && (
+                    <Button
+                      className="flex items-center justify-center gap-2 rounded-md border border-sky-700/70 bg-slate-900/60 px-5 py-2 text-sm font-semibold text-sky-100 hover:bg-slate-900/80 md:w-auto"
+                      onClick={() => toggleThreadEdit(selectedThread.id)}
+                    >
+                      <FiEdit3 />
+                      {editingThreadId === selectedThread.id ? 'Cancel edit' : 'Edit thread'}
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {editingThreadId === selectedThread.id ? (

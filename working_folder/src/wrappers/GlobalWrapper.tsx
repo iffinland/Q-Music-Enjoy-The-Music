@@ -165,6 +165,20 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
       window.history.replaceState({}, '', url.toString());
     };
 
+    const threadId = params.get('thread');
+    if (threadId) {
+      autoPlayHandledRef.current = true;
+      const replyId = params.get('reply');
+      const search = new URLSearchParams();
+      search.set('thread', threadId);
+      if (replyId) {
+        search.set('reply', replyId);
+      }
+      navigate(`/discussions?${search.toString()}`, { replace: true });
+      cleanupParams(['type']);
+      return;
+    }
+
     const playlistId = params.get('playlist');
     const playlistPublisher = params.get('playlistPublisher');
     if (playlistId && playlistPublisher) {

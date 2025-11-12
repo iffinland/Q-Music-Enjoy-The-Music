@@ -44,9 +44,14 @@ export const buildQortalResourceUrl = (service: string, name: string, identifier
   return `qortal://${base}${resourcePath}`;
 };
 
-const buildShareQuery = (entries: Record<string, string>) => {
+const buildShareQuery = (
+  entries: Record<string, string>,
+  options: { autoplay?: boolean } = {},
+) => {
   const params = new URLSearchParams(entries);
-  params.set('autoplay', '1');
+  if (options.autoplay !== false) {
+    params.set('autoplay', '1');
+  }
   return params.toString();
 };
 
@@ -97,5 +102,18 @@ export const buildVideoShareUrl = (name: string, identifier: string): string => 
     video: identifier,
     videoPublisher: name,
   });
+  return `qortal://${base}//?${query}`;
+};
+
+export const buildDiscussionShareUrl = (threadId: string, replyId?: string | null): string => {
+  const base = normalizeBase(getQdnBase());
+  const query = buildShareQuery(
+    {
+      type: 'discussions',
+      thread: threadId,
+      ...(replyId ? { reply: replyId } : {}),
+    },
+    { autoplay: false },
+  );
   return `qortal://${base}//?${query}`;
 };
