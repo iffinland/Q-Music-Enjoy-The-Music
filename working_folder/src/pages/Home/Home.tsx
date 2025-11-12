@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import Box from '../../components/Box';
 import Button from '../../components/Button';
 import { useHomeFeed } from '../../hooks/useHomeFeed';
@@ -9,6 +10,15 @@ import HomePodcastCard from '../../components/home/HomePodcastCard';
 import HomeAudiobookCard from '../../components/home/HomeAudiobookCard';
 import HomeVideoCard from '../../components/home/HomeVideoCard';
 import qmusicLogo from '../../assets/img/qmusic.png';
+import { RootState } from '../../state/store';
+import {
+  setDiscussionThreads,
+  setLastReadTimestamp,
+  setUnreadThreadIds,
+} from '../../state/features/discussionsSlice';
+import { fetchDiscussionThreadsFromQdn } from '../../services/discussionBoards';
+import { readLastReadTimestamp } from '../../utils/discussionsReadState';
+import { setNotification } from '../../state/features/notificationsSlice';
 
 const SectionSkeleton: React.FC<{ items?: number; variant?: 'default' | 'compact' }> = ({ items = 6, variant = 'default' }) => {
   const itemClass = variant === 'compact' ? 'h-32 w-36 md:h-32 md:w-40' : 'h-44 w-44';
@@ -76,7 +86,12 @@ const HomeHero = () => (
   </section>
 );
 
+let discussionsPrefetchedOnce = false;
+let homeUnreadToastShown = false;
+
 export const Home = () => {
+  const dispatch = useDispatch();
+  const { unreadThreadIds, lastReadTimestamp } = useSelector((state: RootState) => state.discussions);
   const { data, isLoading, error, refresh } = useHomeFeed({
     songsLimit: 12,
     playlistsLimit: 12,
@@ -119,6 +134,53 @@ export const Home = () => {
 
   const hasAnyData = songs.length + playlists.length + podcasts.length + audiobooks.length + videos.length > 0;
   const shouldShowError = !isLoading && error && !hasAnyData;
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const preloadDiscussions = async () => {
+      try {
+        const threads = await fetchDiscussionThreadsFromQdn();
+        if (cancelled) return;
+        dispatch(setDiscussionThreads(threads));
+        const baselineLastRead = lastReadTimestamp || readLastReadTimestamp();
+        if (!lastReadTimestamp && baselineLastRead > 0) {
+          dispatch(setLastReadTimestamp(baselineLastRead));
+        }
+        const unreadIds = threads
+          .filter((thread) => {
+            const updatedAt = thread.updated ?? thread.created ?? 0;
+            return updatedAt > (baselineLastRead || 0);
+          })
+          .map((thread) => thread.id);
+        dispatch(setUnreadThreadIds(unreadIds));
+        if (unreadIds.length > 0 && !homeUnreadToastShown) {
+          dispatch(setNotification({
+            alertType: 'info',
+            msg: 'There are unread posts in the forum or a topic you are following has been answered.',
+          }));
+          homeUnreadToastShown = true;
+        }
+      } catch (err) {
+        console.error('Failed to preload discussion threads', err);
+      }
+    };
+
+    if (!discussionsPrefetchedOnce) {
+      discussionsPrefetchedOnce = true;
+      preloadDiscussions();
+    } else if (unreadThreadIds.length > 0 && !homeUnreadToastShown) {
+      dispatch(setNotification({
+        alertType: 'info',
+        msg: 'There are unread posts in the forum or a topic you are following has been answered.',
+      }));
+      homeUnreadToastShown = true;
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, unreadThreadIds.length, lastReadTimestamp]);
 
   return (
     <Box className="overflow-hidden">

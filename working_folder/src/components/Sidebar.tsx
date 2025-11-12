@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom';
 import { TbPlaylist } from "react-icons/tb";
 import { MdLibraryMusic, MdOutlineFavorite } from "react-icons/md";
 import { FiMessageSquare } from "react-icons/fi";
-import { FaPodcast, FaBookOpen, FaVideo } from "react-icons/fa";
+import { FaPodcast, FaBookOpen, FaVideo, FaTimesCircle } from "react-icons/fa";
 import { AiFillStar } from "react-icons/ai";
 import SidebarItem from "./SidebarItem";
 import Box from "./Box";
@@ -146,8 +146,26 @@ interface SidebarContentProps {
 
 const DONATION_RECIPIENT = 'QTowvz1e89MP4FEFpHvEfZ4x8G3LwMpthz';
 
+const JOIN_CHAT_URL = 'qortal://use-group/action-join/groupid-827';
+const SEND_MAIL_URL = 'qortal://APP/Q-Mail/to/Q-Music';
+
+const openQortalLink = (url: string) => {
+  if (typeof window === 'undefined') return;
+  const newTab = window.open(url, '_blank');
+  if (!newTab) {
+    window.location.href = url;
+  }
+};
+
 const SidebarContent: React.FC<SidebarContentProps> = ({ songs, routes, onNavigate }) => {
   const sendTipModal = useSendTipModal();
+  const handleJoinChatClick = useCallback(() => {
+    openQortalLink(JOIN_CHAT_URL);
+  }, []);
+
+  const handleSendMailClick = useCallback(() => {
+    openQortalLink(SEND_MAIL_URL);
+  }, []);
 
   const handleDonateClick = useCallback(() => {
     sendTipModal.open(DONATION_RECIPIENT);
@@ -175,18 +193,24 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ songs, routes, onNaviga
           </span>
         </button>
         <div className="grid grid-cols-2 gap-2">
-          <a
-            href="qortal://APP/Q-Apps/use-group/action-join/groupid-827"
-            className="rounded-md border border-emerald-500/60 bg-emerald-700/40 px-3 py-2 text-center text-sm font-semibold text-emerald-100 transition hover:bg-emerald-600/60 hover:text-white"
+          <button
+            type="button"
+            onClick={handleJoinChatClick}
+            disabled
+            className="relative rounded-md border border-emerald-500/60 bg-emerald-700/40 px-3 py-2 text-center text-sm font-semibold text-emerald-100 opacity-70 cursor-not-allowed"
           >
+            <span className="absolute -top-2 -right-2 text-red-500 drop-shadow">
+              <FaTimesCircle size={18} />
+            </span>
             Join CHAT
-          </a>
-          <a
-            href="qortal://APP/Q-Mail/to/Q-Music"
+          </button>
+          <button
+            type="button"
+            onClick={handleSendMailClick}
             className="rounded-md border border-cyan-400/50 bg-cyan-700/40 px-3 py-2 text-center text-sm font-semibold text-cyan-100 transition hover:bg-cyan-600/60 hover:text-white"
           >
             Send Q-MAIL
-          </a>
+          </button>
         </div>
         <div className="bg-sky-900/80 border border-sky-500/40 px-5 py-2 rounded-md flex items-center justify-center text-sm font-medium text-sky-200/80">
           <span>Current version BETA</span>

@@ -2,12 +2,14 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
   FiArrowLeft,
+  FiCornerUpRight,
   FiEdit3,
   FiMessageCircle,
   FiPlusCircle,
@@ -21,12 +23,16 @@ import Box from '../../components/Box';
 import Button from '../../components/Button';
 import {
   addReplyToThread,
+  clearThreadUnread,
   DiscussionReply,
   DiscussionThread,
+  markAllThreadsRead,
   ReplyAccess,
   setDiscussionThreads,
   setDiscussionsError,
   setDiscussionsLoading,
+  setLastReadTimestamp,
+  setUnreadThreadIds,
   upsertDiscussionThread,
   updateReplyInThread,
 } from '../../state/features/discussionsSlice';
@@ -37,6 +43,7 @@ import {
   publishDiscussionThread,
   updateDiscussionReply,
 } from '../../services/discussionBoards';
+import { readLastReadTimestamp, persistLastReadTimestamp } from '../../utils/discussionsReadState';
 
 const replyAccessOptions: Array<{ label: string; value: ReplyAccess; helper: string }> = [
   {
@@ -73,8 +80,13 @@ const formatChips = (value: string) => value
 const DiscussionBoards: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { threads, isLoading, error } = useSelector((state: RootState) => state.discussions);
+  const { threads, isLoading, error, unreadThreadIds, lastReadTimestamp } = useSelector(
+    (state: RootState) => state.discussions,
+  );
   const username = useSelector((state: RootState) => state.auth.user?.name || '');
+  const hasUnread = unreadThreadIds.length > 0;
+  const lastReadHydratedRef = useRef(false);
+  const replyComposerRef = useRef<HTMLDivElement | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showComposer, setShowComposer] = useState(false);
@@ -101,6 +113,7 @@ const DiscussionBoards: React.FC = () => {
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [replyEditDraft, setReplyEditDraft] = useState('');
+  const [replyingTo, setReplyingTo] = useState<DiscussionReply | null>(null);
 
   const [isPublishingThread, setIsPublishingThread] = useState(false);
   const [isSavingThreadEdit, setIsSavingThreadEdit] = useState(false);
@@ -113,6 +126,16 @@ const DiscussionBoards: React.FC = () => {
     try {
       const data = await fetchDiscussionThreadsFromQdn();
       dispatch(setDiscussionThreads(data));
+      const lastRead = lastReadHydratedRef.current
+        ? lastReadTimestamp
+        : readLastReadTimestamp();
+      const unreadIds = data
+        .filter((thread) => {
+          const updatedAt = thread.updated ?? thread.created ?? 0;
+          return updatedAt > (lastRead || 0);
+        })
+        .map((thread) => thread.id);
+      dispatch(setUnreadThreadIds(unreadIds));
     } catch (err: any) {
       const message = err?.message || 'Failed to load discussion threads.';
       dispatch(setDiscussionsError(message));
@@ -120,17 +143,42 @@ const DiscussionBoards: React.FC = () => {
     } finally {
       dispatch(setDiscussionsLoading(false));
     }
-  }, [dispatch]);
+  }, [dispatch, lastReadTimestamp]);
 
   useEffect(() => {
     loadThreads();
   }, [loadThreads]);
 
   useEffect(() => {
+    if (lastReadHydratedRef.current) return;
+    const storedTimestamp = readLastReadTimestamp();
+    if (storedTimestamp > 0) {
+      dispatch(setLastReadTimestamp(storedTimestamp));
+    }
+    lastReadHydratedRef.current = true;
+  }, [dispatch]);
+
+  useEffect(() => {
     if (!selectedThreadId && threads.length > 0) {
       setSelectedThreadId(threads[0].id);
     }
   }, [threads, selectedThreadId]);
+
+  useEffect(() => {
+    setReplyingTo(null);
+  }, [selectedThreadId]);
+
+  useEffect(() => {
+    if (hasUnread || threads.length === 0) return;
+    const latestTimestamp = threads.reduce((latest, thread) => {
+      const updated = thread.updated ?? thread.created ?? 0;
+      return Math.max(latest, updated);
+    }, 0);
+    if (latestTimestamp > lastReadTimestamp) {
+      persistLastReadTimestamp(latestTimestamp);
+      dispatch(setLastReadTimestamp(latestTimestamp));
+    }
+  }, [hasUnread, threads, lastReadTimestamp, dispatch]);
 
   const selectedThread = useMemo<DiscussionThread | null>(
     () => threads.find((thread) => thread.id === selectedThreadId) ?? null,
@@ -177,6 +225,19 @@ const DiscussionBoards: React.FC = () => {
     }
     return false;
   }, [selectedThread, username]);
+
+  const repliesByParent = useMemo(() => {
+    const grouped = new Map<string | null, DiscussionReply[]>();
+    if (!selectedThread) return grouped;
+    selectedThread.replies.forEach((reply) => {
+      const key = reply.parentReplyId ?? null;
+      const bucket = grouped.get(key) ?? [];
+      bucket.push(reply);
+      grouped.set(key, bucket);
+    });
+    grouped.forEach((bucket) => bucket.sort((a, b) => (a.created ?? 0) - (b.created ?? 0)));
+    return grouped;
+  }, [selectedThread]);
 
   const handleCreateThread = async () => {
     if (!username) {
@@ -272,15 +333,146 @@ const DiscussionBoards: React.FC = () => {
         threadId: selectedThread.id,
         author: username,
         body: newReplyDraft.trim(),
+        parentReplyId: replyingTo?.id ?? null,
       });
       dispatch(addReplyToThread({ threadId: selectedThread.id, reply }));
       setNewReplyDraft('');
+      setReplyingTo(null);
       toast.success('Reply posted');
     } catch (err: any) {
       toast.error(err?.message || 'Failed to publish reply.');
     } finally {
       setIsPostingReply(false);
     }
+  };
+
+  const toggleThreadEdit = (threadId: string) => {
+    setSelectedThreadId(threadId);
+    setEditingThreadId((prev) => (prev === threadId ? null : threadId));
+  };
+
+  const beginReplyTo = (reply: DiscussionReply) => {
+    if (!username) {
+      toast.error('Log in to reply.');
+      return;
+    }
+    if (!selectedThread || selectedThread.status === 'locked' || !isUserAllowedToReply) {
+      toast.error('Replies are restricted for this thread.');
+      return;
+    }
+    setReplyingTo(reply);
+    setTimeout(() => {
+      replyComposerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+  };
+
+  const handleSelectThread = (threadId: string, isThreadUnread: boolean) => {
+    setSelectedThreadId(threadId);
+    setReplyingTo(null);
+    if (isThreadUnread) {
+      dispatch(clearThreadUnread(threadId));
+    }
+  };
+
+  const handleMarkAllRead = () => {
+    if (!hasUnread) return;
+    const latestTimestamp = threads.reduce((latest, thread) => {
+      const updated = thread.updated ?? thread.created ?? 0;
+      return Math.max(latest, updated);
+    }, 0);
+    const targetTimestamp = latestTimestamp || Date.now();
+    persistLastReadTimestamp(targetTimestamp);
+    dispatch(markAllThreadsRead(targetTimestamp));
+    toast.success('All caught up on discussion posts');
+  };
+
+  const renderRepliesTree = (parentId: string | null = null, depth = 0): React.ReactNode => {
+    if (!selectedThread) return null;
+    const bucket = repliesByParent.get(parentId ?? null) ?? [];
+    if (bucket.length === 0) return null;
+
+    return bucket.map((reply) => {
+      const canEdit = username === reply.author;
+      const isEditing = editingReplyId === reply.id;
+      const canRespond = Boolean(username)
+        && isUserAllowedToReply
+        && selectedThread.status !== 'locked';
+      const containerClasses = depth > 0
+        ? 'rounded-xl border border-slate-800/70 bg-slate-950/40 px-4 py-3'
+        : 'rounded-xl border border-slate-800/60 bg-slate-900/40 px-4 py-3';
+
+      return (
+        <div key={reply.id} className="space-y-2">
+          <div
+            className={`${containerClasses} transition`}
+            style={{ marginLeft: depth ? depth * 18 : 0 }}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+              <span className="font-semibold text-slate-100">{reply.author}</span>
+              <span>{formatTimestamp(reply.updated ?? reply.created)}</span>
+            </div>
+            {isEditing ? (
+              <textarea
+                value={replyEditDraft}
+                onChange={(event) => setReplyEditDraft(event.target.value)}
+                rows={3}
+                className="mt-3 w-full rounded-lg border border-sky-800/70 bg-slate-950/70 px-3 py-2 text-sm text-slate-50 focus:border-sky-400 focus:outline-none"
+              />
+            ) : (
+              <p className="mt-2 whitespace-pre-line text-sm text-slate-100">
+                {reply.body}
+              </p>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2 text-sm">
+              <button
+                type="button"
+                onClick={() => beginReplyTo(reply)}
+                disabled={!canRespond}
+                className={`flex items-center gap-1 rounded-md border border-orange-500/50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-orange-200 transition ${
+                  canRespond ? 'hover:bg-orange-500/10' : 'cursor-not-allowed opacity-50'
+                }`}
+              >
+                <FiCornerUpRight className="text-sm" />
+                Reply
+              </button>
+              {canEdit && (
+                isEditing ? (
+                  <>
+                    <Button
+                      className="rounded-md border border-slate-700 bg-slate-900/70 px-4 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-900/90 md:w-auto"
+                      onClick={() => {
+                        setEditingReplyId(null);
+                        setReplyEditDraft('');
+                      }}
+                      disabled={isSavingReplyEdit}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      className="rounded-md bg-emerald-500/90 px-4 py-1 text-xs font-semibold text-slate-900 hover:bg-emerald-400 md:w-auto disabled:opacity-60"
+                      onClick={handleSaveReplyEdit}
+                      disabled={isSavingReplyEdit}
+                    >
+                      {isSavingReplyEdit ? 'Saving…' : 'Save'}
+                    </Button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => beginReplyEdit(reply)}
+                    className="flex items-center gap-1 rounded-md border border-sky-700/60 px-3 py-1 text-xs font-semibold text-sky-100 transition hover:bg-slate-900/70"
+                  >
+                    <FiEdit3 className="text-sm" />
+                    Edit
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+          {renderRepliesTree(reply.id, depth + 1)}
+        </div>
+      );
+    });
   };
 
   const beginReplyEdit = (reply: DiscussionReply) => {
@@ -350,7 +542,30 @@ const DiscussionBoards: React.FC = () => {
     }
 
     return (
-      <div className="space-y-3 rounded-xl border border-sky-900/60 bg-slate-950/60 p-4">
+      <div
+        ref={replyComposerRef}
+        className="space-y-3 rounded-xl border border-sky-900/60 bg-slate-950/60 p-4"
+      >
+        {replyingTo && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-orange-500/50 bg-orange-950/40 px-3 py-2 text-xs text-orange-100">
+            <div>
+              Replying to{' '}
+              <span className="font-semibold text-orange-200">
+                @{replyingTo.author}
+              </span>
+              <span className="ml-2 text-orange-100/80">
+                “{replyingTo.body.slice(0, 80)}{replyingTo.body.length > 80 ? '…' : ''}”
+              </span>
+            </div>
+            <button
+              type="button"
+              className="text-orange-200 underline-offset-2 hover:underline"
+              onClick={() => setReplyingTo(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
         <label htmlFor="reply-input" className="text-sm font-semibold text-sky-100">
           Add your reply
         </label>
@@ -548,12 +763,27 @@ const DiscussionBoards: React.FC = () => {
 
       <div className="flex flex-col gap-6 lg:flex-row">
         <Box className="border border-sky-900/60 bg-slate-950/70 px-4 py-5 lg:w-[40%]">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-white">Threads</h2>
               <p className="text-sm text-sky-200/70">{filteredThreads.length} active topics</p>
+              {hasUnread && (
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+                  {unreadThreadIds.length} unread topic{unreadThreadIds.length > 1 ? 's' : ''}
+                </p>
+              )}
             </div>
-            <FiMessageCircle className="text-2xl text-sky-400/80" />
+            <div className="flex items-center gap-2">
+              {hasUnread && (
+                <Button
+                  className="rounded-md border border-emerald-500/70 bg-emerald-600/80 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-900 hover:bg-emerald-500/90"
+                  onClick={handleMarkAllRead}
+                >
+                  Mark all read
+                </Button>
+              )}
+              <FiMessageCircle className="text-2xl text-sky-400/80" />
+            </div>
           </div>
           <div className="mt-4 flex flex-col gap-2">
             <div className="flex gap-2">
@@ -579,28 +809,58 @@ const DiscussionBoards: React.FC = () => {
           <ul className="mt-4 space-y-3">
             {filteredThreads.map((thread) => {
               const isActive = selectedThreadId === thread.id;
+              const isOwnThread = thread.publisher === username;
+              const isThreadUnread = unreadThreadIds.includes(thread.id);
+              const cardClasses = isActive
+                ? 'border-emerald-400/70 bg-emerald-900/20 shadow-lg shadow-emerald-900/30'
+                : isThreadUnread
+                  ? 'border-orange-400/70 bg-orange-900/10 hover:border-orange-400/90'
+                  : 'border-sky-800/60 bg-slate-900/50 hover:border-sky-600/80';
               return (
                 <li key={thread.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedThreadId(thread.id)}
-                    className={`w-full rounded-xl border px-4 py-3 text-left transition ${
-                      isActive
-                        ? 'border-emerald-400/70 bg-emerald-900/20 shadow-lg shadow-emerald-900/30'
-                        : 'border-sky-800/60 bg-slate-900/50 hover:border-sky-600/80'
-                    }`}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleSelectThread(thread.id, isThreadUnread)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        handleSelectThread(thread.id, isThreadUnread);
+                      }
+                    }}
+                    className={`w-full cursor-pointer rounded-xl border px-4 py-3 text-left transition focus:outline-none ${cardClasses}`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-base font-semibold text-white">{thread.title}</p>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          thread.status === 'locked'
-                            ? 'bg-slate-700/80 text-slate-200'
-                            : 'bg-emerald-600/70 text-slate-900'
-                        }`}
-                      >
-                        {thread.status === 'locked' ? 'Locked' : 'Open'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {isThreadUnread && (
+                          <span className="rounded-full bg-orange-400 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-900 shadow-sm shadow-orange-500/30">
+                            New
+                          </span>
+                        )}
+                        {isOwnThread && (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              toggleThreadEdit(thread.id);
+                            }}
+                            className="flex items-center gap-1 rounded-md border border-sky-700/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-sky-100 transition hover:bg-slate-900/70"
+                          >
+                            <FiEdit3 className="text-sm" />
+                            Edit
+                          </button>
+                        )}
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            thread.status === 'locked'
+                              ? 'bg-slate-700/80 text-slate-200'
+                              : 'bg-emerald-600/70 text-slate-900'
+                          }`}
+                        >
+                          {thread.status === 'locked' ? 'Locked' : 'Open'}
+                        </span>
+                      </div>
                     </div>
                     <p className="mt-1 max-h-16 overflow-hidden text-sm text-slate-300">
                       {thread.body}
@@ -620,7 +880,7 @@ const DiscussionBoards: React.FC = () => {
                         </span>
                       ))}
                     </div>
-                  </button>
+                  </div>
                 </li>
               );
             })}
@@ -656,9 +916,7 @@ const DiscussionBoards: React.FC = () => {
                 {username === selectedThread.publisher && (
                   <Button
                     className="flex items-center justify-center gap-2 rounded-md border border-sky-700/70 bg-slate-900/60 px-5 py-2 text-sm font-semibold text-sky-100 hover:bg-slate-900/80 md:w-auto"
-                    onClick={() => setEditingThreadId(
-                      editingThreadId === selectedThread.id ? null : selectedThread.id,
-                    )}
+                    onClick={() => toggleThreadEdit(selectedThread.id)}
                   >
                     <FiEdit3 />
                     {editingThreadId === selectedThread.id ? 'Cancel edit' : 'Edit thread'}
@@ -814,72 +1072,15 @@ const DiscussionBoards: React.FC = () => {
                   )}
                 </div>
                 <div className="space-y-3">
-                  {selectedThread.replies.length === 0 && (
+                  {selectedThread.replies.length === 0 ? (
                     <div className="rounded-lg border border-slate-700/60 bg-slate-900/40 px-4 py-6 text-center text-sm text-slate-300">
                       No replies yet. Kick things off with the form below.
                     </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {renderRepliesTree()}
+                    </div>
                   )}
-                  {selectedThread.replies.map((reply) => {
-                    const canEdit = username === reply.author;
-                    const isEditing = editingReplyId === reply.id;
-                    return (
-                      <div
-                        key={reply.id}
-                        className="rounded-xl border border-slate-800/60 bg-slate-900/40 px-4 py-3"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-                          <span className="font-semibold text-slate-100">{reply.author}</span>
-                          <span>{formatTimestamp(reply.updated ?? reply.created)}</span>
-                        </div>
-                        {isEditing ? (
-                          <textarea
-                            value={replyEditDraft}
-                            onChange={(event) => setReplyEditDraft(event.target.value)}
-                            rows={3}
-                            className="mt-3 w-full rounded-lg border border-sky-800/70 bg-slate-950/70 px-3 py-2 text-sm text-slate-50 focus:border-sky-400 focus:outline-none"
-                          />
-                        ) : (
-                          <p className="mt-2 whitespace-pre-line text-sm text-slate-100">
-                            {reply.body}
-                          </p>
-                        )}
-                        {canEdit && (
-                          <div className="mt-3 flex flex-wrap gap-2 text-sm">
-                            {isEditing ? (
-                              <>
-                                <Button
-                                  className="rounded-md border border-slate-700 bg-slate-900/70 px-4 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-900/90 md:w-auto"
-                                  onClick={() => {
-                                    setEditingReplyId(null);
-                                    setReplyEditDraft('');
-                                  }}
-                                  disabled={isSavingReplyEdit}
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  className="rounded-md bg-emerald-500/90 px-4 py-1 text-xs font-semibold text-slate-900 hover:bg-emerald-400 md:w-auto disabled:opacity-60"
-                                  onClick={handleSaveReplyEdit}
-                                  disabled={isSavingReplyEdit}
-                                >
-                                  {isSavingReplyEdit ? 'Saving…' : 'Save'}
-                                </Button>
-                              </>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => beginReplyEdit(reply)}
-                                className="flex items-center gap-1 rounded-md border border-sky-700/60 px-3 py-1 text-xs font-semibold text-sky-100 transition hover:bg-slate-900/70"
-                              >
-                                <FiEdit3 className="text-sm" />
-                                Edit
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
 

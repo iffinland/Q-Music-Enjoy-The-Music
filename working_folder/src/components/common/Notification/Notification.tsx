@@ -38,7 +38,7 @@ const Notification = () => {
   if (alertTypes.alertInfo) {
     toast.info(`${alertTypes?.alertInfo}`, {
       position: 'top-right',
-      autoClose: 1300,
+      autoClose: 10000,
       hideProgressBar: false,
       closeOnClick: true,
       pauseOnHover: true,
@@ -53,7 +53,7 @@ const Notification = () => {
     return (
       <ToastContainer
         position="top-right"
-        autoClose={2000}
+        autoClose={10000}
         hideProgressBar={false}
         newestOnTop={false}
         closeOnClick

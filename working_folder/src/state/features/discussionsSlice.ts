@@ -9,6 +9,7 @@ export interface DiscussionReply {
   body: string;
   created: number;
   updated?: number;
+  parentReplyId?: string | null;
 }
 
 export interface DiscussionThread {
@@ -29,12 +30,16 @@ interface DiscussionsState {
   threads: DiscussionThread[];
   isLoading: boolean;
   error: string | null;
+  lastReadTimestamp: number;
+  unreadThreadIds: string[];
 }
 
 const initialState: DiscussionsState = {
   threads: [],
   isLoading: false,
   error: null,
+  lastReadTimestamp: 0,
+  unreadThreadIds: [],
 };
 
 const sortThreads = (threads: DiscussionThread[]) =>
@@ -93,6 +98,19 @@ export const discussionsSlice = createSlice({
       thread.updated = Math.max(thread.updated ?? 0, reply.updated ?? reply.created);
       state.threads = sortThreads(state.threads);
     },
+    setUnreadThreadIds(state, action: PayloadAction<string[]>) {
+      state.unreadThreadIds = action.payload;
+    },
+    setLastReadTimestamp(state, action: PayloadAction<number>) {
+      state.lastReadTimestamp = action.payload;
+    },
+    markAllThreadsRead(state, action: PayloadAction<number>) {
+      state.lastReadTimestamp = action.payload;
+      state.unreadThreadIds = [];
+    },
+    clearThreadUnread(state, action: PayloadAction<string>) {
+      state.unreadThreadIds = state.unreadThreadIds.filter((id) => id !== action.payload);
+    },
   },
 });
 
@@ -103,6 +121,10 @@ export const {
   upsertDiscussionThread,
   addReplyToThread,
   updateReplyInThread,
+  setUnreadThreadIds,
+  setLastReadTimestamp,
+  markAllThreadsRead,
+  clearThreadUnread,
 } = discussionsSlice.actions;
 
 export default discussionsSlice.reducer;

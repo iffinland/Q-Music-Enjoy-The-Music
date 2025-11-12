@@ -91,6 +91,7 @@ const sanitizeReply = (
     body: data.body,
     created: data.created ?? fallback.created ?? Date.now(),
     updated: data.updated ?? fallback.updated,
+    parentReplyId: data.parentReplyId ?? null,
   };
 };
 
@@ -210,6 +211,7 @@ interface CreateReplyPayload {
   threadId: string;
   author: string;
   body: string;
+  parentReplyId?: string | null;
 }
 
 export const publishDiscussionReply = async (
@@ -224,6 +226,7 @@ export const publishDiscussionReply = async (
     author: payload.author,
     body: payload.body,
     created: now,
+    parentReplyId: payload.parentReplyId ?? null,
   };
 
   await publishDocument(
