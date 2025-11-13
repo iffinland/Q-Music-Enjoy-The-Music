@@ -6,7 +6,7 @@ import { RootState } from '../../state/store'
 import { PlayList, SongReference, Status, addToPlaylistHashMap, removeFavPlaylist, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavPlaylist, setIsLoadingGlobal, setNewPlayList, setNowPlayingPlaylist } from '../../state/features/globalSlice'
 import { AiFillEdit, AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { FaPlay } from 'react-icons/fa'
-import { FiShare2, FiTrash2, FiFlag } from 'react-icons/fi';
+import { FiShare2, FiFlag } from 'react-icons/fi';
 import { MyContext } from '../../wrappers/DownloadWrapper'
 import localforage from 'localforage'
 import likeImg from '../../assets/img/like-button.png'
@@ -165,31 +165,6 @@ export const PlaylistStandalone = ({
 
    
   }
-  const handleDeletePlaylist = React.useCallback(async () => {
-    if (!playlistId || !name) return;
-    if (username !== playListData?.user) {
-      toast.error('Only the owner can delete this playlist.');
-      return;
-    }
-
-    const confirmed = window.confirm('Delete this playlist permanently?');
-    if (!confirmed) return;
-
-    try {
-      await qortalRequest({
-        action: 'DELETE_QDN_RESOURCE',
-        name,
-        service: 'PLAYLIST',
-        identifier: playlistId,
-      });
-      toast.success('Playlist deleted.');
-      setPlaylistData(null);
-    } catch (error) {
-      console.error('Failed to delete playlist', error);
-      toast.error('Could not delete the playlist.');
-    }
-  }, [name, playlistId, playListData?.user, username]);
-
   const handleReportPlaylist = React.useCallback(async () => {
     if (!playlistId || !name) return;
     if (!username) {
@@ -401,15 +376,6 @@ export const PlaylistStandalone = ({
                  >
                    <FiShare2 className="text-white" />
                  </div>
-                 {username === playListData?.user && (
-                   <div
-                     onClick={handleDeletePlaylist}
-                     className="mt-2 rounded-full flex items-center justify-center bg-red-600/80 p-3 drop-shadow-md cursor-pointer hover:bg-red-500 hover:scale-105 transition"
-                     title="Delete playlist"
-                   >
-                     <FiTrash2 className="text-white" />
-                   </div>
-                 )}
                  {username && username !== playListData?.user && (
                    <div
                      onClick={handleReportPlaylist}

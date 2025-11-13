@@ -58,7 +58,10 @@ const fetchSummaries = async (identifierPrefix: string) => {
 };
 
 const sanitizeThread = (data: Partial<DiscussionThread>, fallback: { name: string; identifier: string; created?: number; updated?: number; }): DiscussionThread | null => {
-  if (!data || !data.title || !data.body) {
+  if (!data || (data as any).deleted) {
+    return null;
+  }
+  if (!data.title || !data.body) {
     return null;
   }
   return {
@@ -80,7 +83,10 @@ const sanitizeReply = (
   data: Partial<DiscussionReply>,
   fallback: { name: string; identifier: string; created?: number; updated?: number; },
 ): DiscussionReply | null => {
-  if (!data || !data.threadId || !data.body) {
+  if (!data || (data as any).deleted) {
+    return null;
+  }
+  if (!data.threadId || !data.body) {
     return null;
   }
 
@@ -259,4 +265,33 @@ export const updateDiscussionReply = async (
   );
 
   return updated;
+};
+
+export const deleteDiscussionThread = async (thread: DiscussionThread): Promise<void> => {
+  await publishDocument(
+    thread.publisher,
+    thread.id,
+    {
+      id: thread.id,
+      deleted: true,
+      updated: Date.now(),
+    },
+    'Discussion deleted',
+    'Thread deleted by author',
+  );
+};
+
+export const deleteDiscussionReply = async (reply: DiscussionReply): Promise<void> => {
+  await publishDocument(
+    reply.author,
+    reply.id,
+    {
+      id: reply.id,
+      threadId: reply.threadId,
+      deleted: true,
+      updated: Date.now(),
+    },
+    'Discussion reply deleted',
+    'Reply deleted by author',
+  );
 };

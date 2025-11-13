@@ -172,6 +172,10 @@ export const Library: React.FC = () => {
     }
   }, [username, isLoadingPodcasts]);
 
+  const handleUserPodcastDeleted = useCallback((podcastId: string) => {
+    setUserPodcasts((prev) => prev.filter((podcast) => podcast.id !== podcastId));
+  }, []);
+
   const loadUserAudiobooks = useCallback(async () => {
     if (!username || isLoadingAudiobooks) return;
     setIsLoadingAudiobooks(true);
@@ -186,6 +190,10 @@ export const Library: React.FC = () => {
     }
   }, [username, isLoadingAudiobooks]);
 
+  const handleUserAudiobookDeleted = useCallback((audiobookId: string) => {
+    setUserAudiobooks((prev) => prev.filter((audiobook) => audiobook.id !== audiobookId));
+  }, []);
+
   const loadUserVideos = useCallback(async () => {
     if (!username || isLoadingVideos) return;
     setIsLoadingVideos(true);
@@ -199,6 +207,9 @@ export const Library: React.FC = () => {
       setIsLoadingVideos(false);
     }
   }, [username, isLoadingVideos]);
+  const handleUserVideoDeleted = useCallback((videoId: string) => {
+    setUserVideos((prev) => prev.filter((video) => video.id !== videoId));
+  }, []);
 
   const loadUserRequests = useCallback(async () => {
     if (!username || isLoadingRequests) return;
@@ -470,31 +481,44 @@ export const Library: React.FC = () => {
     }
   }, [mode, favoritesAvailable, favoriteList, getLikedSongs]);
 
-  const renderPodcastList = (collection: Podcast[], options?: { onFavoriteChange?: () => void }) => (
+  const renderPodcastList = (
+    collection: Podcast[],
+    options?: { onFavoriteChange?: () => void; showDeleteButton?: boolean; onDeleted?: (podcastId: string) => void },
+  ) => (
     <div className="space-y-3">
       {collection.map((podcast) => (
         <LibraryPodcastCard
           key={podcast.id}
           podcast={podcast}
           onFavoriteChange={options?.onFavoriteChange}
+          showDeleteButton={options?.showDeleteButton}
+          onDeleted={options?.onDeleted}
         />
       ))}
     </div>
   );
 
-  const renderAudiobookList = (collection: Audiobook[], options?: { onFavoriteChange?: () => void }) => (
+  const renderAudiobookList = (
+    collection: Audiobook[],
+    options?: { onFavoriteChange?: () => void; showDeleteButton?: boolean; onDeleted?: (audiobookId: string) => void },
+  ) => (
     <div className="space-y-3">
       {collection.map((audiobook) => (
         <LibraryAudiobookCard
           key={audiobook.id}
           audiobook={audiobook}
           onFavoriteChange={options?.onFavoriteChange}
+          showDeleteButton={options?.showDeleteButton}
+          onDeleted={options?.onDeleted}
         />
       ))}
     </div>
   );
 
-  const renderVideoList = (collection: Video[], options?: { onFavoriteChange?: () => void }) => (
+  const renderVideoList = (
+    collection: Video[],
+    options?: { onFavoriteChange?: () => void; showDeleteButton?: boolean; onDeleted?: (videoId: string) => void },
+  ) => (
     <div className="space-y-3">
       {collection.map((video) => (
         <LibraryVideoCard
@@ -502,6 +526,8 @@ export const Library: React.FC = () => {
           video={video}
           onPlay={handlePlayVideo}
           onFavoriteChange={options?.onFavoriteChange}
+          showDeleteButton={options?.showDeleteButton}
+          onDeleted={options?.onDeleted}
         />
       ))}
     </div>
@@ -689,7 +715,7 @@ export const Library: React.FC = () => {
               </div>
             </div>
 
-            <LibrarySongList songs={songListLibrary ?? []} />
+            <LibrarySongList songs={songListLibrary ?? []} showDeleteButton />
             <LazyLoad onLoadMore={fetchMyLibrary} />
           </>
         )}
@@ -706,7 +732,11 @@ export const Library: React.FC = () => {
             ) : userPodcasts.length === 0 ? (
               <EmptyState message="You have not published any podcasts yet." />
             ) : (
-              renderPodcastList(userPodcasts, { onFavoriteChange: loadFavoritePodcasts })
+              renderPodcastList(userPodcasts, {
+                onFavoriteChange: loadFavoritePodcasts,
+                showDeleteButton: true,
+                onDeleted: handleUserPodcastDeleted,
+              })
             )}
           </>
         )}
@@ -723,7 +753,11 @@ export const Library: React.FC = () => {
             ) : userAudiobooks.length === 0 ? (
               <EmptyState message="You have not published any audiobooks yet." />
             ) : (
-              renderAudiobookList(userAudiobooks, { onFavoriteChange: loadFavoriteAudiobooks })
+              renderAudiobookList(userAudiobooks, {
+                onFavoriteChange: loadFavoriteAudiobooks,
+                showDeleteButton: true,
+                onDeleted: handleUserAudiobookDeleted,
+              })
             )}
           </>
         )}
@@ -740,7 +774,10 @@ export const Library: React.FC = () => {
             ) : userVideos.length === 0 ? (
               <EmptyState message="You have not published any videos yet." />
             ) : (
-              renderVideoList(userVideos)
+              renderVideoList(userVideos, {
+                showDeleteButton: true,
+                onDeleted: handleUserVideoDeleted,
+              })
             )}
           </>
         )}

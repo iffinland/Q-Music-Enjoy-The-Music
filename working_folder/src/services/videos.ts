@@ -2,6 +2,7 @@ import { Video } from '../types';
 import { fetchQdnResource, getQdnResourceUrl } from '../utils/qortalApi';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { cachedSearchQdnResources } from './resourceCache';
+import { objectToBase64 } from '../utils/toBase64';
 
 const VIDEO_IDENTIFIER_PREFIX = 'enjoymusic_video_';
 const VIDEO_LIKE_IDENTIFIER_PREFIX = 'video_like_';
@@ -412,4 +413,53 @@ export const fetchVideoByGlobalIdentifier = async (identifier: string): Promise<
   }
 
   return fetchVideoByIdentifier(entry.name, entry.identifier);
+};
+
+const DELETED_PLACEHOLDER_BASE64 = 'ZGVsZXRlZA==';
+
+export const deleteVideoResources = async (publisher: string, identifier: string) => {
+  if (!publisher || !identifier) {
+    throw new Error('Missing video metadata');
+  }
+  const now = Date.now();
+  const docPayload = await objectToBase64({
+    id: identifier,
+    deleted: true,
+    updated: now,
+  });
+
+  const resources = [
+    {
+      name: publisher,
+      service: 'VIDEO',
+      identifier,
+      data64: DELETED_PLACEHOLDER_BASE64,
+      encoding: 'base64',
+      title: 'deleted',
+      description: 'deleted',
+    },
+    {
+      name: publisher,
+      service: 'THUMBNAIL',
+      identifier,
+      data64: DELETED_PLACEHOLDER_BASE64,
+      encoding: 'base64',
+      title: 'deleted',
+      description: 'deleted',
+    },
+    {
+      name: publisher,
+      service: 'DOCUMENT',
+      identifier,
+      data64: docPayload,
+      encoding: 'base64',
+      title: 'deleted',
+      description: 'deleted',
+    },
+  ];
+
+  await qortalRequest({
+    action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+    resources,
+  });
 };

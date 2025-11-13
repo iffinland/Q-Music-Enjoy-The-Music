@@ -63,7 +63,7 @@ export const fetchRequestsFromQdn = async (): Promise<FetchRequestsResult> => {
 
   for (const item of requestSummaries) {
     const data = await fetchQdnJson(item.name, 'DOCUMENT', item.identifier);
-    if (data && data.id) {
+    if (data && data.id && !data.deleted) {
       fetchedRequests.push({
         status: 'open',
         created: data.created ?? item.created,
@@ -118,12 +118,22 @@ export const fetchRequestsFromQdn = async (): Promise<FetchRequestsResult> => {
   };
 };
 
-export const deleteRequest = async (publisher: string, identifier: string) => {
+export const deleteRequestResource = async (publisher: string, identifier: string) => {
+  const payload = {
+    id: identifier,
+    deleted: true,
+    updated: Date.now(),
+  };
+  const data64 = await objectToBase64(payload);
   await qortalRequest({
-    action: 'DELETE_QDN_RESOURCE',
+    action: 'PUBLISH_QDN_RESOURCE',
     name: publisher,
     service: 'DOCUMENT',
     identifier,
+    data64,
+    encoding: 'base64',
+    title: 'deleted',
+    description: 'deleted',
   });
 };
 
@@ -153,7 +163,7 @@ export const fetchRequestsByPublisher = async (publisher: string): Promise<SongR
   for (const summary of summaries) {
     if (!summary?.identifier || !summary.identifier.startsWith(REQUEST_IDENTIFIER_PREFIX)) continue;
     const data = await fetchQdnJson(summary.name, 'DOCUMENT', summary.identifier);
-    if (data && data.id) {
+    if (data && data.id && !data.deleted) {
       requests.push({
         status: 'open',
         created: data.created ?? summary.created,

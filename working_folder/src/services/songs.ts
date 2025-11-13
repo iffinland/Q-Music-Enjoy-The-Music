@@ -1,6 +1,7 @@
 import { SongMeta } from '../state/features/globalSlice';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { cachedSearchQdnResources } from './resourceCache';
+import { objectToBase64 } from '../utils/toBase64';
 
 /**
  * Shared parsing and memoization for song description k=v pairs
@@ -79,4 +80,53 @@ export const fetchSongByIdentifier = async (
   }
 
   return parseSongMeta(song);
+};
+
+const SONG_DELETED_PLACEHOLDER_BASE64 = 'ZGVsZXRlZA==';
+
+export const deleteSongResources = async (publisher: string, identifier: string) => {
+  if (!publisher || !identifier) {
+    throw new Error('Missing song metadata');
+  }
+  const now = Date.now();
+  const docPayload = await objectToBase64({
+    id: identifier,
+    deleted: true,
+    updated: now,
+  });
+
+  const resources = [
+    {
+      name: publisher,
+      service: 'AUDIO',
+      identifier,
+      data64: SONG_DELETED_PLACEHOLDER_BASE64,
+      encoding: 'base64',
+      title: 'deleted',
+      description: 'deleted',
+    },
+    {
+      name: publisher,
+      service: 'THUMBNAIL',
+      identifier,
+      data64: SONG_DELETED_PLACEHOLDER_BASE64,
+      encoding: 'base64',
+      title: 'deleted',
+      description: 'deleted',
+    },
+    {
+      name: publisher,
+      service: 'DOCUMENT',
+      identifier,
+      data64: docPayload,
+      encoding: 'base64',
+      title: 'deleted',
+      description: 'deleted',
+    },
+  ];
+
+  await qortalRequest({
+    action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+    resources,
+  });
 };

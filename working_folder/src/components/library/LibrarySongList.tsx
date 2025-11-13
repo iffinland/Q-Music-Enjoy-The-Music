@@ -9,6 +9,7 @@ const UNCATEGORIZED_LABEL = 'Uncategorized';
 
 interface LibrarySongListProps {
   songs: Song[];
+  showDeleteButton?: boolean;
 }
 
 const getSongTimestamp = (song: Song) => {
@@ -29,7 +30,7 @@ const getSongCategory = (song: Song): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
-export const LibrarySongList: React.FC<LibrarySongListProps> = ({ songs }) => {
+export const LibrarySongList: React.FC<LibrarySongListProps> = ({ songs, showDeleteButton }) => {
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [selectedCategory, setSelectedCategory] =
     useState<string>(ALL_CATEGORIES_VALUE);
@@ -99,7 +100,7 @@ export const LibrarySongList: React.FC<LibrarySongListProps> = ({ songs }) => {
               <div className="flex-1">
                 <MediaItem data={song} showPlayButton={false} />
               </div>
-              <LibrarySongActions song={song} />
+              <LibrarySongActions song={song} showDeleteButton={showDeleteButton} />
             </div>
           ))
         )}

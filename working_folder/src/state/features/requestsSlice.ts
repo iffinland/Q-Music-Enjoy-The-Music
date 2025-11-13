@@ -115,6 +115,12 @@ export const requestsSlice = createSlice({
         };
       }
     },
+    removeSongRequest(state, action: PayloadAction<string>) {
+      state.requests = state.requests.filter((request) => request.id !== action.payload);
+      if (state.fills[action.payload]) {
+        delete state.fills[action.payload];
+      }
+    },
   },
 });
 
@@ -125,6 +131,7 @@ export const {
   upsertSongRequest,
   setRequestFills,
   upsertRequestFill,
+  removeSongRequest,
 } = requestsSlice.actions;
 
 export default requestsSlice.reducer;

@@ -14,6 +14,7 @@ import {
   FiEdit2,
   FiShare2,
   FiThumbsUp,
+  FiTrash2,
 } from 'react-icons/fi';
 import { MdPlaylistAdd } from 'react-icons/md';
 import { RiHandCoinLine } from 'react-icons/ri';
@@ -38,6 +39,7 @@ import {
   likeVideo,
   unlikeVideo,
 } from '../../services/videoLikes';
+import { deleteVideoResources } from '../../services/videos';
 
 const videoFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-video-favorites',
@@ -47,12 +49,16 @@ interface LibraryVideoCardProps {
   video: Video;
   onPlay: (video: Video) => void;
   onFavoriteChange?: () => void;
+  showDeleteButton?: boolean;
+  onDeleted?: (videoId: string) => void;
 }
 
 export const LibraryVideoCard: React.FC<LibraryVideoCardProps> = ({
   video,
   onPlay,
   onFavoriteChange,
+  showDeleteButton = false,
+  onDeleted,
 }) => {
   const { downloadVideo } = useContext(MyContext);
   const username = useSelector((state: RootState) => state.auth.user?.name);
@@ -66,6 +72,7 @@ export const LibraryVideoCard: React.FC<LibraryVideoCardProps> = ({
   const [isFavorite, setIsFavorite] = useState<boolean>(false);
   const [likeBusy, setLikeBusy] = useState<boolean>(false);
   const [favoriteBusy, setFavoriteBusy] = useState<boolean>(false);
+  const [deleteBusy, setDeleteBusy] = useState<boolean>(false);
 
   const { url: coverUrl } = useCoverImage({
     identifier: video?.id ?? null,
@@ -286,6 +293,34 @@ export const LibraryVideoCard: React.FC<LibraryVideoCardProps> = ({
     [addSongToPlaylistModal, video],
   );
 
+  const handleDelete = useCallback(
+    async (event: MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      if (!showDeleteButton) {
+        toast.error('Deletion not available here.');
+        return;
+      }
+      if (!isOwner || !video.publisher) {
+        toast.error('Only the original publisher can delete this video.');
+        return;
+      }
+      const confirmed = window.confirm('Delete this video? This cannot be undone.');
+      if (!confirmed) return;
+      try {
+        setDeleteBusy(true);
+        await deleteVideoResources(video.publisher, video.id);
+        toast.success('Video deleted.');
+        onDeleted?.(video.id);
+        window.dispatchEvent(new CustomEvent('videos:refresh'));
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to delete video.');
+      } finally {
+        setDeleteBusy(false);
+      }
+    },
+    [isOwner, onDeleted, showDeleteButton, video.id, video.publisher],
+  );
+
   return (
     <div className="rounded-xl border border-sky-900/60 bg-sky-950/60 p-4 transition hover:border-sky-700/70 hover:bg-sky-950/80">
       <div className="flex flex-col gap-4 md:flex-row md:items-start">
@@ -415,6 +450,16 @@ export const LibraryVideoCard: React.FC<LibraryVideoCardProps> = ({
               aria-label="Edit"
             >
               <FiEdit2 size={16} />
+            </HomeActionButton>
+          )}
+          {isOwner && showDeleteButton && (
+            <HomeActionButton
+              onClick={handleDelete}
+              title="Delete"
+              aria-label="Delete"
+              disabled={deleteBusy}
+            >
+              <FiTrash2 size={16} />
             </HomeActionButton>
           )}
         </div>

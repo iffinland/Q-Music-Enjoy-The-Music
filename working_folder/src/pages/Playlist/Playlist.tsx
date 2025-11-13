@@ -3,7 +3,7 @@ import Header from '../../components/Header';
 import SearchContent from '../../components/SearchContent';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   PlayList,
   SongReference,
@@ -16,11 +16,10 @@ import {
   setFavPlaylist,
   setIsLoadingGlobal,
   setNewPlayList,
-  removePlaylistById,
   upsertMyPlaylists,
   setNowPlayingPlaylist,
 } from '../../state/features/globalSlice';
-import { FiShare2, FiTrash2, FiFlag, FiPlay, FiEdit2, FiList, FiChevronUp, FiChevronDown, FiCheck, FiX } from 'react-icons/fi';
+import { FiShare2, FiFlag, FiPlay, FiEdit2, FiList, FiChevronUp, FiChevronDown, FiCheck, FiX } from 'react-icons/fi';
 import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import localforage from 'localforage';
@@ -44,7 +43,6 @@ const favoritesStorage = localforage.createInstance({
 })
 
 export const Playlist = () => {
-  const navigate = useNavigate();
   const uploadPlaylistModal = useUploadPlaylistModal();
   const username = useSelector((state: RootState) => state.auth?.user?.name);
 
@@ -273,39 +271,6 @@ export const Playlist = () => {
     dispatch(setNewPlayList(playListData));
     uploadPlaylistModal.onOpen();
   };
-  const handleDeletePlaylist = React.useCallback(async () => {
-    if (!playlistId || !name) return;
-    if (username !== playListData?.user) {
-      toast.error('Only the owner can delete this playlist.');
-      return;
-    }
-
-    const confirmed = window.confirm('Delete this playlist permanently?');
-    if (!confirmed) return;
-
-    try {
-      await qortalRequest({
-        action: 'DELETE_QDN_RESOURCE',
-        name,
-        service: 'PLAYLIST',
-        identifier: playlistId,
-      });
-      dispatch(removePlaylistById(playlistId));
-      if (favoritesStorage) {
-        const favoritesObj: PlayList[] | null = await favoritesStorage.getItem('favoritesPlaylist') || null;
-        if (favoritesObj) {
-          const updatedFavorites = favoritesObj.filter((fav) => fav.id !== playlistId);
-          await favoritesStorage.setItem('favoritesPlaylist', updatedFavorites);
-        }
-      }
-      toast.success('Playlist deleted.');
-      navigate('/playlists');
-    } catch (error) {
-      console.error('Failed to delete playlist', error);
-      toast.error('Could not delete the playlist.');
-    }
-  }, [dispatch, name, navigate, playlistId, playListData?.user, username]);
-
   const handleReportPlaylist = React.useCallback(async () => {
     if (!playlistId || !name) return;
     if (!username) {
@@ -501,26 +466,15 @@ export const Playlist = () => {
           <FiList size={16} />
         </HomeActionButton>
       )}
-      {isOwner ? (
+      {!isOwner && username && (
         <HomeActionButton
-          onClick={handleDeletePlaylist}
-          title="Kustuta"
-          aria-label="Delete playlist"
-          className="text-red-200/80 hover:text-white hover:bg-red-600/70"
+          onClick={handleReportPlaylist}
+          title="Raporteeri"
+          aria-label="Report playlist"
+          className="text-amber-200/80 hover:text-white hover:bg-amber-600/70"
         >
-          <FiTrash2 size={16} />
+          <FiFlag size={16} />
         </HomeActionButton>
-      ) : (
-        username && (
-          <HomeActionButton
-            onClick={handleReportPlaylist}
-            title="Raporteeri"
-            aria-label="Report playlist"
-            className="text-amber-200/80 hover:text-white hover:bg-amber-600/70"
-          >
-            <FiFlag size={16} />
-          </HomeActionButton>
-        )
       )}
     </div>
   );

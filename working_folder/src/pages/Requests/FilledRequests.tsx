@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header';
@@ -11,17 +11,22 @@ import {
   setSongRequests,
   setRequestFills,
   SongRequest,
+  removeSongRequest,
 } from '../../state/features/requestsSlice';
 import useRequestModal from '../../hooks/useRequestModal';
-import { fetchRequestsFromQdn } from '../../services/qdnRequests';
+import { deleteRequestResource, fetchRequestsFromQdn } from '../../services/qdnRequests';
 import RequestRewardInfo from '../../components/requests/RequestRewardInfo';
+import { FiTrash2 } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
 
 const FilledRequests: React.FC = () => {
   const dispatch = useDispatch();
   const requestModal = useRequestModal();
   const navigate = useNavigate();
+  const username = useSelector((state: RootState) => state.auth.user?.name);
 
   const { requests, isLoading, error, fills } = useSelector((state: RootState) => state.requests);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadRequests = useCallback(async () => {
     dispatch(setRequestsLoading(true));
@@ -74,6 +79,31 @@ const FilledRequests: React.FC = () => {
       return '—';
     }
   };
+
+  const handleDelete = useCallback(
+    async (event: React.MouseEvent, request: SongRequest) => {
+      event.stopPropagation();
+      event.preventDefault();
+      if (!username || username !== request.publisher) {
+        toast.error('Only the author can delete this request.');
+        return;
+      }
+      const confirmed = window.confirm('Delete this filled request?');
+      if (!confirmed) return;
+      try {
+        setDeletingId(request.id);
+        await deleteRequestResource(username, request.id);
+        dispatch(removeSongRequest(request.id));
+        toast.success('Request deleted.');
+        window.dispatchEvent(new CustomEvent('requests:refresh'));
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to delete request.');
+      } finally {
+        setDeletingId((prev) => (prev === request.id ? null : prev));
+      }
+    },
+    [dispatch, username],
+  );
 
   return (
     <div className="px-4 py-6 space-y-6">
@@ -177,13 +207,23 @@ const FilledRequests: React.FC = () => {
                       <RequestRewardInfo request={request} fill={fill} />
                     </div>
                   </div>
-                  <div className="w-full md:w-40">
+                  <div className="w-full md:w-48 flex flex-col gap-2 md:items-end">
                     <Button
                       className="bg-sky-800/60 text-sky-200/70 cursor-not-allowed py-2 px-4 rounded-full md:w-full"
                       disabled
                     >
                       FILLED
                     </Button>
+                    {username === request.publisher && (
+                      <Button
+                        onClick={(event) => handleDelete(event, request)}
+                        disabled={deletingId === request.id}
+                        className="flex items-center justify-center gap-2 rounded-full border border-red-600/70 bg-transparent py-2 px-4 text-sm font-semibold text-red-200 hover:bg-red-600/20 md:w-full"
+                      >
+                        <FiTrash2 />
+                        {deletingId === request.id ? 'Deleting…' : 'Delete'}
+                      </Button>
+                    )}
                   </div>
                 </li>
               );

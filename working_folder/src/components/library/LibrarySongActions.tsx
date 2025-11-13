@@ -9,7 +9,7 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { FaPlay } from 'react-icons/fa';
-import { FiDownload, FiEdit2, FiThumbsUp } from 'react-icons/fi';
+import { FiDownload, FiEdit2, FiThumbsUp, FiTrash2 } from 'react-icons/fi';
 import { LuCopy } from 'react-icons/lu';
 import { MdPlaylistAdd } from 'react-icons/md';
 import { RiHandCoinLine } from 'react-icons/ri';
@@ -17,7 +17,7 @@ import { toast } from 'react-hot-toast';
 
 import { Song } from '../../types';
 import { MyContext } from '../../wrappers/DownloadWrapper';
-import { SongMeta, setAddToDownloads, setCurrentSong } from '../../state/features/globalSlice';
+import { removeSongFromLibrary, SongMeta, setAddToDownloads, setCurrentSong } from '../../state/features/globalSlice';
 import { RootState } from '../../state/store';
 import useSendTipModal from '../../hooks/useSendTipModal';
 import useUploadModal from '../../hooks/useUploadModal';
@@ -33,13 +33,16 @@ import {
 import HomeActionButton from '../home/HomeActionButton';
 import LikeButton from '../LikeButton';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
+import { deleteSongResources } from '../../services/songs';
 
 interface LibrarySongActionsProps {
   song: Song;
+  showDeleteButton?: boolean;
 }
 
 export const LibrarySongActions: React.FC<LibrarySongActionsProps> = ({
   song,
+  showDeleteButton = false,
 }) => {
   const dispatch = useDispatch();
   const { downloadVideo } = useContext(MyContext);
@@ -53,6 +56,7 @@ export const LibrarySongActions: React.FC<LibrarySongActionsProps> = ({
   const [likeCount, setLikeCount] = useState<number | null>(null);
   const [hasLike, setHasLike] = useState<boolean>(false);
   const [likeBusy, setLikeBusy] = useState<boolean>(false);
+  const [deleteBusy, setDeleteBusy] = useState<boolean>(false);
 
   const isOwner = useMemo(() => {
     if (!username || !song?.name) return false;
@@ -315,6 +319,34 @@ export const LibrarySongActions: React.FC<LibrarySongActionsProps> = ({
     [addSongToPlaylistModal, song],
   );
 
+  const handleDelete = useCallback(
+    async (event: MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      if (!showDeleteButton) {
+        toast.error('Deletion is only available in My Songs.');
+        return;
+      }
+      if (!isOwner || !song?.name) {
+        toast.error('Only the original publisher can delete this song.');
+        return;
+      }
+      const confirmed = window.confirm('Delete this song? This cannot be undone.');
+      if (!confirmed) return;
+      try {
+        setDeleteBusy(true);
+        await deleteSongResources(song.name, song.id);
+        dispatch(removeSongFromLibrary(song.id));
+        toast.success('Song deleted.');
+        window.dispatchEvent(new CustomEvent('songs:refresh'));
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to delete song.');
+      } finally {
+        setDeleteBusy(false);
+      }
+    },
+    [dispatch, isOwner, showDeleteButton, song.id, song.name],
+  );
+
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       <HomeActionButton
@@ -343,10 +375,7 @@ export const LibrarySongActions: React.FC<LibrarySongActionsProps> = ({
       </HomeActionButton>
 
       <HomeActionButton
-        onClick={(event) => {
-          event.stopPropagation();
-          handleAddToPlaylist(event);
-        }}
+        onClick={handleAddToPlaylist}
         title="Add to Playlist"
         aria-label="Add to Playlist"
       >
@@ -402,6 +431,16 @@ export const LibrarySongActions: React.FC<LibrarySongActionsProps> = ({
           aria-label="Edit"
         >
           <FiEdit2 size={16} />
+        </HomeActionButton>
+      )}
+      {isOwner && showDeleteButton && (
+        <HomeActionButton
+          onClick={handleDelete}
+          title="Delete"
+          aria-label="Delete"
+          disabled={deleteBusy}
+        >
+          <FiTrash2 size={16} />
         </HomeActionButton>
       )}
     </div>

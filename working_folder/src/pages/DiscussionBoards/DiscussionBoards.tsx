@@ -28,6 +28,8 @@ import {
   DiscussionReply,
   DiscussionThread,
   markAllThreadsRead,
+  removeDiscussionThread,
+  removeReplyFromThread,
   ReplyAccess,
   setDiscussionThreads,
   setDiscussionsError,
@@ -39,6 +41,8 @@ import {
 } from '../../state/features/discussionsSlice';
 import { RootState } from '../../state/store';
 import {
+  deleteDiscussionReply,
+  deleteDiscussionThread,
   fetchDiscussionThreadsFromQdn,
   publishDiscussionReply,
   publishDiscussionThread,
@@ -143,6 +147,8 @@ const DiscussionBoards: React.FC = () => {
   const [isSavingThreadEdit, setIsSavingThreadEdit] = useState(false);
   const [isPostingReply, setIsPostingReply] = useState(false);
   const [isSavingReplyEdit, setIsSavingReplyEdit] = useState(false);
+  const [isDeletingThread, setIsDeletingThread] = useState(false);
+  const [deletingReplyId, setDeletingReplyId] = useState<string | null>(null);
 
   const loadThreads = useCallback(async () => {
     dispatch(setDiscussionsLoading(true));
@@ -412,6 +418,43 @@ const DiscussionBoards: React.FC = () => {
     }
   };
 
+  const handleDeleteThread = async () => {
+    if (!selectedThread || username !== selectedThread.publisher) return;
+    const confirmed = window.confirm('Kas kustutada see teema? Seda ei saa tagasi võtta.');
+    if (!confirmed) return;
+    setIsDeletingThread(true);
+    try {
+      await deleteDiscussionThread(selectedThread);
+      dispatch(clearThreadUnread(selectedThread.id));
+      dispatch(removeDiscussionThread(selectedThread.id));
+      toast.success('Teema kustutatud');
+      setSelectedThreadId(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Teema kustutamine ebaõnnestus.');
+    } finally {
+      setIsDeletingThread(false);
+    }
+  };
+
+  const handleDeleteReply = async (reply: DiscussionReply) => {
+    if (reply.author !== username) {
+      toast.error('Ainult autor saab vastust kustutada.');
+      return;
+    }
+    const confirmed = window.confirm('Kas kustutada see vastus?');
+    if (!confirmed) return;
+    setDeletingReplyId(reply.id);
+    try {
+      await deleteDiscussionReply(reply);
+      dispatch(removeReplyFromThread({ threadId: reply.threadId, replyId: reply.id }));
+      toast.success('Vastus kustutatud');
+    } catch (err: any) {
+      toast.error(err?.message || 'Vastuse kustutamine ebaõnnestus.');
+    } finally {
+      setDeletingReplyId(null);
+    }
+  };
+
   const toggleThreadEdit = (threadId: string) => {
     setSelectedThreadId(threadId);
     setEditingThreadId((prev) => (prev === threadId ? null : threadId));
@@ -544,6 +587,16 @@ const DiscussionBoards: React.FC = () => {
                     Edit
                   </button>
                 )
+              )}
+              {canEdit && !isEditing && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteReply(reply)}
+                  className="flex items-center gap-1 rounded-md border border-red-700/60 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-900/30 disabled:opacity-60"
+                  disabled={deletingReplyId === reply.id}
+                >
+                  {deletingReplyId === reply.id ? 'Deleting…' : 'Delete'}
+                </button>
               )}
             </div>
           </div>
@@ -1009,13 +1062,23 @@ const DiscussionBoards: React.FC = () => {
                     Share
                   </Button>
                   {username === selectedThread.publisher && (
-                    <Button
-                      className="flex items-center justify-center gap-2 rounded-md border border-sky-700/70 bg-slate-900/60 px-5 py-2 text-sm font-semibold text-sky-100 hover:bg-slate-900/80 md:w-auto"
-                      onClick={() => toggleThreadEdit(selectedThread.id)}
-                    >
-                      <FiEdit3 />
-                      {editingThreadId === selectedThread.id ? 'Cancel edit' : 'Edit thread'}
-                    </Button>
+                    <>
+                      <Button
+                        className="flex items-center justify-center gap-2 rounded-md border border-sky-700/70 bg-slate-900/60 px-5 py-2 text-sm font-semibold text-sky-100 hover:bg-slate-900/80 md:w-auto"
+                        onClick={() => toggleThreadEdit(selectedThread.id)}
+                        disabled={isDeletingThread}
+                      >
+                        <FiEdit3 />
+                        {editingThreadId === selectedThread.id ? 'Cancel edit' : 'Edit thread'}
+                      </Button>
+                      <Button
+                        className="flex items-center justify-center gap-2 rounded-md border border-red-700/70 bg-red-600/20 px-4 py-2 text-sm font-semibold text-red-100 hover:bg-red-600/30"
+                        onClick={handleDeleteThread}
+                        disabled={isDeletingThread}
+                      >
+                        {isDeletingThread ? 'Deleting…' : 'Delete'}
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>

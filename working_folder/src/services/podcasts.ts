@@ -1,11 +1,13 @@
 import { Podcast } from '../types';
 import { fetchQdnResource, getQdnResourceUrl, getQdnResourceStatus } from '../utils/qortalApi';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
+import { objectToBase64 } from '../utils/toBase64';
 import { cachedSearchQdnResources } from './resourceCache';
 
 const PODCAST_IDENTIFIER_PREFIX = 'enjoymusic_podcast_';
 const FETCH_LIMIT = 25;
 const MAX_FETCH_BATCHES = 4;
+const PODCAST_DELETED_PLACEHOLDER_BASE64 = 'ZGVsZXRlZA==';
 
 const normalizeTitle = (identifier: string): string =>
   identifier.replace(PODCAST_IDENTIFIER_PREFIX, '').replace(/[_-]+/g, ' ').trim();
@@ -198,6 +200,54 @@ export const fetchPodcasts = async (options: FetchPodcastsOptions = {}): Promise
   );
 
   return aggregated;
+};
+
+export const deletePodcastResources = async (publisher: string, identifier: string) => {
+  if (!publisher || !identifier) {
+    throw new Error('Missing podcast metadata');
+  }
+
+  const now = Date.now();
+  const docPayload = await objectToBase64({
+    id: identifier,
+    deleted: true,
+    updated: now,
+  });
+
+  const resources = [
+    {
+      name: publisher,
+      service: 'AUDIO',
+      identifier,
+      data64: PODCAST_DELETED_PLACEHOLDER_BASE64,
+      encoding: 'base64',
+      title: 'deleted',
+      description: 'deleted',
+    },
+    {
+      name: publisher,
+      service: 'THUMBNAIL',
+      identifier,
+      data64: PODCAST_DELETED_PLACEHOLDER_BASE64,
+      encoding: 'base64',
+      title: 'deleted',
+      description: 'deleted',
+    },
+    {
+      name: publisher,
+      service: 'DOCUMENT',
+      identifier,
+      data64: docPayload,
+      encoding: 'base64',
+      title: 'deleted',
+      description: 'deleted',
+    },
+  ];
+
+  await qortalRequest({
+    action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+    resources,
+  });
 };
 
 export const enjoyMusicPodcastIdentifier = PODCAST_IDENTIFIER_PREFIX;

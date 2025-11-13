@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FaPlay } from 'react-icons/fa';
-import { FiDownload, FiEdit2, FiShare2, FiThumbsUp } from 'react-icons/fi';
+import { FiDownload, FiEdit2, FiShare2, FiThumbsUp, FiTrash2 } from 'react-icons/fi';
 import { RiHandCoinLine } from 'react-icons/ri';
 import { MdPlaylistAdd } from 'react-icons/md';
 import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
@@ -15,6 +15,7 @@ import { MyContext } from '../../wrappers/DownloadWrapper';
 import {
   PlayList,
   removeFavPlaylist,
+  removePlaylistById,
   setAddToDownloads,
   setCurrentPlaylist,
   setCurrentSong,
@@ -32,6 +33,7 @@ import {
   unlikePlaylist,
 } from '../../services/playlistLikes';
 import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../../hooks/usePlaylistPlayback';
+import { deletePlaylistResource } from '../../services/playlists';
 
 const playlistFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites',
@@ -59,6 +61,7 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
   const [likeBusy, setLikeBusy] = useState<boolean>(false);
   const [favBusy, setFavBusy] = useState<boolean>(false);
   const [playBusy, setPlayBusy] = useState<boolean>(false);
+  const [deleteBusy, setDeleteBusy] = useState<boolean>(false);
   const { ensurePlaylistSongs } = usePlaylistPlayback();
 
   const isFavorited = useMemo(
@@ -219,6 +222,32 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
       setLikeBusy(false);
     }
   }, [hasLiked, likeBusy, playlist, username]);
+
+  const handleDelete = useCallback(async () => {
+    if (!isOwner || !username) {
+      toast.error('Only the author can delete this playlist.');
+      return;
+    }
+    const confirmed = window.confirm('Delete this playlist? This cannot be undone.');
+    if (!confirmed) return;
+    try {
+      setDeleteBusy(true);
+      await deletePlaylistResource(username, playlist.id);
+      dispatch(removePlaylistById(playlist.id));
+      if (isFavorited) {
+        const existing =
+          (await playlistFavoritesStorage.getItem<PlayList[]>('favoritesPlaylist')) || [];
+        const updated = existing.filter((item) => item.id !== playlist.id);
+        await playlistFavoritesStorage.setItem('favoritesPlaylist', updated);
+        dispatch(removeFavPlaylist(playlist));
+      }
+      toast.success('Playlist deleted.');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to delete playlist.');
+    } finally {
+      setDeleteBusy(false);
+    }
+  }, [dispatch, isFavorited, isOwner, playlist, username]);
 
   const handleDownload = useCallback(async () => {
     if (!playlist.user) {
@@ -392,16 +421,30 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
       </HomeActionButton>
 
       {isOwner && (
-        <HomeActionButton
-          onClick={(event) => {
-            event.stopPropagation();
-            handleEdit();
-          }}
-          title="Edit"
-          aria-label="Edit"
-        >
-          <FiEdit2 size={16} />
-        </HomeActionButton>
+        <>
+          <HomeActionButton
+            onClick={(event) => {
+              event.stopPropagation();
+              handleEdit();
+            }}
+            title="Edit"
+            aria-label="Edit"
+            disabled={deleteBusy}
+          >
+            <FiEdit2 size={16} />
+          </HomeActionButton>
+          <HomeActionButton
+            onClick={(event) => {
+              event.stopPropagation();
+              handleDelete();
+            }}
+            title="Delete"
+            aria-label="Delete"
+            disabled={deleteBusy}
+          >
+            <FiTrash2 size={16} />
+          </HomeActionButton>
+        </>
       )}
     </div>
   );

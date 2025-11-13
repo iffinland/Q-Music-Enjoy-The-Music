@@ -12,7 +12,7 @@ import { VideoToolbar, VideoSortOrder } from '../../components/videos/VideoToolb
 import VideoAlphabetFilter from '../../components/videos/VideoAlphabetFilter';
 import VideoCard from '../../components/videos/VideoCard';
 import VideoPlayerOverlay from '../../components/videos/VideoPlayerOverlay';
-import { enrichVideosWithDocuments, fetchVideos } from '../../services/videos';
+import { deleteVideoResources, enrichVideosWithDocuments, fetchVideos } from '../../services/videos';
 import { Song, Video } from '../../types';
 import { CircularProgress } from '@mui/material';
 import useUploadVideoModal from '../../hooks/useUploadVideoModal';
@@ -25,7 +25,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
 import { Favorites, removeFavSong, setFavSong } from '../../state/features/globalSlice';
-import { deleteHostedData, deleteQdnResource, getQdnResourceUrl } from '../../utils/qortalApi';
+import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import localforage from 'localforage';
 import {
@@ -447,34 +447,7 @@ const Videos: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      const resources = [
-        {
-          name: video.publisher,
-          service: 'VIDEO',
-          identifier: video.id,
-        },
-        {
-          name: video.publisher,
-          service: 'DOCUMENT',
-          identifier: video.id,
-        },
-        {
-          name: video.publisher,
-          service: 'THUMBNAIL',
-          identifier: video.id,
-        },
-      ];
-
-      try {
-        await deleteHostedData(resources);
-      } catch (error) {
-        console.warn('Failed to delete hosted data via batch operation', error);
-      }
-
-      for (const resource of resources) {
-        await deleteQdnResource(resource);
-      }
-
+      await deleteVideoResources(video.publisher, video.id);
       toast.success('Video deleted.');
       loadVideos();
     } catch (error) {

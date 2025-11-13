@@ -196,6 +196,20 @@ export const globalSlice = createSlice({
         }
       })
     },
+    removeSongFromLibrary: (state, action: PayloadAction<string>) => {
+      const songId = action.payload
+      state.songListLibrary = state.songListLibrary.filter((song) => song.id !== songId)
+      state.favoriteList = state.favoriteList.filter((song) => song.id !== songId)
+      if (state.favorites?.songs?.[songId]) {
+        delete state.favorites.songs[songId]
+      }
+      if (state.songHash[songId]) {
+        delete state.songHash[songId]
+      }
+      if (state.currentSong === songId) {
+        state.currentSong = null
+      }
+    },
     upsertPlaylists: (state, action) => {
       action.payload.forEach((playlist: PlayList) => {
         const index = state.playlists.findIndex((p) => p.id === playlist.id)
@@ -332,6 +346,16 @@ export const globalSlice = createSlice({
         state.currentPlaylist = 'nowPlayingPlaylist'
       }
       delete state.playlistHash[playlistId]
+
+      const stats = state.statistics.data
+      if (stats) {
+        stats.allPlaylists = Math.max(0, stats.allPlaylists - 1)
+        if (playlistId.startsWith('enjoymusic_playlist_')) {
+          stats.qmusicPlaylists = Math.max(0, stats.qmusicPlaylists - 1)
+        } else if (playlistId.startsWith('earbump_playlist_')) {
+          stats.earbumpPlaylists = Math.max(0, stats.earbumpPlaylists - 1)
+        }
+      }
     },
     setCurrentPlaylist: (state, action) => {
       state.currentPlaylist = action.payload
@@ -356,6 +380,7 @@ export const {
   setUserAvatarHash,
   setImageCoverHash,
   upsertMyLibrary,
+  removeSongFromLibrary,
   setCurrentSong,
   addNewSong,
   setFavSong,

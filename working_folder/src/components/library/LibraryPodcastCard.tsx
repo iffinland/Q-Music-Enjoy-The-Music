@@ -11,12 +11,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import localforage from 'localforage';
 import { FaPlay } from 'react-icons/fa';
-import {
-  FiDownload,
-  FiEdit2,
-  FiShare2,
-  FiThumbsUp,
-} from 'react-icons/fi';
+import { FiDownload, FiEdit2, FiShare2, FiThumbsUp, FiTrash2 } from 'react-icons/fi';
 import { MdPlaylistAdd } from 'react-icons/md';
 import { RiHandCoinLine } from 'react-icons/ri';
 import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
@@ -42,6 +37,7 @@ import {
   likePodcast as publishPodcastLike,
   unlikePodcast,
 } from '../../services/podcastLikes';
+import { deletePodcastResources } from '../../services/podcasts';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import useCoverImage from '../../hooks/useCoverImage';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
@@ -53,11 +49,15 @@ const podcastFavoritesStorage = localforage.createInstance({
 interface LibraryPodcastCardProps {
   podcast: Podcast;
   onFavoriteChange?: () => void;
+  showDeleteButton?: boolean;
+  onDeleted?: (podcastId: string) => void;
 }
 
 export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
   podcast,
   onFavoriteChange,
+  showDeleteButton = false,
+  onDeleted,
 }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -78,6 +78,7 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
   const [likeUsersLoading, setLikeUsersLoading] = useState(false);
   const [isLikePopoverOpen, setIsLikePopoverOpen] = useState(false);
   const likeUsersLoadedRef = useRef(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const { url: coverUrl } = useCoverImage({
     identifier: podcast?.id ?? null,
@@ -393,6 +394,35 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
     [addSongToPlaylistModal, creatorDisplay, podcast],
   );
 
+  const handleDelete = useCallback(
+    async (event: MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      if (!showDeleteButton) {
+        toast.error('Deletion not available here.');
+        return;
+      }
+      if (!isOwner || !podcast.publisher) {
+        toast.error('Only the original publisher can delete this podcast.');
+        return;
+      }
+      const confirmed = window.confirm('Delete this podcast? This cannot be undone.');
+      if (!confirmed) return;
+
+      try {
+        setDeleteBusy(true);
+        await deletePodcastResources(podcast.publisher, podcast.id);
+        toast.success('Podcast deleted.');
+        onDeleted?.(podcast.id);
+        window.dispatchEvent(new CustomEvent('podcasts:refresh'));
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to delete podcast.');
+      } finally {
+        setDeleteBusy(false);
+      }
+    },
+    [isOwner, onDeleted, podcast.id, podcast.publisher, showDeleteButton],
+  );
+
   return (
     <div className="rounded-xl border border-sky-900/60 bg-sky-950/60 p-4 transition hover:border-sky-700/70 hover:bg-sky-950/80">
       <div className="flex flex-col gap-4 md:flex-row md:items-start">
@@ -545,6 +575,16 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
               aria-label="Edit"
             >
               <FiEdit2 size={16} />
+            </HomeActionButton>
+          )}
+          {isOwner && showDeleteButton && (
+            <HomeActionButton
+              onClick={handleDelete}
+              title="Delete"
+              aria-label="Delete"
+              disabled={deleteBusy}
+            >
+              <FiTrash2 size={16} />
             </HomeActionButton>
           )}
         </div>

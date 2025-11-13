@@ -111,6 +111,21 @@ export const discussionsSlice = createSlice({
     clearThreadUnread(state, action: PayloadAction<string>) {
       state.unreadThreadIds = state.unreadThreadIds.filter((id) => id !== action.payload);
     },
+    removeDiscussionThread(state, action: PayloadAction<string>) {
+      state.threads = state.threads.filter((thread) => thread.id !== action.payload);
+    },
+    removeReplyFromThread(
+      state,
+      action: PayloadAction<{ threadId: string; replyId: string }>,
+    ) {
+      const { threadId, replyId } = action.payload;
+      const thread = state.threads.find((item) => item.id === threadId);
+      if (!thread) return;
+      thread.replies = thread.replies.filter((reply) => reply.id !== replyId);
+      const newest = thread.replies[thread.replies.length - 1];
+      thread.updated = newest ? (newest.updated ?? newest.created) : thread.created;
+      state.threads = sortThreads(state.threads);
+    },
   },
 });
 
@@ -125,6 +140,8 @@ export const {
   setLastReadTimestamp,
   markAllThreadsRead,
   clearThreadUnread,
+  removeDiscussionThread,
+  removeReplyFromThread,
 } = discussionsSlice.actions;
 
 export default discussionsSlice.reducer;
