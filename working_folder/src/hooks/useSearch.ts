@@ -85,11 +85,15 @@ export const useSearch = () => {
       const combined = [...(byMetadata || []), ...(byIdentifier || [])];
       const seen = new Set<string>();
       const filtered = combined.filter((entry: any) => {
-        if (!entry?.identifier || typeof entry.identifier !== 'string') return false;
-        if (!entry.identifier.startsWith(prefix)) return false;
-        if (shouldHideQdnResource(entry)) return false;
-        if (seen.has(entry.identifier)) return false;
-        seen.add(entry.identifier);
+        const identifier = typeof entry?.identifier === 'string' ? entry.identifier : '';
+        if (!identifier) return false;
+        if (!identifier.startsWith(prefix)) return false;
+        if (seen.has(identifier)) return false;
+        if (shouldHideQdnResource(entry)) {
+          seen.add(identifier);
+          return false;
+        }
+        seen.add(identifier);
         return true;
       });
       return filtered;

@@ -52,7 +52,7 @@ const combinePrefixResults = async (
     .filter(isFulfilled)
     .flatMap((entry) => (Array.isArray(entry.value) ? entry.value : [])) as Resource[];
 
-  return sortByLatest(uniqueByIdentifier(combined));
+  return uniqueByIdentifier(sortByLatest(combined));
 };
 
 const mapPlaylistResource = (resource: any): PlayList => ({
