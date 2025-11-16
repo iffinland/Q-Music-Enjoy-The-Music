@@ -8,12 +8,13 @@ export interface MultiPublishPayload {
   file: File;
   fileName: string;
   fileSize: number;
+  coverFile?: File | null;
   title: string;
   category: string;
   notes: string;
   author: string;
   tags: string[];
-  visibility: 'public' | 'draft' | 'limited';
+  visibility: 'public' | 'limited';
   releaseDate?: string;
   collectionTitle?: string;
   collectionDescription?: string;

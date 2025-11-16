@@ -32,8 +32,13 @@ interface MultiEntry {
   fileSize: number;
   type: MultiEntryType;
   title: string;
+  performer: string;
   category: string;
   notes: string;
+  coverFile: File | null;
+  coverFileName: string;
+  coverPreview: string | null;
+  usesSharedCover: boolean;
   syncedFromTemplate?: boolean;
 }
 
@@ -69,7 +74,7 @@ interface BaseValues {
   creatorName: string;
   tags: string;
   releaseDate: string;
-  visibility: 'public' | 'draft' | 'limited';
+  visibility: 'public' | 'limited';
   price: string;
   primaryFileName: string;
   coverFileName: string;
@@ -282,7 +287,6 @@ const FILE_HINTS: Record<PublishType, string> = {
 
 const VISIBILITY_LABELS: Record<BaseValues['visibility'], string> = {
   public: 'Public release',
-  draft: 'Private draft',
   limited: 'Link-only access',
 };
 
@@ -400,6 +404,7 @@ const PublishContentModal: React.FC = () => {
   const multiFileInputRef = useRef<HTMLInputElement | null>(null);
   const primaryFileInputRef = useRef<HTMLInputElement | null>(null);
   const coverFileInputRef = useRef<HTMLInputElement | null>(null);
+  const sharedCoverInputRef = useRef<HTMLInputElement | null>(null);
   const [bulkCategoryType, setBulkCategoryType] = useState<MultiEntryType>('audio');
   const [bulkCategoryValue, setBulkCategoryValue] = useState('');
   const [bulkTypeSelection, setBulkTypeSelection] = useState<MultiEntryType | ''>('');
@@ -411,12 +416,42 @@ const PublishContentModal: React.FC = () => {
   const [singleNewPlaylist, setSingleNewPlaylist] = useState({ enabled: false, title: '', description: '' });
   const [multiPlaylistSelection, setMultiPlaylistSelection] = useState<string[]>([]);
   const [multiNewPlaylist, setMultiNewPlaylist] = useState({ enabled: false, title: '', description: '' });
+  const [multiSharedCover, setMultiSharedCover] = useState<{
+    file: File | null;
+    fileName: string;
+    preview: string | null;
+  }>({ file: null, fileName: '', preview: null });
 
   const currentOption = useMemo(
     () => PUBLISH_OPTIONS.find((option) => option.id === selectedType) ?? PUBLISH_OPTIONS[0],
     [selectedType],
   );
   const availablePlaylists = useMemo<PlayList[]>(() => myPlaylists ?? [], [myPlaylists]);
+
+  useEffect(() => {
+    setMultiEntries((prev) => {
+      const hasLinked = prev.some((entry) => entry.usesSharedCover);
+      if (!hasLinked) return prev;
+      return prev.map((entry) => {
+        if (!entry.usesSharedCover) return entry;
+        if (!multiSharedCover.file) {
+          return {
+            ...entry,
+            coverFile: null,
+            coverFileName: '',
+            coverPreview: null,
+            usesSharedCover: false,
+          };
+        }
+        return {
+          ...entry,
+          coverFile: multiSharedCover.file,
+          coverFileName: multiSharedCover.fileName,
+          coverPreview: multiSharedCover.preview,
+        };
+      });
+    });
+  }, [multiSharedCover]);
 
   const currentTypeValues = typeValues[selectedType] ?? {};
   const isMultiPublish = selectedType === 'multi';
@@ -547,6 +582,7 @@ const PublishContentModal: React.FC = () => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     const timestamp = Date.now();
+    const hasSharedCover = Boolean(multiSharedCover.file);
     const newEntries = Array.from(files).map((file, index) => ({
       id: `${file.name}-${file.size}-${timestamp}-${index}`,
       file,
@@ -554,8 +590,13 @@ const PublishContentModal: React.FC = () => {
       fileSize: file.size,
       type: 'audio' as MultiEntryType,
       title: '',
+      performer: '',
       category: '',
       notes: '',
+      coverFile: hasSharedCover ? multiSharedCover.file : null,
+      coverFileName: hasSharedCover ? multiSharedCover.fileName : '',
+      coverPreview: hasSharedCover ? multiSharedCover.preview : null,
+      usesSharedCover: hasSharedCover,
     }));
     setMultiEntries((prev) => [...prev, ...newEntries]);
     if (multiFileInputRef.current) {
@@ -581,7 +622,7 @@ const PublishContentModal: React.FC = () => {
 
   const handleMultiEntryChange = (
     entryId: string,
-    field: 'title' | 'category' | 'notes',
+    field: 'title' | 'performer' | 'category' | 'notes',
     value: string,
   ) => {
     setMultiEntries((prev) =>
@@ -597,10 +638,21 @@ const PublishContentModal: React.FC = () => {
 
   const handleClearMultiEntries = () => {
     setMultiEntries([]);
+    setMultiSharedCover({ file: null, fileName: '', preview: null });
     if (multiFileInputRef.current) {
       multiFileInputRef.current.value = '';
     }
+    if (sharedCoverInputRef.current) {
+      sharedCoverInputRef.current.value = '';
+    }
   };
+
+const FILENAME_SPLIT_SEPARATORS = [' - ', ' – ', ' — ', '-', '–', '—', '|'];
+
+const removeFileExtension = (fileName: string) => fileName.replace(/\.[^/.]+$/, '');
+
+const normalizeFilenameSegment = (segment: string) =>
+  segment.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
 
 const formatFileSize = (bytes: number) => {
   if (bytes >= 1024 * 1024) {
@@ -612,9 +664,21 @@ const formatFileSize = (bytes: number) => {
   return `${bytes} B`;
 };
 
-const formatTitleFromFilename = (fileName: string) => {
-  const withoutExtension = fileName.replace(/\.[^/.]+$/, '');
-  return withoutExtension.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+const formatTitleFromFilename = (fileName: string) => normalizeFilenameSegment(removeFileExtension(fileName));
+
+const parseFilenameForMetadata = (fileName: string) => {
+  const withoutExtension = removeFileExtension(fileName);
+  for (const separator of FILENAME_SPLIT_SEPARATORS) {
+    const index = withoutExtension.indexOf(separator);
+    if (index > 0) {
+      const rawPerformer = normalizeFilenameSegment(withoutExtension.slice(0, index));
+      const rawTitle = normalizeFilenameSegment(withoutExtension.slice(index + separator.length));
+      if (rawPerformer && rawTitle) {
+        return { performer: rawPerformer, title: rawTitle };
+      }
+    }
+  }
+  return { performer: '', title: normalizeFilenameSegment(withoutExtension) };
 };
 
 const clonePlaylistTargets = (targets: PlaylistTarget[]): PlaylistTarget[] =>
@@ -697,12 +761,43 @@ const buildPlaylistTargets = (
   );
 
   const handleFillTitlesFromFilenames = () => {
+    let titleUpdates = 0;
+    let performerUpdates = 0;
     setMultiEntries((prev) =>
       prev.map((entry) => {
-        if (entry.title.trim().length > 0) return entry;
-        return { ...entry, title: formatTitleFromFilename(entry.fileName), syncedFromTemplate: false };
+        const trimmedTitle = entry.title.trim();
+        const trimmedPerformer = entry.performer.trim();
+        if (trimmedTitle && trimmedPerformer) {
+          return entry;
+        }
+        const metadata = parseFilenameForMetadata(entry.fileName);
+        let nextEntry = entry;
+        let changed = false;
+        if (!trimmedTitle && metadata.title) {
+          nextEntry = { ...nextEntry, title: metadata.title };
+          titleUpdates += 1;
+          changed = true;
+        }
+        if (!trimmedPerformer && metadata.performer) {
+          nextEntry = nextEntry === entry ? { ...nextEntry } : nextEntry;
+          nextEntry.performer = metadata.performer;
+          performerUpdates += 1;
+          changed = true;
+        }
+        if (changed) {
+          return { ...nextEntry, syncedFromTemplate: false };
+        }
+        return entry;
       }),
     );
+    if (titleUpdates || performerUpdates) {
+      const summaryParts: string[] = [];
+      if (titleUpdates) summaryParts.push(`${titleUpdates} title${titleUpdates === 1 ? '' : 's'}`);
+      if (performerUpdates) summaryParts.push(`${performerUpdates} performer${performerUpdates === 1 ? '' : 's'}`);
+      toast.success(`Filled ${summaryParts.join(' and ')} from filenames`);
+    } else {
+      toast.success('All titles and performer fields already have values.');
+    }
   };
 
   const handleSetAllTypes = (nextType: MultiEntryType) => {
@@ -737,6 +832,128 @@ const buildPlaylistTargets = (
     toast.success(`Applied category to all ${bulkCategoryType} entries`);
   };
 
+  const handleFillPerformersFromCreator = () => {
+    const creatorName = baseValues.creatorName.trim();
+    if (!creatorName) {
+      toast.error('Add the artist / author info before using this shortcut.');
+      return;
+    }
+    let updated = 0;
+    setMultiEntries((prev) =>
+      prev.map((entry) => {
+        if (entry.performer.trim().length > 0) {
+          return entry;
+        }
+        updated += 1;
+        return { ...entry, performer: creatorName, syncedFromTemplate: false };
+      }),
+    );
+    if (updated > 0) {
+      toast.success(`Filled performer info for ${updated} entr${updated === 1 ? 'y' : 'ies'}`);
+    } else {
+      toast.success('All performer fields already have values.');
+    }
+  };
+
+  const handleSharedCoverSelection = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const result = await toBase64(file);
+    const preview = typeof result === 'string' ? result : null;
+    setMultiSharedCover({
+      file,
+      fileName: file.name,
+      preview,
+    });
+    event.target.value = '';
+  };
+
+  const handleClearSharedCover = () => {
+    setMultiSharedCover({ file: null, fileName: '', preview: null });
+    if (sharedCoverInputRef.current) {
+      sharedCoverInputRef.current.value = '';
+    }
+  };
+
+  const handleApplySharedCoverToAll = () => {
+    if (!multiSharedCover.file) {
+      toast.error('Upload a shared cover first.');
+      return;
+    }
+    setMultiEntries((prev) =>
+      prev.map((entry) => ({
+        ...entry,
+        coverFile: multiSharedCover.file,
+        coverFileName: multiSharedCover.fileName,
+        coverPreview: multiSharedCover.preview,
+        usesSharedCover: true,
+        syncedFromTemplate: false,
+      })),
+    );
+    toast.success('Applied shared cover to every entry');
+  };
+
+  const handleApplySharedCoverToEntry = (entryId: string) => {
+    if (!multiSharedCover.file) {
+      toast.error('Upload a shared cover first.');
+      return;
+    }
+    setMultiEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === entryId
+          ? {
+              ...entry,
+              coverFile: multiSharedCover.file,
+              coverFileName: multiSharedCover.fileName,
+              coverPreview: multiSharedCover.preview,
+              usesSharedCover: true,
+              syncedFromTemplate: false,
+            }
+          : entry,
+      ),
+    );
+  };
+
+  const handleMultiEntryCoverChange =
+    (entryId: string) => async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const result = await toBase64(file);
+      const preview = typeof result === 'string' ? result : null;
+      setMultiEntries((prev) =>
+        prev.map((entry) =>
+          entry.id === entryId
+            ? {
+                ...entry,
+                coverFile: file,
+                coverFileName: file.name,
+                coverPreview: preview,
+                usesSharedCover: false,
+                syncedFromTemplate: false,
+              }
+            : entry,
+        ),
+      );
+      event.target.value = '';
+    };
+
+  const handleClearEntryCover = (entryId: string) => {
+    setMultiEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === entryId
+          ? {
+              ...entry,
+              coverFile: null,
+              coverFileName: '',
+              coverPreview: null,
+              usesSharedCover: false,
+              syncedFromTemplate: false,
+            }
+          : entry,
+      ),
+    );
+  };
+
   const handleApplyTemplateToOthers = (entryId: string) => {
     const template = multiEntries.find((entry) => entry.id === entryId);
     if (!template) return;
@@ -751,7 +968,12 @@ const buildPlaylistTargets = (
           ...entry,
           type: template.type,
           category: nextCategory,
+          performer: template.performer,
           notes: template.notes,
+          coverFile: template.coverFile,
+          coverFileName: template.coverFileName,
+          coverPreview: template.coverPreview,
+          usesSharedCover: template.usesSharedCover,
           syncedFromTemplate: true,
         };
       }),
@@ -792,10 +1014,11 @@ const buildPlaylistTargets = (
       file: entry.file,
       fileName: entry.fileName,
       fileSize: entry.fileSize,
+      coverFile: entry.coverFile || undefined,
       title: entry.title.trim(),
       category: entry.category,
       notes: entry.notes.trim(),
-      author: creatorName,
+      author: entry.performer.trim() || creatorName,
       tags,
       visibility: baseValues.visibility,
       releaseDate: baseValues.releaseDate || undefined,
@@ -817,8 +1040,12 @@ const buildPlaylistTargets = (
     }
     toast.success(`Queued ${payloads.length} entries for publishing.`);
     setMultiEntries([]);
+    setMultiSharedCover({ file: null, fileName: '', preview: null });
     if (multiFileInputRef.current) {
       multiFileInputRef.current.value = '';
+    }
+    if (sharedCoverInputRef.current) {
+      sharedCoverInputRef.current.value = '';
     }
     modal.close();
   };
@@ -976,11 +1203,6 @@ const buildPlaylistTargets = (
       return;
     }
 
-    if (!primaryFile) {
-      toast.error('Upload a playlist file (JSON or text).');
-      return;
-    }
-
     const playlistValues = typeValues.playlist || {};
     setIsPlaylistPublishing(true);
     const toastId = toast.loading('Publishing playlist…');
@@ -988,9 +1210,23 @@ const buildPlaylistTargets = (
       const identifier = buildPlaylistIdentifier(trimmedTitle);
       const description = baseValues.description.trim();
       const descriptionSnippet = description.slice(0, 4000);
-      const playlistData64 = await fileToData64(primaryFile);
-      if (!playlistData64) {
-        throw new Error('Failed to read the playlist file.');
+      let playlistData64: string | null = null;
+      let playlistFilename = primaryFile?.name || `${identifier}.json`;
+      if (primaryFile) {
+        playlistData64 = await fileToData64(primaryFile);
+        if (!playlistData64) {
+          throw new Error('Failed to read the playlist file.');
+        }
+      } else {
+        const fallbackPayload = {
+          title: trimmedTitle,
+          description,
+          songs: [],
+          image: null,
+          metadata: playlistValues,
+        };
+        playlistData64 = await objectToBase64(fallbackPayload);
+        playlistFilename = `${identifier}.json`;
       }
 
       const metadataEntries: Record<string, string> = {};
@@ -1035,7 +1271,7 @@ const buildPlaylistTargets = (
           service: 'PLAYLIST',
           data64: playlistData64,
           identifier,
-          filename: primaryFile.name || `${identifier}.json`,
+          filename: playlistFilename,
           title: trimmedTitle.slice(0, 55),
           description: descriptionSnippet,
         },
@@ -1354,6 +1590,13 @@ const buildPlaylistTargets = (
                         >
                           Use filenames for empty titles
                         </button>
+                        <button
+                          type="button"
+                          onClick={handleFillPerformersFromCreator}
+                          className="rounded-full border border-sky-500/60 px-4 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-900/60 transition"
+                        >
+                          Use main artist for empty performers
+                        </button>
                         <select
                           className="rounded-md border border-sky-900/60 bg-sky-950/70 px-3 py-2 text-xs text-white focus:outline-none"
                           value={bulkTypeSelection}
@@ -1411,6 +1654,42 @@ const buildPlaylistTargets = (
                         >
                           Apply to {bulkCategoryType} entries
                         </button>
+                      </div>
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4 border border-sky-900/70 rounded-xl p-3">
+                        <label className="flex flex-col gap-1 text-xs text-sky-100/80 flex-1">
+                          Shared cover image / artwork
+                          <div className="rounded-xl border border-dashed border-sky-800 bg-sky-900/30 p-3">
+                            <p className="text-sm text-white">{multiSharedCover.fileName || 'Choose an image (JPG, PNG, WEBP)'}</p>
+                            <p className="text-[11px] text-sky-200/70 mt-1">
+                              Upload one artwork and link it to every entry, or override inside each card.
+                            </p>
+                            <input
+                              ref={sharedCoverInputRef}
+                              type="file"
+                              accept="image/*"
+                              className="mt-3 text-xs"
+                              onChange={handleSharedCoverSelection}
+                            />
+                          </div>
+                        </label>
+                        <div className="flex flex-col gap-2 md:w-auto">
+                          <button
+                            type="button"
+                            onClick={handleApplySharedCoverToAll}
+                            className="rounded-full bg-sky-500/80 px-4 py-2 text-xs font-semibold text-sky-950 hover:bg-sky-400 transition"
+                          >
+                            Apply to all entries
+                          </button>
+                          {multiSharedCover.file && (
+                            <button
+                              type="button"
+                              onClick={handleClearSharedCover}
+                              className="rounded-full border border-sky-500/60 px-4 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-900/60 transition"
+                            >
+                              Clear shared cover
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1475,14 +1754,6 @@ const buildPlaylistTargets = (
                                 </select>
                               </label>
                               <label className="flex flex-col gap-2 text-sm text-sky-100/80">
-                                Title
-                                <Input
-                                  placeholder="Give this entry a title"
-                                  value={entry.title}
-                                  onChange={(event) => handleMultiEntryChange(entry.id, 'title', event.target.value)}
-                                />
-                              </label>
-                              <label className="flex flex-col gap-2 text-sm text-sky-100/80">
                                 Category
                                 <select
                                   className="rounded-md border border-sky-900/60 bg-sky-950/70 px-3 py-3 text-sm text-white focus:outline-none"
@@ -1498,6 +1769,72 @@ const buildPlaylistTargets = (
                                 </select>
                               </label>
                               <label className="md:col-span-2 flex flex-col gap-2 text-sm text-sky-100/80">
+                                Title
+                                <Input
+                                  placeholder="Give this entry a title"
+                                  value={entry.title}
+                                  onChange={(event) => handleMultiEntryChange(entry.id, 'title', event.target.value)}
+                                />
+                              </label>
+                              <label className="md:col-span-2 flex flex-col gap-2 text-sm text-sky-100/80">
+                                Performer / Artist / Narrator
+                                <Input
+                                  placeholder="Leave blank to reuse the main artist info"
+                                  value={entry.performer}
+                                  onChange={(event) => handleMultiEntryChange(entry.id, 'performer', event.target.value)}
+                                />
+                                <span className="text-[11px] text-sky-200/70">
+                                  By default, we reuse the main artist set in the core details.
+                                </span>
+                              </label>
+                              <div className="md:col-span-2 flex flex-col gap-2 text-sm text-sky-100/80">
+                                <span>Cover image / artwork</span>
+                                <div className="rounded-xl border border-dashed border-sky-800 bg-sky-900/30 p-4 flex flex-col gap-3">
+                                  {entry.coverPreview ? (
+                                    <img
+                                      src={entry.coverPreview}
+                                      alt={`${entry.title || entry.fileName} cover`}
+                                      className="h-32 w-full rounded-lg object-cover"
+                                    />
+                                  ) : (
+                                    <p className="text-xs text-sky-200/70">
+                                      Upload artwork for this entry or link the shared cover.
+                                    </p>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="text-xs"
+                                    onChange={handleMultiEntryCoverChange(entry.id)}
+                                  />
+                                  <div className="flex flex-wrap gap-2">
+                                    {multiSharedCover.file && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleApplySharedCoverToEntry(entry.id)}
+                                        className="rounded-full border border-sky-500/60 px-3 py-1 text-xs text-sky-100 hover:bg-sky-900/60 transition"
+                                      >
+                                        Use shared cover
+                                      </button>
+                                    )}
+                                    {(entry.coverFile || entry.usesSharedCover) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleClearEntryCover(entry.id)}
+                                        className="rounded-full border border-rose-400/60 px-3 py-1 text-xs text-rose-200 hover:bg-rose-500/10 transition"
+                                      >
+                                        Remove cover
+                                      </button>
+                                    )}
+                                  </div>
+                                  {entry.usesSharedCover && multiSharedCover.file && (
+                                    <span className="text-[11px] text-cyan-200/80">
+                                      Linked to shared cover — updating the shared artwork will refresh this preview.
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <label className="md:col-span-2 flex flex-col gap-2 text-sm text-sky-100/80">
                                 Notes (optional)
                                 <Textarea
                                   rows={2}
@@ -1512,6 +1849,95 @@ const buildPlaylistTargets = (
                       })}
                     </div>
                   )}
+                </section>
+
+                <section className="rounded-2xl border border-sky-900/70 bg-sky-950/40 p-4 md:p-5">
+                  <p className="text-xs uppercase tracking-[0.2em] text-sky-200/80 font-semibold mb-3">
+                    3. Collection details
+                  </p>
+                  <div className="flex flex-col gap-3">
+                    <label className="flex flex-col gap-2 text-sm text-sky-100/80">
+                      Collection title
+                      <Input
+                        placeholder="Folder / album name"
+                        value={baseValues.title}
+                        onChange={handleBaseValueChange('title')}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-2 text-sm text-sky-100/80">
+                      Artist / Band / Author / Performer / Narrator
+                      <Input
+                        placeholder="e.g. Analog Voyage Collective"
+                        value={baseValues.creatorName}
+                        onChange={handleBaseValueChange('creatorName')}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-2 text-sm text-sky-100/80">
+                      Description
+                      <Textarea
+                        rows={4}
+                        placeholder="Share a short elevator pitch for the whole folder"
+                        value={baseValues.description}
+                        onChange={handleBaseValueChange('description')}
+                      />
+                    </label>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <label className="flex flex-col gap-2 text-sm text-sky-100/80">
+                        Tags
+                        <Input
+                          placeholder="synthwave, chill, live"
+                          value={baseValues.tags}
+                          onChange={handleBaseValueChange('tags')}
+                        />
+                      </label>
+                      <label className="flex flex-col gap-2 text-sm text-sky-100/80">
+                        Release date
+                        <Input
+                          type="date"
+                          value={baseValues.releaseDate}
+                          onChange={handleBaseValueChange('releaseDate')}
+                        />
+                      </label>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <label className="flex flex-col gap-2 text-sm text-sky-100/80">
+                        Visibility
+                        <select
+                          className="
+                            flex 
+                            w-full 
+                            rounded-md 
+                            bg-sky-950/70
+                            border
+                            border-sky-900/60
+                            px-3 
+                            py-3 
+                            text-sm 
+                            text-white
+                            focus:outline-none
+                          "
+                          value={baseValues.visibility}
+                          onChange={(event) =>
+                            setBaseValues((prev) => ({
+                              ...prev,
+                              visibility: event.target.value as BaseValues['visibility'],
+                            }))
+                          }
+                          >
+                            <option value="public">Public</option>
+                            <option value="limited">Link-only</option>
+                          </select>
+                      </label>
+                      <label className="flex flex-col gap-2 text-sm text-sky-100/80">
+                        (Optional) Support price
+                        <Input
+                          placeholder="e.g. 5 QORT"
+                          value={baseValues.price}
+                          onChange={handleBaseValueChange('price')}
+                        />
+                      </label>
+                    </div>
+                  </div>
                 </section>
                 <section className="rounded-2xl border border-sky-900/70 bg-sky-950/40 p-4 md:p-5">
                   <p className="text-xs uppercase tracking-[0.2em] text-sky-200/80 font-semibold mb-3">
@@ -1676,7 +2102,6 @@ const buildPlaylistTargets = (
                             }
                           >
                             <option value="public">Public</option>
-                            <option value="draft">Draft</option>
                             <option value="limited">Link-only</option>
                           </select>
                         </label>

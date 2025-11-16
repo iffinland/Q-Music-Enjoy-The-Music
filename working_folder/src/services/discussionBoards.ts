@@ -4,11 +4,13 @@ import {
   DiscussionThread,
   ReplyAccess,
 } from '../state/features/discussionsSlice';
+import { deleteQdnResource } from '../utils/qortalApi';
 import { objectToBase64 } from '../utils/toBase64';
-import { cachedSearchQdnResources } from './resourceCache';
+import { cachedSearchQdnResources, clearSearchCache } from './resourceCache';
 
 const THREAD_IDENTIFIER_PREFIX = 'qm_discussion_thread_';
 const REPLY_IDENTIFIER_PREFIX = 'qm_discussion_reply_';
+const REPLY_LIKE_IDENTIFIER_PREFIX = 'qm_discussion_like_';
 const THREAD_SERVICE = 'DOCUMENT';
 const PAGE_SIZE = 200;
 const CONCURRENCY_LIMIT = 10;
@@ -62,20 +64,19 @@ const fetchSummaries = async (identifierPrefix: string) => {
 const mapWithConcurrency = async <T, R>(
   items: T[],
   limit: number,
-  task: (item: T, index: number) => Promise<R>,
+  worker: (item: T, index: number) => Promise<R>,
 ): Promise<R[]> => {
+  if (items.length === 0) return [];
   const results: R[] = new Array(items.length);
   let cursor = 0;
-
-  const workers = Array.from({ length: Math.min(limit, items.length) }).map(async () => {
+  const tasks = Array.from({ length: Math.min(items.length, limit) }).map(async () => {
     while (cursor < items.length) {
       const current = cursor;
       cursor += 1;
-      results[current] = await task(items[current], current);
+      results[current] = await worker(items[current], current);
     }
   });
-
-  await Promise.all(workers);
+  await Promise.all(tasks);
   return results;
 };
 
@@ -144,7 +145,38 @@ const sanitizeReply = (
     updated: data.updated ?? fallback.updated,
     parentReplyId: data.parentReplyId ?? null,
     attachments: sanitizeAttachments(data.attachments),
+    likes: Array.isArray((data as any).likes) ? ((data as any).likes as string[]) : [],
   };
+};
+
+interface ReplyLike {
+  replyId: string;
+  liker: string;
+}
+
+const decodeIdentifierSegment = (value: string | undefined) => {
+  if (!value) return '';
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
+const sanitizeReplyLike = (
+  data: Partial<ReplyLike>,
+  fallback: { identifier: string; name: string },
+): ReplyLike | null => {
+  const trimmed = (fallback.identifier || '').replace(REPLY_LIKE_IDENTIFIER_PREFIX, '');
+  const [replySegment, likerSegment] = trimmed.split('__');
+  const derivedReplyId = decodeIdentifierSegment(replySegment);
+  const derivedLiker = decodeIdentifierSegment(likerSegment);
+
+  const replyId = (data.replyId as string) || derivedReplyId;
+  const liker = (data.liker as string) || derivedLiker || fallback.name;
+
+  if (!replyId || !liker) return null;
+  return { replyId, liker };
 };
 
 const publishDocument = async (
@@ -169,9 +201,10 @@ const publishDocument = async (
 };
 
 export const fetchDiscussionThreadsFromQdn = async (): Promise<DiscussionThread[]> => {
-  const [threadSummaries, replySummaries] = await Promise.all([
+  const [threadSummaries, replySummaries, likeSummaries] = await Promise.all([
     fetchSummaries(THREAD_IDENTIFIER_PREFIX),
     fetchSummaries(REPLY_IDENTIFIER_PREFIX),
+    fetchSummaries(REPLY_LIKE_IDENTIFIER_PREFIX),
   ]);
 
   const threadResults = await mapWithConcurrency(
@@ -191,6 +224,7 @@ export const fetchDiscussionThreadsFromQdn = async (): Promise<DiscussionThread[
   const threads = threadResults.filter((thread): thread is DiscussionThread => Boolean(thread));
 
   const repliesByThread = new Map<string, DiscussionReply[]>();
+  const likesByReply = new Map<string, string[]>();
 
   const replyResults = await mapWithConcurrency(
     replySummaries,
@@ -210,12 +244,37 @@ export const fetchDiscussionThreadsFromQdn = async (): Promise<DiscussionThread[
       repliesByThread.set(reply.threadId, existing);
     });
 
+  const likeResults = await mapWithConcurrency(
+    likeSummaries,
+    CONCURRENCY_LIMIT,
+    async (summary) => {
+      if (!summary?.identifier?.startsWith(REPLY_LIKE_IDENTIFIER_PREFIX)) return null;
+      const payload = await fetchQdnJson(summary.name, summary.identifier);
+      return sanitizeReplyLike(payload ?? {}, summary);
+    },
+  );
+
+  likeResults
+    .filter((like): like is ReplyLike => Boolean(like))
+    .forEach((like) => {
+      const existing = likesByReply.get(like.replyId) ?? [];
+      if (!existing.includes(like.liker)) {
+        existing.push(like.liker);
+      }
+      likesByReply.set(like.replyId, existing);
+    });
+
   return threads
     .map((thread) => {
       const replies = repliesByThread.get(thread.id) ?? [];
       return {
         ...thread,
-        replies: replies.sort((a, b) => (a.created ?? 0) - (b.created ?? 0)),
+        replies: replies
+          .map((reply) => ({
+            ...reply,
+            likes: likesByReply.get(reply.id) ?? [],
+          }))
+          .sort((a, b) => (a.created ?? 0) - (b.created ?? 0)),
         updated: replies.length > 0
           ? Math.max(thread.updated ?? thread.created, replies[replies.length - 1].created)
           : thread.updated ?? thread.created,
@@ -295,6 +354,7 @@ export const publishDiscussionReply = async (
     created: now,
     parentReplyId: payload.parentReplyId ?? null,
     attachments: payload.attachments ?? [],
+    likes: [],
   };
 
   await publishDocument(
@@ -358,4 +418,37 @@ export const deleteDiscussionReply = async (reply: DiscussionReply): Promise<voi
     'Discussion reply deleted',
     'Reply deleted by author',
   );
+};
+
+const buildReplyLikeIdentifier = (replyId: string, liker: string): string =>
+  `${REPLY_LIKE_IDENTIFIER_PREFIX}${encodeURIComponent(replyId)}__${encodeURIComponent(liker)}`;
+
+export const likeDiscussionReply = async (reply: DiscussionReply, liker: string): Promise<void> => {
+  const identifier = buildReplyLikeIdentifier(reply.id, liker);
+  const payload = {
+    replyId: reply.id,
+    threadId: reply.threadId,
+    liker,
+    author: reply.author,
+    created: Date.now(),
+  };
+
+  await publishDocument(
+    liker,
+    identifier,
+    payload as Record<string, unknown>,
+    `Reply like: ${reply.threadId}`,
+    `Support for reply ${reply.id}`,
+  );
+  clearSearchCache();
+};
+
+export const unlikeDiscussionReply = async (reply: DiscussionReply, liker: string): Promise<void> => {
+  const identifier = buildReplyLikeIdentifier(reply.id, liker);
+  await deleteQdnResource({
+    name: liker,
+    service: THREAD_SERVICE,
+    identifier,
+  });
+  clearSearchCache();
 };

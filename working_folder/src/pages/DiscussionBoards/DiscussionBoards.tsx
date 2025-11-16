@@ -17,6 +17,8 @@ import {
   FiShare2,
   FiSend,
 } from 'react-icons/fi';
+import { FaHandHoldingUsd } from 'react-icons/fa';
+import { FiThumbsUp } from 'react-icons/fi';
 import { HiOutlineLockClosed } from 'react-icons/hi';
 import { toast } from 'react-hot-toast';
 import Header from '../../components/Header';
@@ -45,8 +47,10 @@ import {
   deleteDiscussionReply,
   deleteDiscussionThread,
   fetchDiscussionThreadsFromQdn,
+  likeDiscussionReply,
   publishDiscussionReply,
   publishDiscussionThread,
+  unlikeDiscussionReply,
   updateDiscussionReply,
 } from '../../services/discussionBoards';
 import { readLastReadTimestamp, persistLastReadTimestamp } from '../../utils/discussionsReadState';
@@ -54,6 +58,7 @@ import { buildDiscussionShareUrl } from '../../utils/qortalLinks';
 import RichTextInput from '../../components/RichTextInput';
 import AttachmentList from '../../components/AttachmentList';
 import { renderRichText, stripRichText } from '../../utils/richText';
+import useSendTipModal from '../../hooks/useSendTipModal';
 
 const replyAccessOptions: Array<{ label: string; value: ReplyAccess; helper: string }> = [
   {
@@ -114,6 +119,7 @@ const DiscussionBoards: React.FC = () => {
     (state: RootState) => state.discussions,
   );
   const username = useSelector((state: RootState) => state.auth.user?.name || '');
+  const sendTipModal = useSendTipModal();
   const hasUnread = unreadThreadIds.length > 0;
   const lastReadHydratedRef = useRef(false);
   const replyComposerRef = useRef<HTMLDivElement | null>(null);
@@ -157,6 +163,7 @@ const DiscussionBoards: React.FC = () => {
   const [isSavingReplyEdit, setIsSavingReplyEdit] = useState(false);
   const [isDeletingThread, setIsDeletingThread] = useState(false);
   const [deletingReplyId, setDeletingReplyId] = useState<string | null>(null);
+  const [likingReplyId, setLikingReplyId] = useState<string | null>(null);
 
   const lastReadRef = useRef(0);
   useEffect(() => {
@@ -296,6 +303,13 @@ const DiscussionBoards: React.FC = () => {
     });
     grouped.forEach((bucket) => bucket.sort((a, b) => (a.created ?? 0) - (b.created ?? 0)));
     return grouped;
+  }, [selectedThread]);
+
+  const repliesById = useMemo(() => {
+    const map = new Map<string, DiscussionReply>();
+    if (!selectedThread) return map;
+    selectedThread.replies.forEach((reply) => map.set(reply.id, reply));
+    return map;
   }, [selectedThread]);
 
   useEffect(() => {
@@ -475,6 +489,37 @@ const DiscussionBoards: React.FC = () => {
     }
   };
 
+  const toggleReplyLike = async (reply: DiscussionReply) => {
+    if (!username) {
+      toast.error('Log in to support replies.');
+      return;
+    }
+    if (likingReplyId) return;
+    const likesList = Array.isArray(reply.likes) ? reply.likes : [];
+    const hasLiked = likesList.includes(username);
+    const optimisticLikes = hasLiked
+      ? likesList.filter((name) => name !== username)
+      : [...likesList, username];
+    const optimisticReply = { ...reply, likes: optimisticLikes };
+    dispatch(updateReplyInThread({ threadId: reply.threadId, reply: optimisticReply }));
+    setLikingReplyId(reply.id);
+    try {
+      if (hasLiked) {
+        await unlikeDiscussionReply(reply, username);
+        toast.success('Like removed.');
+      } else {
+        sendTipModal.open(reply.author);
+        await likeDiscussionReply(reply, username);
+        toast.success('Thanks for supporting this reply.');
+      }
+    } catch (err: any) {
+      dispatch(updateReplyInThread({ threadId: reply.threadId, reply }));
+      toast.error(err?.message || 'Failed to update like.');
+    } finally {
+      setLikingReplyId(null);
+    }
+  };
+
   const toggleThreadEdit = (threadId: string) => {
     setSelectedThreadId(threadId);
     if (editingThreadId === threadId) {
@@ -556,8 +601,18 @@ const DiscussionBoards: React.FC = () => {
         && isUserAllowedToReply
         && selectedThread.status !== 'locked';
       const containerClasses = depth > 0
-        ? 'rounded-xl border border-slate-800/70 bg-slate-950/40 px-4 py-3'
-        : 'rounded-xl border border-slate-800/60 bg-slate-900/40 px-4 py-3';
+        ? 'rounded-xl border border-sky-800/50 bg-sky-900/25 px-4 py-3'
+        : 'rounded-xl border border-sky-900/60 bg-sky-950/35 px-4 py-3';
+      const parentReply = reply.parentReplyId ? repliesById.get(reply.parentReplyId) : null;
+      const parentPreview = parentReply
+        ? stripRichText(parentReply.body).split('\n')[0].slice(0, 110)
+        : '';
+      const likesList = Array.isArray(reply.likes) ? reply.likes : [];
+      const likeTooltip = likesList.includes(username || '')
+        ? (likesList.length > 0
+          ? `Liked by ${likesList.join(', ')}`
+          : 'Liked')
+        : 'Like It & Send Tips';
 
       return (
         <div key={reply.id} id={`reply-${reply.id}`} className="space-y-2">
@@ -583,6 +638,22 @@ const DiscussionBoards: React.FC = () => {
               </div>
             ) : (
               <>
+                {parentReply && (
+                  <div className="mt-2 rounded-lg border border-orange-500/40 bg-orange-950/30 px-3 py-2 text-xs text-orange-100">
+                    Replying to <span className="font-semibold text-orange-200">{parentReply.author}</span>
+                    {parentPreview && (
+                      <>
+                        :&nbsp;
+                        <span className="italic text-orange-100">
+                          “
+                          {parentPreview}
+                          {parentPreview.length >= 110 ? '…' : ''}
+                          ”
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
                 <div
                   className="mt-2 text-sm text-slate-100"
                   dangerouslySetInnerHTML={{ __html: renderRichText(reply.body) }}
@@ -591,6 +662,26 @@ const DiscussionBoards: React.FC = () => {
               </>
             )}
             <div className="mt-3 flex flex-wrap gap-2 text-sm">
+              <button
+                type="button"
+                onClick={() => toggleReplyLike(reply)}
+                disabled={likingReplyId === reply.id}
+                className={`flex items-center gap-1 rounded-md border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${
+                  likesList.includes(username || '')
+                    ? 'border-emerald-400/60 bg-emerald-600/20 text-emerald-100'
+                    : 'border-sky-700/60 text-sky-100 hover:bg-sky-900/40'
+                }`}
+                title={likeTooltip}
+                aria-pressed={likesList.includes(username || '')}
+              >
+                <span className="flex items-center gap-1">
+                  <span className="flex items-center rounded-full bg-sky-900/60 p-1">
+                    <FiThumbsUp className="text-[11px]" />
+                  </span>
+                  <FaHandHoldingUsd className="text-base" />
+                  <span>{likesList.length}</span>
+                </span>
+              </button>
               <button
                 type="button"
                 onClick={() => beginReplyTo(reply)}
@@ -736,7 +827,7 @@ const DiscussionBoards: React.FC = () => {
     return (
       <div
         ref={replyComposerRef}
-        className="space-y-3 rounded-xl border border-sky-900/60 bg-slate-950/60 p-4"
+        className="space-y-3 rounded-xl border border-sky-900/60 bg-sky-950/45 p-4"
       >
         {replyingTo && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-orange-500/50 bg-orange-950/40 px-3 py-2 text-xs text-orange-100">
@@ -817,7 +908,7 @@ const DiscussionBoards: React.FC = () => {
         </div>
 
         {showComposer && (
-          <Box className="border border-sky-900/60 bg-slate-950/70 px-4 py-5">
+          <Box className="border border-sky-900/70 bg-sky-950/70 px-4 py-5">
             <div className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1">
@@ -955,7 +1046,7 @@ const DiscussionBoards: React.FC = () => {
       )}
 
       <div className="flex flex-col gap-6 lg:flex-row">
-        <Box className="border border-sky-900/60 bg-slate-950/70 px-4 py-5 lg:w-[40%]">
+        <Box className="border border-sky-900/70 bg-sky-950/60 px-4 py-5 lg:w-[40%]">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-white">Threads</h2>
@@ -1006,10 +1097,10 @@ const DiscussionBoards: React.FC = () => {
               const isThreadUnread = unreadThreadIds.includes(thread.id);
               const plainBody = stripRichText(thread.body);
               const cardClasses = isActive
-                ? 'border-emerald-400/70 bg-emerald-900/20 shadow-lg shadow-emerald-900/30'
+                ? 'border-emerald-400/70 bg-emerald-900/25 shadow-lg shadow-emerald-900/30'
                 : isThreadUnread
-                  ? 'border-orange-400/70 bg-orange-900/10 hover:border-orange-400/90'
-                  : 'border-sky-800/60 bg-slate-900/50 hover:border-sky-600/80';
+                  ? 'border-orange-400/70 bg-orange-900/15 hover:border-orange-400/90'
+                  : 'border-sky-800/60 bg-sky-950/40 hover:border-sky-600/80';
               return (
                 <li key={thread.id}>
                   <div
@@ -1086,7 +1177,7 @@ const DiscussionBoards: React.FC = () => {
           </ul>
         </Box>
 
-        <Box className="flex-1 border border-sky-900/60 bg-slate-950/70 px-4 py-5">
+        <Box className="flex-1 border border-sky-900/60 bg-sky-950/55 px-4 py-5">
           {!selectedThread ? (
             <div className="flex h-full items-center justify-center rounded-xl border border-slate-800/60 bg-slate-900/40 p-6 text-center text-slate-300">
               Select a thread from the list to view its details.
@@ -1255,7 +1346,7 @@ const DiscussionBoards: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4 rounded-xl border border-slate-800/60 bg-slate-900/40 p-4">
+                <div className="space-y-4 rounded-xl border border-sky-800/60 bg-sky-900/35 p-4">
                   <div
                     className="text-base text-slate-100"
                     dangerouslySetInnerHTML={{ __html: renderRichText(selectedThread.body) }}

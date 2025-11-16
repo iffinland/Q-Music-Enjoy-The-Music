@@ -19,6 +19,7 @@ export interface DiscussionReply {
   updated?: number;
   parentReplyId?: string | null;
   attachments: DiscussionAttachment[];
+  likes: string[];
 }
 
 export interface DiscussionThread {
@@ -90,7 +91,12 @@ export const discussionsSlice = createSlice({
       const { threadId, reply } = action.payload;
       const thread = state.threads.find((item) => item.id === threadId);
       if (!thread) return;
-      thread.replies = sortReplies([...thread.replies, reply]);
+      const normalized: DiscussionReply = {
+        ...reply,
+        likes: Array.isArray(reply.likes) ? reply.likes : [],
+        attachments: Array.isArray(reply.attachments) ? reply.attachments : [],
+      };
+      thread.replies = sortReplies([...thread.replies, normalized]);
       thread.updated = Math.max(thread.updated ?? 0, reply.created);
       state.threads = sortThreads(state.threads);
     },
@@ -103,7 +109,11 @@ export const discussionsSlice = createSlice({
       if (!thread) return;
       const index = thread.replies.findIndex((item) => item.id === reply.id);
       if (index === -1) return;
-      thread.replies[index] = reply;
+      thread.replies[index] = {
+        ...reply,
+        likes: Array.isArray(reply.likes) ? reply.likes : [],
+        attachments: Array.isArray(reply.attachments) ? reply.attachments : [],
+      };
       thread.replies = sortReplies(thread.replies);
       thread.updated = Math.max(thread.updated ?? 0, reply.updated ?? reply.created);
       state.threads = sortThreads(state.threads);

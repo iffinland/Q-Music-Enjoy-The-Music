@@ -71,16 +71,16 @@ const HomeSection: React.FC<{
 );
 
 const HomeHero = () => (
-  <section className="rounded-2xl border border-sky-900/60 bg-gradient-to-br from-sky-950/85 via-sky-900/60 to-sky-950/80 px-4 py-5 shadow-lg sm:px-6 sm:py-6">
-    <div className="mx-auto flex max-w-3xl flex-col gap-4">
-      <h1 className="text-2xl font-bold text-white md:text-3xl">
+  <section className="rounded-2xl border border-sky-900/60 bg-gradient-to-br from-sky-950/85 via-sky-900/60 to-sky-950/80 px-4 py-3 shadow-lg sm:px-6 sm:py-4">
+    <div className="mx-auto flex max-w-4xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <h1 className="text-lg font-bold text-white md:text-xl md:max-w-2xl">
         <span className="inline-flex items-center gap-3">
-          <img src={qmusicLogo} alt="Q-Music logo" className="h-9 w-9 shrink-0" />
-          Enjoy and share music, podcasts, and audiobooks with the Q-Music community
+          <img src={qmusicLogo} alt="Q-Music logo" className="h-12 w-12 shrink-0" />
+          Enjoy & share music, podcasts & audiobooks with the Q-Music community
         </span>
       </h1>
-      <p className="text-sm text-sky-200/85 md:text-base">
-        Discover the latest community creations and keep your library fresh with new songs, playlists, podcasts, audiobooks and videos.
+      <p className="text-[0.65rem] leading-snug text-sky-200/80 md:max-w-xs md:text-[0.7rem] md:text-left">
+        Discover the latest community creations and keep your library fresh with new songs, playlists, podcasts, audiobooks and videos. Request your favorites & earn more QORTs.
       </p>
     </div>
   </section>
