@@ -25,6 +25,7 @@ import Button from '../../components/Button';
 import {
   addReplyToThread,
   clearThreadUnread,
+  DiscussionAttachment,
   DiscussionReply,
   DiscussionThread,
   markAllThreadsRead,
@@ -50,6 +51,9 @@ import {
 } from '../../services/discussionBoards';
 import { readLastReadTimestamp, persistLastReadTimestamp } from '../../utils/discussionsReadState';
 import { buildDiscussionShareUrl } from '../../utils/qortalLinks';
+import RichTextInput from '../../components/RichTextInput';
+import AttachmentList from '../../components/AttachmentList';
+import { renderRichText, stripRichText } from '../../utils/richText';
 
 const replyAccessOptions: Array<{ label: string; value: ReplyAccess; helper: string }> = [
   {
@@ -125,6 +129,7 @@ const DiscussionBoards: React.FC = () => {
     tags: '',
     replyAccess: 'everyone' as ReplyAccess,
     allowed: '',
+    attachments: [] as DiscussionAttachment[],
   });
 
   const [threadEditState, setThreadEditState] = useState({
@@ -134,12 +139,15 @@ const DiscussionBoards: React.FC = () => {
     replyAccess: 'everyone' as ReplyAccess,
     allowed: '',
     status: 'open' as 'open' | 'locked',
+    attachments: [] as DiscussionAttachment[],
   });
 
   const [newReplyDraft, setNewReplyDraft] = useState('');
+  const [newReplyAttachments, setNewReplyAttachments] = useState<DiscussionAttachment[]>([]);
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [replyEditDraft, setReplyEditDraft] = useState('');
+  const [replyEditAttachments, setReplyEditAttachments] = useState<DiscussionAttachment[]>([]);
   const [replyingTo, setReplyingTo] = useState<DiscussionReply | null>(null);
   const [replyScrollTarget, setReplyScrollTarget] = useState<string | null>(null);
 
@@ -150,6 +158,11 @@ const DiscussionBoards: React.FC = () => {
   const [isDeletingThread, setIsDeletingThread] = useState(false);
   const [deletingReplyId, setDeletingReplyId] = useState<string | null>(null);
 
+  const lastReadRef = useRef(0);
+  useEffect(() => {
+    lastReadRef.current = lastReadTimestamp;
+  }, [lastReadTimestamp]);
+
   const loadThreads = useCallback(async () => {
     dispatch(setDiscussionsLoading(true));
     dispatch(setDiscussionsError(null));
@@ -157,7 +170,7 @@ const DiscussionBoards: React.FC = () => {
       const data = await fetchDiscussionThreadsFromQdn();
       dispatch(setDiscussionThreads(data));
       const lastRead = lastReadHydratedRef.current
-        ? lastReadTimestamp
+        ? lastReadRef.current
         : readLastReadTimestamp();
       const unreadIds = data
         .filter((thread) => {
@@ -173,7 +186,7 @@ const DiscussionBoards: React.FC = () => {
     } finally {
       dispatch(setDiscussionsLoading(false));
     }
-  }, [dispatch, lastReadTimestamp]);
+  }, [dispatch]);
 
   useEffect(() => {
     loadThreads();
@@ -210,6 +223,7 @@ const DiscussionBoards: React.FC = () => {
 
   useEffect(() => {
     setReplyingTo(null);
+    setNewReplyAttachments([]);
   }, [selectedThreadId]);
 
   useEffect(() => {
@@ -238,6 +252,7 @@ const DiscussionBoards: React.FC = () => {
         replyAccess: selectedThread.replyAccess,
         allowed: selectedThread.allowedResponders.join(', '),
         status: selectedThread.status,
+        attachments: selectedThread.attachments ?? [],
       });
     }
   }, [selectedThread, editingThreadId]);
@@ -247,7 +262,7 @@ const DiscussionBoards: React.FC = () => {
     const term = searchTerm.toLowerCase();
     return threads.filter((thread) => (
       thread.title.toLowerCase().includes(term)
-      || thread.body.toLowerCase().includes(term)
+      || stripRichText(thread.body).toLowerCase().includes(term)
       || thread.tags.some((tag) => tag.toLowerCase().includes(term))
       || thread.publisher.toLowerCase().includes(term)
     ));
@@ -317,6 +332,7 @@ const DiscussionBoards: React.FC = () => {
         replyAccess: composerState.replyAccess,
         allowedResponders,
         publisher: username,
+        attachments: composerState.attachments,
       });
       dispatch(upsertDiscussionThread(thread));
       setSelectedThreadId(thread.id);
@@ -325,8 +341,9 @@ const DiscussionBoards: React.FC = () => {
         title: '',
         body: '',
         tags: '',
-        replyAccess: 'everyone',
+        replyAccess: 'everyone' as ReplyAccess,
         allowed: '',
+        attachments: [],
       });
       toast.success('Thread published');
     } catch (err: any) {
@@ -360,6 +377,7 @@ const DiscussionBoards: React.FC = () => {
         created: selectedThread.created,
         updated: Date.now(),
         replies: selectedThread.replies,
+        attachments: threadEditState.attachments,
       });
       dispatch(upsertDiscussionThread(updatedThread));
       setEditingThreadId(null);
@@ -391,9 +409,11 @@ const DiscussionBoards: React.FC = () => {
         author: username,
         body: newReplyDraft.trim(),
         parentReplyId: replyingTo?.id ?? null,
+        attachments: newReplyAttachments,
       });
       dispatch(addReplyToThread({ threadId: selectedThread.id, reply }));
       setNewReplyDraft('');
+      setNewReplyAttachments([]);
       setReplyingTo(null);
       toast.success('Reply posted');
     } catch (err: any) {
@@ -457,7 +477,32 @@ const DiscussionBoards: React.FC = () => {
 
   const toggleThreadEdit = (threadId: string) => {
     setSelectedThreadId(threadId);
-    setEditingThreadId((prev) => (prev === threadId ? null : threadId));
+    if (editingThreadId === threadId) {
+      setEditingThreadId(null);
+      setThreadEditState((prev) => ({
+        ...prev,
+        title: '',
+        body: '',
+        tags: '',
+        replyAccess: 'everyone' as ReplyAccess,
+        allowed: '',
+        status: 'open' as 'open' | 'locked',
+        attachments: [],
+      }));
+      return;
+    }
+    const thread = threads.find((item) => item.id === threadId);
+    if (!thread) return;
+    setEditingThreadId(threadId);
+    setThreadEditState({
+      title: thread.title,
+      body: thread.body,
+      tags: thread.tags.join(', '),
+      replyAccess: thread.replyAccess,
+      allowed: thread.allowedResponders.join(', '),
+      status: thread.status,
+      attachments: thread.attachments ?? [],
+    });
   };
 
   const focusReplyComposer = (reply: DiscussionReply | null = null) => {
@@ -525,16 +570,25 @@ const DiscussionBoards: React.FC = () => {
               <span>{formatTimestamp(reply.updated ?? reply.created)}</span>
             </div>
             {isEditing ? (
-              <textarea
-                value={replyEditDraft}
-                onChange={(event) => setReplyEditDraft(event.target.value)}
-                rows={3}
-                className="mt-3 w-full rounded-lg border border-sky-800/70 bg-slate-950/70 px-3 py-2 text-sm text-slate-50 focus:border-sky-400 focus:outline-none"
-              />
+              <div className="mt-3 w-full">
+                <RichTextInput
+                  id={`reply-edit-${reply.id}`}
+                  value={replyEditDraft}
+                  onChange={setReplyEditDraft}
+                  attachments={replyEditAttachments}
+                  onAttachmentsChange={setReplyEditAttachments}
+                  minRows={3}
+                  placeholder="Update your reply…"
+                />
+              </div>
             ) : (
-              <p className="mt-2 whitespace-pre-line text-sm text-slate-100">
-                {reply.body}
-              </p>
+              <>
+                <div
+                  className="mt-2 text-sm text-slate-100"
+                  dangerouslySetInnerHTML={{ __html: renderRichText(reply.body) }}
+                />
+                <AttachmentList attachments={reply.attachments} />
+              </>
             )}
             <div className="mt-3 flex flex-wrap gap-2 text-sm">
               <button
@@ -564,6 +618,7 @@ const DiscussionBoards: React.FC = () => {
                       onClick={() => {
                         setEditingReplyId(null);
                         setReplyEditDraft('');
+                        setReplyEditAttachments([]);
                       }}
                       disabled={isSavingReplyEdit}
                     >
@@ -609,6 +664,7 @@ const DiscussionBoards: React.FC = () => {
   const beginReplyEdit = (reply: DiscussionReply) => {
     setEditingReplyId(reply.id);
     setReplyEditDraft(reply.body);
+    setReplyEditAttachments(reply.attachments ?? []);
   };
 
   const handleSaveReplyEdit = async () => {
@@ -626,10 +682,15 @@ const DiscussionBoards: React.FC = () => {
 
     setIsSavingReplyEdit(true);
     try {
-      const updatedReply = await updateDiscussionReply(reply, replyEditDraft.trim());
+      const updatedReply = await updateDiscussionReply(
+        reply,
+        replyEditDraft.trim(),
+        replyEditAttachments,
+      );
       dispatch(updateReplyInThread({ threadId: selectedThread.id, reply: updatedReply }));
       setEditingReplyId(null);
       setReplyEditDraft('');
+      setReplyEditAttachments([]);
       toast.success('Reply updated');
     } catch (err: any) {
       toast.error(err?.message || 'Failed to update reply.');
@@ -700,15 +761,15 @@ const DiscussionBoards: React.FC = () => {
         <label htmlFor="reply-input" className="text-sm font-semibold text-sky-100">
           Add your reply
         </label>
-        <textarea
+        <RichTextInput
           id="reply-input"
           value={newReplyDraft}
-          onChange={(event) => setNewReplyDraft(event.target.value)}
-          className="min-h-[120px] w-full rounded-lg border border-sky-800/70 bg-slate-900/70 px-4 py-3 text-sm text-slate-50 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
+          onChange={setNewReplyDraft}
+          attachments={newReplyAttachments}
+          onAttachmentsChange={setNewReplyAttachments}
           placeholder="Share your thoughts, attach resources or ask a follow-up."
         />
-        <div className="flex flex-col gap-2 text-sm text-slate-400 md:flex-row md:items-center md:justify-between">
-          <span>{newReplyDraft.trim().length} characters</span>
+        <div className="flex flex-col gap-2 text-sm text-slate-400 md:flex-row md:items-center md:justify-end">
           <Button
             className="flex items-center justify-center gap-2 rounded-md bg-sky-500/90 px-5 py-2 text-sm font-semibold text-slate-900 hover:bg-sky-400 md:w-auto disabled:opacity-60"
             onClick={handleCreateReply}
@@ -788,13 +849,13 @@ const DiscussionBoards: React.FC = () => {
                 <label className="text-sm font-semibold text-sky-100" htmlFor="thread-body">
                   Description
                 </label>
-                <textarea
+                <RichTextInput
                   id="thread-body"
                   value={composerState.body}
-                  onChange={(event) => setComposerState((prev) => ({ ...prev, body: event.target.value }))}
-                  rows={4}
+                  onChange={(value) => setComposerState((prev) => ({ ...prev, body: value }))}
+                  attachments={composerState.attachments}
+                  onAttachmentsChange={(attachments) => setComposerState((prev) => ({ ...prev, attachments }))}
                   placeholder="Set the context. Link to resources, embed guidelines, describe the goal."
-                  className="w-full rounded-lg border border-sky-800/70 bg-slate-900/70 px-4 py-3 text-sm text-slate-50 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
                 />
               </div>
               <div className="grid gap-4 md:grid-cols-3">
@@ -842,8 +903,9 @@ const DiscussionBoards: React.FC = () => {
                       title: '',
                       body: '',
                       tags: '',
-                      replyAccess: 'everyone',
+                      replyAccess: 'everyone' as ReplyAccess,
                       allowed: '',
+                      attachments: [],
                     });
                   }}
                   disabled={isPublishingThread}
@@ -942,6 +1004,7 @@ const DiscussionBoards: React.FC = () => {
               const isActive = selectedThreadId === thread.id;
               const isOwnThread = thread.publisher === username;
               const isThreadUnread = unreadThreadIds.includes(thread.id);
+              const plainBody = stripRichText(thread.body);
               const cardClasses = isActive
                 ? 'border-emerald-400/70 bg-emerald-900/20 shadow-lg shadow-emerald-900/30'
                 : isThreadUnread
@@ -994,7 +1057,7 @@ const DiscussionBoards: React.FC = () => {
                       </div>
                     </div>
                     <p className="mt-1 max-h-16 overflow-hidden text-sm text-slate-300">
-                      {thread.body}
+                      {plainBody}
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
                       <span>{thread.replies.length} replies</span>
@@ -1100,12 +1163,13 @@ const DiscussionBoards: React.FC = () => {
                     <label className="text-sm font-semibold text-sky-100" htmlFor="edit-thread-body">
                       Content
                     </label>
-                    <textarea
+                    <RichTextInput
                       id="edit-thread-body"
                       value={threadEditState.body}
-                      onChange={(event) => setThreadEditState((prev) => ({ ...prev, body: event.target.value }))}
-                      rows={4}
-                      className="w-full rounded-lg border border-sky-800/70 bg-slate-900/70 px-4 py-3 text-sm text-slate-50 focus:border-sky-400 focus:outline-none"
+                      onChange={(value) => setThreadEditState((prev) => ({ ...prev, body: value }))}
+                      attachments={threadEditState.attachments}
+                      onAttachmentsChange={(attachments) => setThreadEditState((prev) => ({ ...prev, attachments }))}
+                      placeholder="Update the context or add detailed guidance."
                     />
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
@@ -1192,7 +1256,11 @@ const DiscussionBoards: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-4 rounded-xl border border-slate-800/60 bg-slate-900/40 p-4">
-                  <p className="text-base text-slate-100 whitespace-pre-line">{selectedThread.body}</p>
+                  <div
+                    className="text-base text-slate-100"
+                    dangerouslySetInnerHTML={{ __html: renderRichText(selectedThread.body) }}
+                  />
+                  <AttachmentList attachments={selectedThread.attachments} />
                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
                     <span>Updated {formatTimestamp(selectedThread.updated ?? selectedThread.created)}</span>
                     <span>•</span>

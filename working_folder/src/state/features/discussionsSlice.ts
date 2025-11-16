@@ -2,6 +2,14 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export type ReplyAccess = 'everyone' | 'publisher' | 'custom';
 
+export interface DiscussionAttachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  dataUrl: string;
+}
+
 export interface DiscussionReply {
   id: string; // QDN identifier for the reply resource
   threadId: string;
@@ -10,6 +18,7 @@ export interface DiscussionReply {
   created: number;
   updated?: number;
   parentReplyId?: string | null;
+  attachments: DiscussionAttachment[];
 }
 
 export interface DiscussionThread {
@@ -24,6 +33,7 @@ export interface DiscussionThread {
   replyAccess: ReplyAccess;
   allowedResponders: string[];
   status: 'open' | 'locked';
+  attachments: DiscussionAttachment[];
 }
 
 interface DiscussionsState {

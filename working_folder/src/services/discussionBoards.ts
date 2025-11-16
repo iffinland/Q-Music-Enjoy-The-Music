@@ -1,4 +1,5 @@
 import {
+  DiscussionAttachment,
   DiscussionReply,
   DiscussionThread,
   ReplyAccess,
@@ -10,6 +11,7 @@ const THREAD_IDENTIFIER_PREFIX = 'qm_discussion_thread_';
 const REPLY_IDENTIFIER_PREFIX = 'qm_discussion_reply_';
 const THREAD_SERVICE = 'DOCUMENT';
 const PAGE_SIZE = 200;
+const CONCURRENCY_LIMIT = 10;
 
 const generateId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
@@ -57,6 +59,48 @@ const fetchSummaries = async (identifierPrefix: string) => {
   return aggregated;
 };
 
+const mapWithConcurrency = async <T, R>(
+  items: T[],
+  limit: number,
+  task: (item: T, index: number) => Promise<R>,
+): Promise<R[]> => {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }).map(async () => {
+    while (cursor < items.length) {
+      const current = cursor;
+      cursor += 1;
+      results[current] = await task(items[current], current);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+};
+
+const sanitizeAttachments = (value: any): DiscussionAttachment[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item, index) => {
+      if (!item) return null;
+      const name = typeof item.name === 'string' ? item.name : `attachment-${index + 1}`;
+      const dataUrl = typeof item.dataUrl === 'string' ? item.dataUrl : '';
+      if (!dataUrl) return null;
+      return {
+        id: typeof item.id === 'string' ? item.id : `${Date.now()}-${index}`,
+        name,
+        mimeType: typeof item.mimeType === 'string' ? item.mimeType : 'application/octet-stream',
+        size: typeof item.size === 'number' ? item.size : 0,
+        dataUrl,
+      };
+    })
+    .filter((item): item is DiscussionAttachment => Boolean(item));
+};
+
 const sanitizeThread = (data: Partial<DiscussionThread>, fallback: { name: string; identifier: string; created?: number; updated?: number; }): DiscussionThread | null => {
   if (!data || (data as any).deleted) {
     return null;
@@ -76,6 +120,7 @@ const sanitizeThread = (data: Partial<DiscussionThread>, fallback: { name: strin
     replyAccess: (data.replyAccess ?? 'everyone') as ReplyAccess,
     allowedResponders: Array.isArray(data.allowedResponders) ? data.allowedResponders : [],
     status: data.status === 'locked' ? 'locked' : 'open',
+    attachments: sanitizeAttachments(data.attachments),
   };
 };
 
@@ -98,6 +143,7 @@ const sanitizeReply = (
     created: data.created ?? fallback.created ?? Date.now(),
     updated: data.updated ?? fallback.updated,
     parentReplyId: data.parentReplyId ?? null,
+    attachments: sanitizeAttachments(data.attachments),
   };
 };
 
@@ -128,29 +174,41 @@ export const fetchDiscussionThreadsFromQdn = async (): Promise<DiscussionThread[
     fetchSummaries(REPLY_IDENTIFIER_PREFIX),
   ]);
 
-  const threads: DiscussionThread[] = [];
+  const threadResults = await mapWithConcurrency(
+    threadSummaries,
+    CONCURRENCY_LIMIT,
+    async (summary) => {
+      if (!summary?.identifier?.startsWith(THREAD_IDENTIFIER_PREFIX)) return null;
+      const payload = await fetchQdnJson(summary.name, summary.identifier);
+      const sanitized = sanitizeThread(payload ?? {}, summary);
+      if (sanitized) {
+        sanitized.replies = [];
+      }
+      return sanitized;
+    },
+  );
 
-  for (const summary of threadSummaries) {
-    if (!summary?.identifier?.startsWith(THREAD_IDENTIFIER_PREFIX)) continue;
-    const payload = await fetchQdnJson(summary.name, summary.identifier);
-    const sanitized = sanitizeThread(payload ?? {}, summary);
-    if (sanitized) {
-      sanitized.replies = [];
-      threads.push(sanitized);
-    }
-  }
+  const threads = threadResults.filter((thread): thread is DiscussionThread => Boolean(thread));
 
   const repliesByThread = new Map<string, DiscussionReply[]>();
 
-  for (const summary of replySummaries) {
-    if (!summary?.identifier?.startsWith(REPLY_IDENTIFIER_PREFIX)) continue;
-    const payload = await fetchQdnJson(summary.name, summary.identifier);
-    const sanitized = sanitizeReply(payload ?? {}, summary);
-    if (!sanitized) continue;
-    const existing = repliesByThread.get(sanitized.threadId) ?? [];
-    existing.push(sanitized);
-    repliesByThread.set(sanitized.threadId, existing);
-  }
+  const replyResults = await mapWithConcurrency(
+    replySummaries,
+    CONCURRENCY_LIMIT,
+    async (summary) => {
+      if (!summary?.identifier?.startsWith(REPLY_IDENTIFIER_PREFIX)) return null;
+      const payload = await fetchQdnJson(summary.name, summary.identifier);
+      return sanitizeReply(payload ?? {}, summary);
+    },
+  );
+
+  replyResults
+    .filter((reply): reply is DiscussionReply => Boolean(reply))
+    .forEach((reply) => {
+      const existing = repliesByThread.get(reply.threadId) ?? [];
+      existing.push(reply);
+      repliesByThread.set(reply.threadId, existing);
+    });
 
   return threads
     .map((thread) => {
@@ -178,6 +236,7 @@ interface PersistThreadPayload {
   created?: number;
   updated?: number;
   replies?: DiscussionReply[];
+  attachments?: DiscussionAttachment[];
 }
 
 export const publishDiscussionThread = async (payload: PersistThreadPayload): Promise<DiscussionThread> => {
@@ -197,6 +256,7 @@ export const publishDiscussionThread = async (payload: PersistThreadPayload): Pr
     replyAccess: payload.replyAccess,
     allowedResponders: payload.allowedResponders,
     status: payload.status ?? 'open',
+    attachments: payload.attachments ?? [],
   };
 
   await publishDocument(
@@ -218,6 +278,7 @@ interface CreateReplyPayload {
   author: string;
   body: string;
   parentReplyId?: string | null;
+  attachments?: DiscussionAttachment[];
 }
 
 export const publishDiscussionReply = async (
@@ -233,6 +294,7 @@ export const publishDiscussionReply = async (
     body: payload.body,
     created: now,
     parentReplyId: payload.parentReplyId ?? null,
+    attachments: payload.attachments ?? [],
   };
 
   await publishDocument(
@@ -249,10 +311,12 @@ export const publishDiscussionReply = async (
 export const updateDiscussionReply = async (
   reply: DiscussionReply,
   body: string,
+  attachments: DiscussionAttachment[],
 ): Promise<DiscussionReply> => {
   const updated: DiscussionReply = {
     ...reply,
     body,
+    attachments,
     updated: Date.now(),
   };
 
