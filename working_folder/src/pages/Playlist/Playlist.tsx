@@ -37,6 +37,7 @@ import useUploadPlaylistModal from '../../hooks/useUploadPlaylistModal';
 import MediaItem from '../../components/MediaItem';
 import { Song } from '../../types';
 import GoBackButton from '../../components/GoBackButton';
+import { mapPlaylistSummary } from '../../utils/playlistHelpers';
 
 const favoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites'
@@ -98,20 +99,7 @@ export const Playlist = () => {
       if (responseDataSearch?.length > 0) {
         const resourceEntry = responseDataSearch.find((entry: any) => !shouldHideQdnResource(entry));
         if (!resourceEntry) return;
-        let resourceData = resourceEntry
-        resourceData = {
-          title: resourceData?.metadata?.title,
-          category: resourceData?.metadata?.category,
-          categoryName: resourceData?.metadata?.categoryName,
-          tags: resourceData?.metadata?.tags || [],
-          description: resourceData?.metadata?.description,
-          created: resourceData?.created,
-          updated: resourceData?.updated,
-          user: resourceData.name,
-          videoImage: '',
-          id: resourceData.identifier,
-          visibility: resourceData?.metadata?.visibility,
-        };
+        const resourceData = mapPlaylistSummary(resourceEntry);
       
         const responseData = await qortalRequest({
           action: 'FETCH_QDN_RESOURCE',

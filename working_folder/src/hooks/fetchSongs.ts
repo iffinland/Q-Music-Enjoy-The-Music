@@ -7,6 +7,7 @@ import { FavSong, PlayList, SongMeta, addToPlaylistHashMap, upsertFavorite, upse
 import { SearchQdnResourcesParams } from "../utils/qortalApi";
 import { cachedSearchQdnResources } from "../services/resourceCache";
 import { shouldHideQdnResource } from "../utils/qdnResourceFilters";
+import { mapPlaylistSummary } from "../utils/playlistHelpers";
 
 const SONG_PREFIXES = ["enjoymusic_song_", "earbump_song_"] as const;
 const PLAYLIST_PREFIXES = ["enjoymusic_playlist_", "earbump_playlist_"] as const;
@@ -287,6 +288,7 @@ export const useFetchSongs = () => {
         mode: 'ALL',
         service: 'PLAYLIST',
         query: prefix,
+        identifier: prefix,
         limit: fetchCount,
         includeMetadata: true,
         offset: 0,
@@ -299,21 +301,7 @@ export const useFetchSongs = () => {
         combined.filter((playlist: any) => !shouldHideQdnResource(playlist)),
       ).slice(offset, offset + limit);
 
-      const structureData = filteredPage.map((playlist: any): PlayList => {
-        return {
-          title: playlist?.metadata?.title,
-          category: playlist?.metadata?.category,
-          categoryName: playlist?.metadata?.categoryName,
-          tags: playlist?.metadata?.tags || [],
-          description: playlist?.metadata?.description,
-          created: playlist?.created,
-          updated: playlist?.updated,
-          user: playlist.name,
-          image: '',
-          songs: [],
-          id: playlist.identifier
-        }
-      })
+      const structureData = filteredPage.map((playlist: any): PlayList => mapPlaylistSummary(playlist));
       dispatch(upsertPlaylists(structureData))
 
       for (const content of structureData) {
@@ -342,6 +330,7 @@ export const useFetchSongs = () => {
         mode: 'ALL',
         service: 'PLAYLIST',
         query: prefix,
+        identifier: prefix,
         limit: fetchCount,
         includeMetadata: true,
         offset: 0,
@@ -356,21 +345,7 @@ export const useFetchSongs = () => {
         combined.filter((playlist: any) => !shouldHideQdnResource(playlist)),
       ).slice(offset, offset + limit);
 
-      const structureData = filteredPage.map((playlist: any): PlayList => {
-        return {
-          title: playlist?.metadata?.title,
-          category: playlist?.metadata?.category,
-          categoryName: playlist?.metadata?.categoryName,
-          tags: playlist?.metadata?.tags || [],
-          description: playlist?.metadata?.description,
-          created: playlist?.created,
-          updated: playlist?.updated,
-          user: playlist.name,
-          image: '',
-          songs: [],
-          id: playlist.identifier
-        }
-      })
+      const structureData = filteredPage.map((playlist: any): PlayList => mapPlaylistSummary(playlist));
       dispatch(upsertMyPlaylists(structureData))
 
       for (const content of structureData) {
@@ -414,21 +389,7 @@ export const useFetchSongs = () => {
         combined.filter((playlist: any) => !shouldHideQdnResource(playlist)),
       ).slice(offset, offset + limit);
 
-      const structureData = filteredPage.map((playlist: any): PlayList => {
-        return {
-          title: playlist?.metadata?.title,
-          category: playlist?.metadata?.category,
-          categoryName: playlist?.metadata?.categoryName,
-          tags: playlist?.metadata?.tags || [],
-          description: playlist?.metadata?.description,
-          created: playlist?.created,
-          updated: playlist?.updated,
-          user: playlist.name,
-          image: '',
-          songs: [],
-          id: playlist.identifier
-        }
-      })
+      const structureData = filteredPage.map((playlist: any): PlayList => mapPlaylistSummary(playlist));
       dispatch(upsertQueriedPlaylist(structureData))
 
       for (const content of structureData) {

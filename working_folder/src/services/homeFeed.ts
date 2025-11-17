@@ -5,6 +5,7 @@ import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { Audiobook, Podcast, Video } from '../types';
 import { enrichVideosWithDocuments } from './videos';
 import { cachedSearchQdnResources } from './resourceCache';
+import { mapPlaylistSummary } from '../utils/playlistHelpers';
 
 type Resource = Record<string, unknown> & {
   identifier?: string;
@@ -54,20 +55,6 @@ const combinePrefixResults = async (
 
   return uniqueByIdentifier(sortByLatest(combined));
 };
-
-const mapPlaylistResource = (resource: any): PlayList => ({
-  title: resource?.metadata?.title,
-  category: resource?.metadata?.category,
-  categoryName: resource?.metadata?.categoryName,
-  tags: Array.isArray(resource?.metadata?.tags) ? resource.metadata.tags : [],
-  description: resource?.metadata?.description,
-  created: resource?.created,
-  updated: resource?.updated,
-  user: resource?.name,
-  image: typeof resource?.metadata?.image === 'string' ? resource.metadata.image : null,
-  songs: [],
-  id: resource?.identifier,
-});
 
 const filterResources = (resources: Resource[]) => resources.filter((item) => !shouldHideQdnResource(item));
 
@@ -211,6 +198,7 @@ export const fetchLatestPlaylists = async (options: FetchLatestPlaylistsOptions 
     mode: 'ALL',
     service: 'PLAYLIST',
     query: prefix,
+    identifier: prefix,
     limit: fetchCount,
     includeMetadata: true,
     offset: 0,
@@ -220,7 +208,7 @@ export const fetchLatestPlaylists = async (options: FetchLatestPlaylistsOptions 
   }));
 
   const filtered = filterResources(combined).slice(0, limit) as any[];
-  return filtered.map((playlist) => mapPlaylistResource(playlist));
+  return filtered.map((playlist) => mapPlaylistSummary(playlist));
 };
 
 export interface FetchLatestPodcastsOptions {

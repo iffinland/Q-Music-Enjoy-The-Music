@@ -27,21 +27,40 @@ const hasDeletedMarker = (resource: any): boolean => {
   return candidates.some((candidate) => candidate === DELETED_MARKER);
 };
 
+const hasStringValue = (value: unknown): boolean => {
+  const normalized = normalize(value);
+  return normalized.length > 0 && normalized !== DELETED_MARKER;
+};
+
+const hasArrayContent = (value: unknown): boolean => Array.isArray(value) && value.length > 0;
+
 const hasMeaningfulMetadata = (resource: any): boolean => {
-  const metadata = resource?.metadata;
-  if (!metadata || typeof metadata !== 'object') return false;
-  const keys = Object.keys(metadata);
-  if (keys.length === 0) return false;
-  const title = normalize(metadata.title);
-  if (title && title !== DELETED_MARKER) return true;
-  const description = normalize(metadata.description);
-  if (description && description !== DELETED_MARKER) return true;
-  return keys.some((key) => {
-    if (key === 'title' || key === 'description') return false;
-    const value = metadata[key];
-    if (Array.isArray(value)) return value.length > 0;
-    return value !== null && value !== undefined && `${value}`.trim().length > 0;
-  });
+  const metadata = resource?.metadata && typeof resource.metadata === 'object' ? resource.metadata : null;
+  if (hasStringValue(metadata?.title) || hasStringValue(resource?.title)) return true;
+  if (hasStringValue(metadata?.description) || hasStringValue(resource?.description)) return true;
+
+  const metadataKeys = metadata ? Object.keys(metadata) : [];
+  if (
+    metadataKeys.some((key) => {
+      if (key === 'title' || key === 'description') return false;
+      const value = metadata?.[key];
+      if (Array.isArray(value)) return value.length > 0;
+      return hasStringValue(value);
+    })
+  ) {
+    return true;
+  }
+
+  if (hasArrayContent(metadata?.tags) || hasArrayContent(resource?.tags)) return true;
+
+  const extraFields: Array<'category' | 'categoryName' | 'image'> = ['category', 'categoryName', 'image'];
+  if (
+    extraFields.some((field) => hasStringValue(metadata?.[field]) || hasStringValue(resource?.[field]))
+  ) {
+    return true;
+  }
+
+  return false;
 };
 
 const isLikelyPlaceholderPayload = (resource: any): boolean => {

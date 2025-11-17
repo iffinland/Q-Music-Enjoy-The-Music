@@ -43,6 +43,7 @@ const fetchResourceSummary = async (
       mode: 'ALL',
       service,
       query: queryPrefix,
+      identifier: queryPrefix,
       limit: PAGE_SIZE,
       offset,
       reverse: true,

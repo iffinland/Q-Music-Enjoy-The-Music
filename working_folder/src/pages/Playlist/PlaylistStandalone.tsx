@@ -19,6 +19,7 @@ import { shouldHideQdnResource } from '../../utils/qdnResourceFilters';
 import { cachedSearchQdnResources } from '../../services/resourceCache';
 import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../../hooks/usePlaylistPlayback';
 import GoBackButton from '../../components/GoBackButton';
+import { mapPlaylistSummary } from '../../utils/playlistHelpers';
 
 const favoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites'
@@ -78,19 +79,7 @@ export const PlaylistStandalone = ({
       if (responseDataSearch?.length > 0) {
         const resourceEntry = responseDataSearch.find((entry: any) => !shouldHideQdnResource(entry));
         if (!resourceEntry) return;
-        let resourceData = resourceEntry
-        resourceData = {
-          title: resourceData?.metadata?.title,
-          category: resourceData?.metadata?.category,
-          categoryName: resourceData?.metadata?.categoryName,
-          tags: resourceData?.metadata?.tags || [],
-          description: resourceData?.metadata?.description,
-          created: resourceData?.created,
-          updated: resourceData?.updated,
-          user: resourceData.name,
-          videoImage: '',
-          id: resourceData.identifier
-        }
+        const resourceData = mapPlaylistSummary(resourceEntry);
       
         const responseData = await qortalRequest({
           action: 'FETCH_QDN_RESOURCE',

@@ -19,8 +19,6 @@ import { fetchVideoByIdentifier } from "../services/videos";
 import { fetchPodcastByIdentifier } from "../services/podcasts";
 import { fetchAudiobookByIdentifier } from "../services/audiobooks";
 import { useNavigate } from "react-router-dom";
-import { initMultiPublishQueue } from "../services/multiPublishQueue";
-
 
 interface Props {
   children: React.ReactNode;
@@ -132,11 +130,6 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
   useEffect(() => {
     loadStatistics();
   }, [loadStatistics]);
-
-  useEffect(() => {
-    const cleanup = initMultiPublishQueue();
-    return cleanup;
-  }, []);
 
   useEffect(() => {
     const handleRefresh = () => {

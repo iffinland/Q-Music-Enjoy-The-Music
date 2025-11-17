@@ -15,6 +15,7 @@ import { cachedSearchQdnResources } from "../../services/resourceCache";
 import { loadPlaylistMeta } from "../../services/playlistLoader";
 import { shouldHideQdnResource } from "../../utils/qdnResourceFilters";
 import SortControls from "../../components/common/SortControls";
+import { mapPlaylistSummary } from "../../utils/playlistHelpers";
 
 type SourceKey = "ALL" | "QMUSIC" | "EARBUMP";
 type AlphabetKey = "ALL" | string;
@@ -39,21 +40,7 @@ const PAGE_SIZE = 18;
 const FETCH_LIMIT = 50;
 const MAX_FETCH_BATCHES = 5;
 
-const buildPlaylist = (playlist: any): PlayList => {
-  return {
-    title: playlist?.metadata?.title,
-    category: playlist?.metadata?.category,
-    categoryName: playlist?.metadata?.categoryName,
-    tags: playlist?.metadata?.tags || [],
-    description: playlist?.metadata?.description,
-    created: playlist?.created,
-    updated: playlist?.updated,
-    user: playlist?.name,
-    image: "",
-    songs: [],
-    id: playlist?.identifier,
-  };
-};
+const buildPlaylist = (playlist: any): PlayList => mapPlaylistSummary(playlist);
 
 const ALL_CATEGORIES_VALUE = "ALL";
 const UNCATEGORIZED_LABEL = "Uncategorized";
@@ -124,6 +111,7 @@ const BrowseAllPlaylists: React.FC = () => {
           mode: "ALL",
           service: "PLAYLIST",
           query: prefix,
+          identifier: prefix,
           limit: FETCH_LIMIT,
           includeMetadata: true,
           offset,

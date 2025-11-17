@@ -5,8 +5,6 @@ import { SongReference } from '../state/features/globalSlice';
 import { MultiPublishPayload } from '../types/publish';
 import { objectToBase64, toBase64 } from '../utils/toBase64';
 
-type MultiPublishEvent = CustomEvent<{ entries?: MultiPublishPayload[] }>;
-
 const AUDIO_PREFIX = 'enjoymusic_song_';
 const PODCAST_PREFIX = 'enjoymusic_podcast_';
 const AUDIOBOOK_PREFIX = 'enjoymusic_audiobooks_';
@@ -491,30 +489,10 @@ const processQueue = async () => {
   isProcessing = false;
 };
 
-const enqueueEntries = (entries: MultiPublishPayload[]) => {
+export const enqueueMultiPublishEntries = (entries: MultiPublishPayload[]) => {
   queue.push(...entries);
   const state = store.getState();
   registerPlaylistTargets(entries, state.auth?.user?.name);
   toast.success(`Queued ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} for publishing.`);
   processQueue();
-};
-
-export const initMultiPublishQueue = () => {
-  if (typeof window === 'undefined') {
-    return () => undefined;
-  }
-
-  const handler = (event: Event) => {
-    const custom = event as MultiPublishEvent;
-    const entries = custom.detail?.entries;
-    if (!entries || entries.length === 0) {
-      return;
-    }
-    enqueueEntries(entries);
-  };
-
-  window.addEventListener('multi-publish:queue', handler as EventListener);
-  return () => {
-    window.removeEventListener('multi-publish:queue', handler as EventListener);
-  };
 };

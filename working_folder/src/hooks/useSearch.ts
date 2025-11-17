@@ -9,6 +9,14 @@ import { Video } from '../types';
 import { SongRequest } from '../state/features/requestsSlice';
 import { setIsLoadingGlobal } from '../state/features/globalSlice';
 import { buildVideoMeta } from '../services/videos';
+import {
+  mapPlaylistSummary,
+  resolvePlaylistCategory,
+  resolvePlaylistCategoryName,
+  resolvePlaylistDescription,
+  resolvePlaylistTags,
+  resolvePlaylistTitle,
+} from '../utils/playlistHelpers';
 
 const SONG_PREFIX = 'enjoymusic_song_';
 const PLAYLIST_PREFIX_QMUSIC = 'enjoymusic_playlist_';
@@ -146,30 +154,23 @@ export const useSearch = () => {
         }));
 
       const playlists = [...playlistResultsQmusic, ...playlistResultsEarbump]
-        .filter((playlist: any) =>
-          matchesQuery(
+        .filter((playlist: any) => {
+          const title = resolvePlaylistTitle(playlist);
+          const description = resolvePlaylistDescription(playlist);
+          const category = resolvePlaylistCategory(playlist);
+          const categoryName = resolvePlaylistCategoryName(playlist);
+          const tagsValue = resolvePlaylistTags(playlist);
+          return matchesQuery(
             playlist?.identifier,
             playlist?.name,
-            playlist?.metadata?.title,
-            playlist?.metadata?.description,
-            playlist?.metadata?.category,
-            playlist?.metadata?.categoryName,
-            Array.isArray(playlist?.metadata?.tags) ? playlist.metadata.tags.join(' ') : undefined,
-          ),
-        )
-        .map((playlist: any): PlayList => ({
-        title: playlist?.metadata?.title,
-        category: playlist?.metadata?.category,
-        categoryName: playlist?.metadata?.categoryName,
-        tags: playlist?.metadata?.tags || [],
-        description: playlist?.metadata?.description,
-        created: playlist?.created,
-        updated: playlist?.updated,
-        user: playlist.name,
-        image: '',
-        songs: [],
-        id: playlist.identifier,
-      }));
+            title,
+            description,
+            category,
+            categoryName,
+            tagsValue.length ? tagsValue.join(' ') : undefined,
+          );
+        })
+        .map((playlist: any): PlayList => mapPlaylistSummary(playlist));
 
       const rawVideos = [...videoDocumentResults, ...videoBinaryResults];
       const videoMap = new Map<string, Video>();

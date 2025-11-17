@@ -1,6 +1,7 @@
 import { PlayList } from '../state/features/globalSlice';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { cachedSearchQdnResources } from './resourceCache';
+import { mapPlaylistSummary } from '../utils/playlistHelpers';
 
 type PlaylistCacheEntry = {
   timestamp: number;
@@ -45,19 +46,7 @@ export const loadPlaylistMeta = async (user: string, id: string): Promise<PlayLi
       return null;
     }
 
-    return {
-      title: entry?.metadata?.title,
-      category: entry?.metadata?.category,
-      categoryName: entry?.metadata?.categoryName,
-      tags: Array.isArray(entry?.metadata?.tags) ? entry.metadata.tags : [],
-      description: entry?.metadata?.description,
-      created: entry?.created,
-      updated: entry?.updated,
-      user: entry?.name,
-      image: entry?.metadata?.image ?? null,
-      songs: [],
-      id: entry?.identifier,
-    } as PlayList;
+    return mapPlaylistSummary(entry);
   })();
 
   playlistMetaCache.set(cacheKey, { timestamp: now, promise });
