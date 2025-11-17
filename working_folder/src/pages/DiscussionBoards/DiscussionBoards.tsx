@@ -655,7 +655,7 @@ const DiscussionBoards: React.FC = () => {
                   </div>
                 )}
                 <div
-                  className="mt-2 text-sm text-slate-100"
+                  className="qm-richtext-content mt-2 break-words text-sm text-slate-100"
                   dangerouslySetInnerHTML={{ __html: renderRichText(reply.body) }}
                 />
                 <AttachmentList attachments={reply.attachments} />
@@ -1348,7 +1348,7 @@ const DiscussionBoards: React.FC = () => {
               ) : (
                 <div className="space-y-4 rounded-xl border border-sky-800/60 bg-sky-900/35 p-4">
                   <div
-                    className="text-base text-slate-100"
+                    className="qm-richtext-content break-words text-base text-slate-100"
                     dangerouslySetInnerHTML={{ __html: renderRichText(selectedThread.body) }}
                   />
                   <AttachmentList attachments={selectedThread.attachments} />

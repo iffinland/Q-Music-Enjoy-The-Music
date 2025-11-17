@@ -109,8 +109,9 @@ export const Playlist = () => {
           updated: resourceData?.updated,
           user: resourceData.name,
           videoImage: '',
-          id: resourceData.identifier
-        }
+          id: resourceData.identifier,
+          visibility: resourceData?.metadata?.visibility,
+        };
       
         const responseData = await qortalRequest({
           action: 'FETCH_QDN_RESOURCE',
@@ -488,21 +489,21 @@ export const Playlist = () => {
             <div className="relative h-32 w-32 overflow-hidden rounded-lg border border-sky-900/60 bg-sky-950/60 lg:h-44 lg:w-44">
               <img
                 className="absolute inset-0 h-full w-full object-cover"
-                src={playListData?.image ? playListData?.image : likeImg}
-                alt="Playlist"
-              />
-            </div>
-          </div>
-          <div className="flex w-full flex-col gap-4">
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
-                  {playListData?.title || 'Untitled playlist'}
-                </h1>
-                {isOwner && (
-                  <HomeActionButton
-                    onClick={onClickPlaylist}
-                    title="Muuda"
+            src={playListData?.image ? playListData?.image : likeImg}
+            alt="Playlist"
+          />
+        </div>
+      </div>
+      <div className="flex w-full flex-col gap-4">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
+              {playListData?.title || 'Untitled playlist'}
+            </h1>
+            {isOwner && (
+              <HomeActionButton
+                onClick={onClickPlaylist}
+                title="Muuda"
                     aria-label="Edit playlist"
                     compact={false}
                   >
@@ -510,14 +511,14 @@ export const Playlist = () => {
                   </HomeActionButton>
                 )}
               </div>
-              {playListData?.description && (
-                <p className="text-sm text-sky-200/80 md:text-base">{playListData.description}</p>
-              )}
-            </div>
-            {actionButtons}
-          </div>
+          {playListData?.description && (
+            <p className="text-sm text-sky-200/80 md:text-base">{playListData.description}</p>
+          )}
         </div>
-      </Header>
+        {actionButtons}
+      </div>
+    </div>
+  </Header>
       {playListData && !isReordering && (
         <SearchContent
           songs={songs}

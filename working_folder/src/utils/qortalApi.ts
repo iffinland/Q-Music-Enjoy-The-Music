@@ -231,19 +231,73 @@ export const deleteHostedData = async (
   } as any);
 };
 
+const DELETE_RETRY_ATTEMPTS = 3;
+const DELETE_RETRY_DELAY_MS = 750;
+const DELETE_TIMEOUT_MS = 15_000;
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const resolveErrorMessage = (error: unknown): string => {
+  if (!error) return '';
+  if (error instanceof Error && typeof error.message === 'string') {
+    return error.message;
+  }
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return '';
+  }
+};
+
+const isNotFoundError = (message: string) => /does not exist/i.test(message);
+const isRetryableDeleteError = (message: string) =>
+  /timed? ?out/i.test(message) || /temporarily unavailable/i.test(message) || /network/i.test(message);
+
+const performDeleteRequest = async (
+  reference: HostedDataReference,
+  timeoutMs: number,
+) => {
+  const payload = {
+    action: 'DELETE_QDN_RESOURCE',
+    name: reference.name,
+    service: reference.service,
+    identifier: reference.identifier,
+  } as any;
+
+  if (typeof qortalRequestWithTimeout === 'function' && Number.isFinite(timeoutMs)) {
+    return qortalRequestWithTimeout(payload, timeoutMs);
+  }
+
+  return qortalRequest(payload);
+};
+
 export const deleteQdnResource = async (
   reference: HostedDataReference,
+  options?: { retries?: number; timeoutMs?: number; retryDelayMs?: number },
 ): Promise<void> => {
-  try {
-    await qortalRequest({
-      action: 'DELETE_QDN_RESOURCE',
-      name: reference.name,
-      service: reference.service,
-      identifier: reference.identifier,
-    } as any);
-  } catch (error) {
-    // Swallow errors when resource is already missing
-    console.warn('Failed to delete QDN resource', reference, error);
+  const attempts = Math.max(1, options?.retries ?? DELETE_RETRY_ATTEMPTS);
+  const timeoutMs = Math.max(1_000, options?.timeoutMs ?? DELETE_TIMEOUT_MS);
+  const retryDelayMs = Math.max(0, options?.retryDelayMs ?? DELETE_RETRY_DELAY_MS);
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      await performDeleteRequest(reference, timeoutMs);
+      return;
+    } catch (error) {
+      const message = resolveErrorMessage(error);
+      if (isNotFoundError(message)) {
+        return;
+      }
+
+      const shouldRetry = isRetryableDeleteError(message) && attempt < attempts - 1;
+      if (!shouldRetry) {
+        console.warn('Failed to delete QDN resource', reference, error);
+        throw error instanceof Error ? error : new Error(message || 'Failed to delete resource');
+      }
+
+      await delay(retryDelayMs * (attempt + 1));
+    }
   }
 };
 

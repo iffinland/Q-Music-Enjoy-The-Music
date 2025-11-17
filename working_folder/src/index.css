@@ -136,3 +136,17 @@ textarea {
   font: inherit;
   color: inherit;
 }
+
+.qm-richtext-content {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.qm-richtext-content a,
+.qm-richtext-link {
+  color: #7dd3fc;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}

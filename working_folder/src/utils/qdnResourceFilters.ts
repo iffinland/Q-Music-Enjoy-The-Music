@@ -1,4 +1,13 @@
 const TRACKING_PREFIXES = ['enjoymusic_', 'earbump_', 'qmusic_'];
+const LIKE_ARTIFACT_PREFIXES = [
+  'song_like_',
+  'playlist_like_',
+  'podcast_like_',
+  'video_like_',
+  'audiobook_like_',
+  'enjoymusic_request_like_',
+  'qm_discussion_like_',
+];
 const DELETED_MARKER = 'deleted';
 const hiddenIdentifiers = new Set<string>();
 
@@ -51,6 +60,11 @@ const isTrackedIdentifier = (identifier: string): boolean => {
   return TRACKING_PREFIXES.some((prefix) => identifier.startsWith(prefix));
 };
 
+const isLikeArtifact = (identifier: string): boolean => {
+  if (!identifier) return false;
+  return LIKE_ARTIFACT_PREFIXES.some((prefix) => identifier.startsWith(prefix));
+};
+
 const isEmptyResource = (resource: any): boolean => {
   const metadataKeys = resource?.metadata ? Object.keys(resource.metadata) : [];
   const hasMetadata = metadataKeys.length > 0;
@@ -68,6 +82,11 @@ export const shouldHideQdnResource = (resource: any): boolean => {
 
   const identifierKey = getIdentifierKey(resource);
   if (identifierKey && hiddenIdentifiers.has(identifierKey)) return true;
+
+  if (identifierKey && isLikeArtifact(identifierKey)) {
+    hiddenIdentifiers.add(identifierKey);
+    return true;
+  }
 
   if (!isTrackedIdentifier(identifierKey)) return false;
 

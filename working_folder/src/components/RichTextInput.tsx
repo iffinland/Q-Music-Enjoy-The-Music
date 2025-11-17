@@ -7,6 +7,22 @@ import { DiscussionAttachment } from '../state/features/discussionsSlice';
 const MAX_TOTAL_ATTACHMENTS = 5;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 const EMOJIS = ['😀', '😂', '😍', '🤔', '😎', '👍', '🎵', '🔥', '🙏', '🚀'];
+const TEXT_COLORS = [
+  { label: 'Sky', value: '#38bdf8' },
+  { label: 'Emerald', value: '#34d399' },
+  { label: 'Amber', value: '#facc15' },
+  { label: 'Rose', value: '#f472b6' },
+  { label: 'Red', value: '#f87171' },
+  { label: 'Violet', value: '#a78bfa' },
+];
+const HIGHLIGHT_COLORS = [
+  { label: 'Soft Yellow', value: '#fef9c3' },
+  { label: 'Mint', value: '#d1fae5' },
+  { label: 'Sky', value: '#e0f2fe' },
+  { label: 'Lavender', value: '#ede9fe' },
+  { label: 'Peach', value: '#ffedd5' },
+  { label: 'Slate', value: '#cbd5f5' },
+];
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -56,6 +72,8 @@ const RichTextInput: React.FC<RichTextInputProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<DiscussionAttachment | null>(null);
+  const [isTextColorOpen, setIsTextColorOpen] = useState(false);
+  const [isHighlightOpen, setIsHighlightOpen] = useState(false);
 
   const formattedAttachmentLimitText = useMemo(() => `${attachments.length}/${MAX_TOTAL_ATTACHMENTS} attachments`, [attachments.length]);
 
@@ -76,6 +94,14 @@ const RichTextInput: React.FC<RichTextInputProps> = ({
     });
   };
 
+  const applyTextColor = (color: string) => {
+    wrapSelection(`[color=${color}]`, '[/color]', 'colored text');
+  };
+
+  const applyHighlight = (color: string) => {
+    wrapSelection(`[bg=${color}]`, '[/bg]', 'highlighted text');
+  };
+
   const handleEmojiSelect = (emoji: string) => {
     onChange(`${value}${emoji}`);
     setIsEmojiOpen(false);
@@ -94,7 +120,6 @@ const RichTextInput: React.FC<RichTextInputProps> = ({
 
     try {
       const processed: DiscussionAttachment[] = [];
-      // eslint-disable-next-line no-restricted-syntax
       for (const file of files) {
         if (file.size > MAX_FILE_SIZE) {
           toast.error(`"${file.name}" is larger than ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
@@ -104,7 +129,6 @@ const RichTextInput: React.FC<RichTextInputProps> = ({
           toast.error(`"${file.name}" is not an image. Only image attachments are allowed.`);
           continue;
         }
-        // eslint-disable-next-line no-await-in-loop
         processed.push(await toAttachment(file));
       }
       if (processed.length > 0) {
@@ -153,6 +177,80 @@ const RichTextInput: React.FC<RichTextInputProps> = ({
           <FiPaperclip />
           Attach
         </button>
+        <div className="relative">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              setIsTextColorOpen((prev) => !prev);
+              setIsHighlightOpen(false);
+            }}
+            className="flex items-center gap-1 rounded-md border border-slate-700/60 px-3 py-1 text-xs font-semibold text-slate-100 transition hover:bg-slate-900/60 disabled:opacity-60"
+          >
+            Text Color
+          </button>
+          {isTextColorOpen && (
+            <div className="absolute z-20 mt-2 w-44 rounded-lg border border-slate-700/60 bg-slate-900/90 p-2 shadow-lg">
+              <p className="mb-2 text-[10px] uppercase tracking-wide text-slate-400">Choose color</p>
+              <div className="grid grid-cols-2 gap-2">
+                {TEXT_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    onClick={() => {
+                      applyTextColor(color.value);
+                      setIsTextColorOpen(false);
+                    }}
+                    className="flex items-center gap-2 rounded-md border border-slate-700/50 px-2 py-1 text-xs text-slate-100 hover:bg-slate-800/70"
+                  >
+                    <span
+                      className="h-3 w-3 rounded-full border border-white/30"
+                      style={{ backgroundColor: color.value }}
+                    />
+                    {color.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="relative">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              setIsHighlightOpen((prev) => !prev);
+              setIsTextColorOpen(false);
+            }}
+            className="flex items-center gap-1 rounded-md border border-slate-700/60 px-3 py-1 text-xs font-semibold text-slate-100 transition hover:bg-slate-900/60 disabled:opacity-60"
+          >
+            Highlight
+          </button>
+          {isHighlightOpen && (
+            <div className="absolute z-20 mt-2 w-44 rounded-lg border border-slate-700/60 bg-slate-900/90 p-2 shadow-lg">
+              <p className="mb-2 text-[10px] uppercase tracking-wide text-slate-400">Choose background</p>
+              <div className="grid grid-cols-2 gap-2">
+                {HIGHLIGHT_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    onClick={() => {
+                      applyHighlight(color.value);
+                      setIsHighlightOpen(false);
+                    }}
+                    className="flex items-center gap-2 rounded-md border border-slate-700/50 px-2 py-1 text-xs text-slate-100 hover:bg-slate-800/70"
+                  >
+                    <span
+                      className="h-3 w-3 rounded border border-slate-600/70"
+                      style={{ backgroundColor: color.value }}
+                    />
+                    {color.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
         <div className="relative">
           <button
             type="button"

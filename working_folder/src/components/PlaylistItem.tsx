@@ -20,10 +20,13 @@ export const PlaylistItem: React.FC<PlaylistItemProps> = ({
     enabled: Boolean(data?.id && data?.user),
   });
   const coverImage = data?.image || coverUrl || radioImg;
+  const handleClick = () => {
+    onClick?.();
+  };
 
   return ( 
     <div
-      onClick={onClick}
+      onClick={handleClick}
       className="
         flex 
         items-center 
