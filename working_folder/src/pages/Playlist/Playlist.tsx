@@ -52,6 +52,8 @@ export const Playlist = () => {
   const favoritesPlaylist= useSelector((state: RootState) => state.global.favoritesPlaylist);
   const dispatch = useDispatch()
   const playlistHash = useSelector((state: RootState) => state.global.playlistHash);
+  const globalPlaylists = useSelector((state: RootState) => state.global.playlists);
+  const myPlaylists = useSelector((state: RootState) => state.global.myPlaylists);
   const { downloadVideo } = useContext(MyContext)
   const { ensurePlaylistSongs } = usePlaylistPlayback();
 
@@ -127,19 +129,20 @@ export const Playlist = () => {
   
 
   React.useEffect(() => {
-    if (name && playlistId) {
-      const existingVideo = playlistHash[playlistId]
-
-      if (existingVideo) {
-        setPlaylistData(existingVideo)
-      } else {
-        getPlaylistData(name, playlistId)
-      }
-
-
+    if (!playlistId) return;
+    const hashEntry = playlistHash[playlistId];
+    const fallbackEntry =
+      hashEntry ||
+      globalPlaylists.find((playlist) => playlist.id === playlistId) ||
+      myPlaylists.find((playlist) => playlist.id === playlistId);
+    if (fallbackEntry) {
+      setPlaylistData(fallbackEntry);
     }
-
-  }, [playlistId, name, playlistHash])
+    const publisher = name || fallbackEntry?.user;
+    if (publisher) {
+      getPlaylistData(publisher, playlistId);
+    }
+  }, [playlistId, name, playlistHash, globalPlaylists, myPlaylists, getPlaylistData]);
 
   const isLiked = useMemo(()=> {
 

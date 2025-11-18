@@ -32,6 +32,7 @@ import {
 import { objectToBase64 } from '../../utils/toBase64';
 import { AUDIOBOOK_CATEGORIES } from '../../constants/categories';
 import SortControls from '../../components/common/SortControls';
+import Button from '../../components/Button';
 
 const PAGE_SIZE = 15;
 const SLOGAN = 'Immerse yourself in community-narrated stories, lessons, and adventures.';
@@ -762,7 +763,18 @@ const Audiobooks: React.FC = () => {
   return (
     <div className="px-4 py-6">
       <Header>
-        <AudiobookToolbar slogan={SLOGAN} />
+        <AudiobookToolbar
+          slogan={SLOGAN}
+          action={
+            <Button
+              type="button"
+              onClick={() => uploadAudiobookModal.openCreate()}
+              className="w-full md:w-auto"
+            >
+              Add Audiobook Chapter
+            </Button>
+          }
+        />
       </Header>
 
       <div className="mt-6 flex flex-col gap-6">

@@ -7,7 +7,6 @@ import { TbPlaylist } from "react-icons/tb";
 import { MdLibraryMusic, MdOutlineFavorite } from "react-icons/md";
 import { FiMessageSquare } from "react-icons/fi";
 import { FaPodcast, FaBookOpen, FaVideo, FaTimesCircle } from "react-icons/fa";
-import { AiFillStar } from "react-icons/ai";
 import SidebarItem from "./SidebarItem";
 import Box from "./Box";
 import {AddLibrary} from "./AddLibrary";
@@ -15,7 +14,6 @@ import { useMemo, useEffect, useState, useCallback } from "react";
 import { Song } from "../types";
 import usePlayer from "../hooks/usePlayer";
 import useSendTipModal from "../hooks/useSendTipModal";
-import usePublishContentModal from "../hooks/usePublishContentModal";
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -29,7 +27,6 @@ const Sidebar = ({ children, songs }: SidebarProps) => {
         return location.pathname
     }, [location])
   const player = usePlayer();
-  const openPublishModal = usePublishContentModal((state) => state.open);
   const matchPath = useCallback((paths: string | string[]) => {
     const list = Array.isArray(paths) ? paths : [paths];
     return list.some((path) => {
@@ -82,13 +79,6 @@ const Sidebar = ({ children, songs }: SidebarProps) => {
       active: matchPath(['/library', '/liked'])
     },
     {
-      icon: AiFillStar,
-      label: 'Add New Content',
-      href: '#',
-      active: false,
-      onClick: openPublishModal
-    },
-    {
       icon: BiListPlus,
       label: 'Requests & Fillings',
       href: '/requests',
@@ -106,7 +96,7 @@ const Sidebar = ({ children, songs }: SidebarProps) => {
       href: '/discussions',
       active: matchPath('/discussions')
     }
-  ], [matchPath, openPublishModal]);
+  ], [matchPath]);
 
   return (
     <div 

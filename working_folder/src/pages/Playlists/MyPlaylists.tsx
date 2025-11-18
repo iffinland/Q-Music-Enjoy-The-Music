@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import LazyLoad from '../../components/common/LazyLoad'
 import { useFetchSongs } from '../../hooks/fetchSongs'
 import { useSelector } from 'react-redux'
@@ -9,6 +9,13 @@ export const MyPlaylists = () => {
   const {    getMyPlaylists
   } = useFetchSongs()
   const myPlaylists = useSelector((state: RootState) => state.global.myPlaylists);
+  const initialLoadRef = useRef(false);
+
+  useEffect(() => {
+    if (initialLoadRef.current) return;
+    initialLoadRef.current = true;
+    getMyPlaylists();
+  }, [getMyPlaylists]);
 
 
   const playlistsToRender = myPlaylists

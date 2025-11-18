@@ -32,6 +32,7 @@ import {
 import { objectToBase64 } from '../../utils/toBase64';
 import { PODCAST_CATEGORIES } from '../../constants/categories';
 import SortControls from '../../components/common/SortControls';
+import Button from '../../components/Button';
 
 const PAGE_SIZE = 15;
 const SLOGAN = 'Catch the latest community shows and rediscover timeless episodes.';
@@ -762,7 +763,18 @@ const Podcasts: React.FC = () => {
   return (
     <div className="px-4 py-6">
       <Header>
-        <PodcastToolbar slogan={SLOGAN} />
+        <PodcastToolbar
+          slogan={SLOGAN}
+          action={
+            <Button
+              type="button"
+              onClick={() => uploadPodcastModal.openCreate()}
+              className="w-full md:w-auto"
+            >
+              Add Podcast Episode
+            </Button>
+          }
+        />
       </Header>
 
       <div className="mt-6 flex flex-col gap-6">

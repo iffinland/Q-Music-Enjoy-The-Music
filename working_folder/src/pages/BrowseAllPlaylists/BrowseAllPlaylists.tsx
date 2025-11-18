@@ -8,6 +8,7 @@ import {
   PlayList,
   addToPlaylistHashMap,
   setCurrentPlaylist,
+  setNewPlayList,
 } from "../../state/features/globalSlice";
 import { CircularProgress } from "@mui/material";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +17,8 @@ import { loadPlaylistMeta } from "../../services/playlistLoader";
 import { shouldHideQdnResource } from "../../utils/qdnResourceFilters";
 import SortControls from "../../components/common/SortControls";
 import { mapPlaylistSummary } from "../../utils/playlistHelpers";
+import Button from "../../components/Button";
+import useUploadPlaylistModal from "../../hooks/useUploadPlaylistModal";
 
 type SourceKey = "ALL" | "QMUSIC" | "EARBUMP";
 type AlphabetKey = "ALL" | string;
@@ -64,6 +67,7 @@ const BrowseAllPlaylists: React.FC = () => {
   const playlistHash = useSelector(
     (state: RootState) => state.global.playlistHash
   );
+  const username = useSelector((state: RootState) => state.auth?.user?.name);
   const playlistHashRef = useRef(playlistHash);
 
   const [playlists, setPlaylists] = useState<PlayList[]>([]);
@@ -76,6 +80,7 @@ const BrowseAllPlaylists: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>(
     ALL_CATEGORIES_VALUE,
   );
+  const uploadPlaylistModal = useUploadPlaylistModal();
 
   useEffect(() => {
     playlistHashRef.current = playlistHash;
@@ -327,13 +332,39 @@ const BrowseAllPlaylists: React.FC = () => {
     <Box className="overflow-hidden">
       <Header className="rounded-t-lg bg-gradient-to-b from-sky-900/80 via-sky-950/40 to-transparent">
         <div className="flex flex-col items-center gap-y-6 text-center">
-          <div>
-            <h1 className="text-white text-3xl font-semibold">
-              Browse All Playlists
-            </h1>
-            <p className="text-sky-200/80 text-sm mt-2">
-              Explore curated playlists across Q-Music and Ear-Bump.
-            </p>
+          <div className="flex flex-col gap-3">
+            <div>
+              <h1 className="text-white text-3xl font-semibold">
+                Browse All Playlists
+              </h1>
+              <p className="text-sky-200/80 text-sm mt-2">
+                Explore curated playlists across Q-Music and Ear-Bump.
+              </p>
+            </div>
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                onClick={() => {
+                  const owner = username || '';
+                  dispatch(
+                    setNewPlayList({
+                      id: `draft-playlist-${Date.now().toString(36)}`,
+                      title: '',
+                      description: '',
+                      songs: [],
+                      image: null,
+                      user: owner,
+                      created: Date.now(),
+                      updated: Date.now(),
+                    } as PlayList)
+                  );
+                  uploadPlaylistModal.onOpen();
+                }}
+                className="w-full md:w-auto"
+              >
+                Add Playlist
+              </Button>
+            </div>
           </div>
           <div className="flex flex-wrap justify-center gap-3">
             {SOURCE_FILTERS.map((filter) => {

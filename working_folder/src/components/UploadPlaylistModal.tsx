@@ -14,7 +14,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setNotification } from '../state/features/notificationsSlice';
 import { RootState } from '../state/store';
 import { objectToBase64, toBase64 } from '../utils/toBase64';
-import { SongReference, addToPlaylistHashMap, setNewPlayList, upsertPlaylists } from '../state/features/globalSlice';
+import { PlayList, SongReference, addToPlaylistHashMap, setNewPlayList, upsertPlaylists } from '../state/features/globalSlice';
 import Textarea from './TextArea';
 import {AiOutlineClose} from  "react-icons/ai";
 import { Song } from '../types';
@@ -29,7 +29,6 @@ const UploadPlaylistModal = () => {
   const newPlaylist = useSelector((state: RootState) => state?.global.newPlayList);
   const [prevSavedImg, setPrevSavedImg] = useState<null | string>(null)
   const uploadModal = useUploadModal();
-  console.log({newPlaylist})
   const currentPlaylist = useRef<any>(null)
   const successTimeoutRef = useRef<number | null>(null);
   const navigate = useNavigate();
@@ -38,8 +37,6 @@ const UploadPlaylistModal = () => {
     register,
     handleSubmit,
     reset,
-    watch,
-    setValue,
     formState: { errors },
   } = useForm<FieldValues>({
     defaultValues: {
@@ -51,17 +48,33 @@ const UploadPlaylistModal = () => {
 
 
   useEffect(()=> {
+    if (uploadModal.isOpen && !newPlaylist && username) {
+      dispatch(setNewPlayList({
+        id: `draft-playlist-${Date.now().toString(36)}`,
+        title: '',
+        description: '',
+        songs: [],
+        image: null,
+        user: username,
+        created: Date.now(),
+        updated: Date.now(),
+      } as PlayList));
+    }
     if(currentPlaylist?.current?.id === newPlaylist?.id) return
     if(newPlaylist)  reset({
       description: newPlaylist?.description,
       title: newPlaylist?.title || '',
       image: null,
     })
-    if(newPlaylist && newPlaylist?.image) setPrevSavedImg(newPlaylist.image)
+    if(newPlaylist?.image) {
+      setPrevSavedImg(newPlaylist.image)
+    } else {
+      setPrevSavedImg(null)
+    }
     if(newPlaylist?.id){
       currentPlaylist.current = newPlaylist
     }
-  }, [reset, newPlaylist])
+  }, [reset, newPlaylist, uploadModal.isOpen, username, dispatch])
 
   useEffect(() => {
     return () => {
@@ -73,33 +86,9 @@ const UploadPlaylistModal = () => {
 
   const onChange = async (open: boolean) => {
     if (!open) {
-      if(newPlaylist){
-        const title = watch("title"); 
-        const description = watch("description"); 
-        const image = watch("image"); 
-        console.log({image})
-        let playlistImage = null
-        if(image && image[0]){
-          try {
-            const compressedImg = await compressImg(image[0])
-            playlistImage = 'data:image/webp;base64,' + compressedImg
-          } catch (error) {
-            console.log({error})
-          }
-       
-        }
-        console.log({title})
-        dispatch(setNewPlayList({
-          ...newPlaylist,
-          title,
-          description,
-          image: playlistImage
-        }))
-
-      
-      } 
-     
-      // reset();
+      reset({ title: '', description: '', image: null });
+      setPrevSavedImg(null);
+      dispatch(setNewPlayList(null));
       uploadModal.onClose();
     }
   }

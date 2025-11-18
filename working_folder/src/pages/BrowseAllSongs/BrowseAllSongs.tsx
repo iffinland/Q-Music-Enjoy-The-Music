@@ -9,6 +9,8 @@ import { cachedSearchQdnResources } from "../../services/resourceCache";
 import { shouldHideQdnResource } from "../../utils/qdnResourceFilters";
 import SortControls from "../../components/common/SortControls";
 import { MUSIC_CATEGORIES } from "../../constants/categories";
+import Button from "../../components/Button";
+import useUploadModal from "../../hooks/useUploadModal";
 
 type SourceKey = "ALL" | "QMUSIC" | "EARBUMP";
 type AlphabetKey = "ALL" | string;
@@ -101,6 +103,7 @@ const BrowseAllSongs: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const uploadModal = useUploadModal();
 
   const fetchSongsForPrefix = useCallback(
     async (prefix?: string) => {
@@ -299,13 +302,24 @@ const BrowseAllSongs: React.FC = () => {
     <Box className="overflow-hidden">
       <Header className="rounded-t-lg bg-gradient-to-b from-sky-900/80 via-sky-950/40 to-transparent">
         <div className="flex flex-col items-center gap-y-6 text-center">
-          <div>
-            <h1 className="text-white text-3xl font-semibold">
-              Browse All Songs
-            </h1>
-            <p className="text-sky-200/80 text-sm mt-2">
-              Discover every song across Q-Music and Ear-Bump catalogs.
-            </p>
+          <div className="flex flex-col gap-3">
+            <div>
+              <h1 className="text-white text-3xl font-semibold">
+                Browse All Songs
+              </h1>
+              <p className="text-sky-200/80 text-sm mt-2">
+                Discover every song across Q-Music and Ear-Bump catalogs.
+              </p>
+            </div>
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                onClick={() => uploadModal.openSingle()}
+                className="w-full md:w-auto"
+              >
+                Add Audio Track
+              </Button>
+            </div>
           </div>
           <div className="flex flex-wrap justify-center gap-3">
             {SOURCE_FILTERS.map((filter) => {
