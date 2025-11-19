@@ -16,7 +16,6 @@ import {
   PlayList,
   removeFavPlaylist,
   removePlaylistById,
-  setAddToDownloads,
   setCurrentPlaylist,
   setCurrentSong,
   setFavPlaylist,
@@ -24,7 +23,6 @@ import {
   setNowPlayingPlaylist,
 } from '../../state/features/globalSlice';
 import { RootState } from '../../state/store';
-import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildPlaylistShareUrl } from '../../utils/qortalLinks';
 import {
   fetchPlaylistLikeCount,
@@ -56,7 +54,6 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
 }) => {
   const dispatch = useDispatch();
   const { downloadVideo } = useContext(MyContext);
-  const downloads = useSelector((state: RootState) => state.global.downloads);
   const username = useSelector((state: RootState) => state.auth.user?.name);
   const favoritesPlaylist = useSelector(
     (state: RootState) => state.global.favoritesPlaylist,
@@ -132,39 +129,14 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
       dispatch(setCurrentPlaylist(ready.id));
       dispatch(setNowPlayingPlaylist(mapPlaylistSongsToSongs(ready.songs)));
 
-      const downloadEntry = downloads[head.identifier];
-      const isReady = downloadEntry?.status?.status === 'READY';
-
-      if (isReady) {
-        const resolvedUrl =
-          downloadEntry?.url ||
-          (await getQdnResourceUrl(
-            head.service || 'AUDIO',
-            head.name,
-            head.identifier,
-          ));
-        dispatch(
-          setAddToDownloads({
-            name: head.name,
-            service: head.service || 'AUDIO',
-            id: head.identifier,
-            identifier: head.identifier,
-            url: resolvedUrl ?? undefined,
-            status: downloadEntry?.status,
-            title: head.title || '',
-            author: head.author || head.name,
-          }),
-        );
-      } else {
-        downloadVideo({
-          name: head.name,
-          service: head.service || 'AUDIO',
-          identifier: head.identifier,
-          title: head.title || '',
-          author: head.author || head.name,
-          id: head.identifier,
-        });
-      }
+      await downloadVideo({
+        name: head.name,
+        service: head.service || 'AUDIO',
+        identifier: head.identifier,
+        title: head.title || '',
+        author: head.author || head.name,
+        id: head.identifier,
+      });
 
       dispatch(setCurrentSong(head.identifier));
     } catch (error) {
@@ -172,7 +144,7 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
     } finally {
       setPlayBusy(false);
     }
-  }, [dispatch, downloadVideo, downloads, playBusy, playlist, ensurePlaylistSongs]);
+  }, [dispatch, downloadVideo, playBusy, playlist, ensurePlaylistSongs]);
 
   const handleToggleFavorite = useCallback(async () => {
     if (!username) {

@@ -2,6 +2,7 @@ import React from 'react';
 import { useDispatch } from 'react-redux';
 
 import { setAddToDownloads, updateDownloads } from '../state/features/globalSlice';
+import { getQdnResourceUrl } from '../utils/qortalApi';
 
 interface Props {
   children: React.ReactNode;
@@ -164,6 +165,31 @@ const DownloadWrapper: React.FC<Props> = ({ children }) => {
     });
   };
 
+  const tryImmediatePlayback = async (
+    params: IDownloadVideoParams,
+  ): Promise<string | null> => {
+    try {
+      const url = await getQdnResourceUrl(params.service, params.name, params.identifier);
+      if (!url) {
+        return null;
+      }
+      dispatch(
+        setAddToDownloads({
+          ...params,
+          url,
+          status: {
+            status: 'READY',
+            percentLoaded: 100,
+          },
+        }),
+      );
+      return url;
+    } catch (error) {
+      console.warn('Immediate QDN playback resolution failed', error);
+      return null;
+    }
+  };
+
   const downloadVideo = async ({
     name,
     service,
@@ -171,6 +197,15 @@ const DownloadWrapper: React.FC<Props> = ({ children }) => {
     ...props
   }: IDownloadVideoParams) => {
     try {
+      const resolvedUrl = await tryImmediatePlayback({
+        name,
+        service,
+        identifier,
+        ...props,
+      });
+      if (resolvedUrl) {
+        return 'ready';
+      }
 
       performDownload({
         name,

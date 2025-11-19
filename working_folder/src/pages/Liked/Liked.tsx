@@ -6,11 +6,10 @@ import { useFetchSongs } from '../../hooks/fetchSongs'
 import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '../../state/store'
 import { FaPlay } from 'react-icons/fa'
-import { setAddToDownloads, setCurrentPlaylist, setCurrentSong, setNowPlayingPlaylist } from '../../state/features/globalSlice'
+import { setCurrentPlaylist, setCurrentSong, setNowPlayingPlaylist } from '../../state/features/globalSlice'
 import { MyContext } from '../../wrappers/DownloadWrapper'
 import { FavPlaylists } from '../Playlists/FavPlaylists'
 import Box from '../../components/Box';
-import { getQdnResourceUrl } from '../../utils/qortalApi';
 import likeImg from '../../assets/img/like-button.png'
 import GoBackButton from '../../components/GoBackButton';
 export const Liked = () => {
@@ -21,9 +20,6 @@ export const Liked = () => {
 
   const {getLikedSongs} = useFetchSongs()
   const dispatch = useDispatch()
-  const downloads = useSelector(
-    (state: RootState) => state.global.downloads
-  )
   const onClickPlaylist = async ()=> {
     if(!favoriteList || favoriteList?.length === 0) return
 
@@ -32,28 +28,14 @@ export const Liked = () => {
       setCurrentPlaylist('likedPlaylist')
     )
     dispatch(setNowPlayingPlaylist(favoriteList))
-    if(firstLikedSong?.status?.status === 'READY' || downloads[firstLikedSong.id]?.status?.status === 'READY'){
-      const resolvedUrl = await getQdnResourceUrl('AUDIO', firstLikedSong.name, firstLikedSong.id);
-      dispatch(setAddToDownloads({
-        name: firstLikedSong.name,
-        service: 'AUDIO',
-        id: firstLikedSong.id,
-        identifier: firstLikedSong.id,
-        url: resolvedUrl ?? undefined,
-        status: firstLikedSong?.status,
-        title: firstLikedSong?.title || "",
-        author: firstLikedSong?.author || "",
-      }))
-    }else {
-      downloadVideo({
-        name: firstLikedSong.name,
-        service: 'AUDIO',
-        identifier: firstLikedSong.id,
-        title: firstLikedSong?.title || "",
-        author: firstLikedSong?.author || "",
-        id: firstLikedSong.id
-      })
-    }
+    await downloadVideo({
+      name: firstLikedSong.name,
+      service: 'AUDIO',
+      identifier: firstLikedSong.id,
+      title: firstLikedSong?.title || "",
+      author: firstLikedSong?.author || "",
+      id: firstLikedSong.id
+    })
    
     dispatch(setCurrentSong(firstLikedSong.id))
   }

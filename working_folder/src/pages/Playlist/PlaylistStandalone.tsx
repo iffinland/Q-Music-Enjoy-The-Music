@@ -3,7 +3,7 @@ import Header from '../../components/Header'
 import SearchContent from '../../components/SearchContent'
 import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '../../state/store'
-import { PlayList, SongReference, Status, addToPlaylistHashMap, removeFavPlaylist, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavPlaylist, setNewPlayList, setNowPlayingPlaylist } from '../../state/features/globalSlice'
+import { PlayList, SongReference, Status, addToPlaylistHashMap, removeFavPlaylist, setCurrentPlaylist, setCurrentSong, setFavPlaylist, setNewPlayList, setNowPlayingPlaylist } from '../../state/features/globalSlice'
 import { AiFillEdit, AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { FaPlay } from 'react-icons/fa'
 import { FiShare2, FiFlag } from 'react-icons/fi';
@@ -11,7 +11,6 @@ import { MyContext } from '../../wrappers/DownloadWrapper'
 import localforage from 'localforage'
 import likeImg from '../../assets/img/like-button.png'
 import Box from '../../components/Box';
-import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildPlaylistShareUrl } from '../../utils/qortalLinks';
 import { toast } from 'react-hot-toast';
 import { objectToBase64 } from '../../utils/toBase64';
@@ -45,9 +44,6 @@ export const PlaylistStandalone = ({
   const { downloadVideo } = useContext(MyContext)
   const { ensurePlaylistSongs } = usePlaylistPlayback();
 
-  const downloads = useSelector(
-    (state: RootState) => state.global.downloads
-  )
   const [playListData, setPlaylistData] = useState<any>(null)
   const [isLoadingDetails, setIsLoadingDetails] = useState(false)
 
@@ -249,33 +245,14 @@ export const PlaylistStandalone = ({
     dispatch(setCurrentPlaylist(ready.id));
     dispatch(setNowPlayingPlaylist(mapPlaylistSongsToSongs(ready.songs)));
 
-    if (
-      firstSong?.status?.status === 'READY' ||
-      downloads[firstSong.id]?.status?.status === 'READY'
-    ) {
-      const resolvedUrl = await getQdnResourceUrl('AUDIO', firstSong.name, firstSong.id);
-      dispatch(
-        setAddToDownloads({
-          name: firstSong.name,
-          service: 'AUDIO',
-          id: firstSong.id,
-          identifier: firstSong.id,
-          url: resolvedUrl ?? undefined,
-          status: firstSong?.status,
-          title: firstSong?.title || '',
-          author: firstSong?.author || '',
-        }),
-      );
-    } else {
-      downloadVideo({
-        name: firstSong.name,
-        service: 'AUDIO',
-        identifier: firstSong.id,
-        title: firstSong?.title || '',
-        author: firstSong?.author || '',
-        id: firstSong.id,
-      });
-    }
+    await downloadVideo({
+      name: firstSong.name,
+      service: 'AUDIO',
+      identifier: firstSong.id,
+      title: firstSong?.title || '',
+      author: firstSong?.author || '',
+      id: firstSong.id,
+    });
 
     dispatch(setCurrentSong(firstSong.id));
   };

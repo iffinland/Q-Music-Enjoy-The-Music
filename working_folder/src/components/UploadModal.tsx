@@ -638,17 +638,19 @@ const UploadModal = () => {
     
       setIsLoading(false);
       const successMessage = isEditMode
-        ? 'Song updated successfully! Redirects...'
+        ? 'Song updated successfully!'
         : playlistAdded
-          ? 'Song published and added to playlist! Redirects...'
-          : 'The song was published successfully! Redirects...';
+          ? 'Song published and added to playlist! Redirecting to Browse & Listen Songs...'
+          : 'The song was published successfully! Redirecting to Browse & Listen Songs...';
       toast.success(successMessage, { duration: successRedirectDelay });
       successTimeoutRef.current = window.setTimeout(() => {
         reset();
         setSelectedPlaylistId(null);
         setIsPlaylistDropdownOpen(false);
         uploadModal.closeSingle();
-        navigate('/');
+        if (!isEditMode) {
+          navigate('/songs');
+        }
         successTimeoutRef.current = null;
       }, successRedirectDelay);
     } catch (error) {

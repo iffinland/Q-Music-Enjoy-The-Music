@@ -110,39 +110,23 @@ const SongDetail: React.FC = () => {
   }, [loadComments]);
 
   const handlePlaySong = useCallback(async () => {
-    if (!song) return;
+    if (!song?.name) return;
 
     try {
-      const resolvedUrl = await getQdnResourceUrl('AUDIO', publisher, identifier);
-
-      if (resolvedUrl) {
-        dispatch(setAddToDownloads({
-          name: publisher,
-          service: 'AUDIO',
-          id: identifier,
-          identifier,
-          url: resolvedUrl,
-          status: song.status,
-          title: song.title || '',
-          author: song.author || '',
-        }));
-      } else {
-        downloadVideo({
-          name: publisher,
-          service: 'AUDIO',
-          identifier,
-          title: song.title || '',
-          author: song.author || '',
-          id: identifier,
-        });
-      }
-
+      await downloadVideo({
+        name: song.name,
+        service: 'AUDIO',
+        identifier,
+        title: song.title || '',
+        author: song.author || '',
+        id: identifier,
+      });
       dispatch(setCurrentSong(identifier));
     } catch (error) {
       console.error('Failed to play song', error);
       toast.error('Failed to start playback. Please try again.');
     }
-  }, [dispatch, downloadVideo, identifier, publisher, song]);
+  }, [dispatch, downloadVideo, identifier, song]);
 
   const handleCopyLink = useCallback(async () => {
     try {

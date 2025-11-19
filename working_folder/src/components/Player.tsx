@@ -722,35 +722,16 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
 
       const authorName = resolveAuthorName(songToPlay);
 
-      if (
-        songToPlay?.status?.status === 'READY' ||
-        downloads[downloadKey]?.status?.status === 'READY'
-      ) {
-        const resolvedUrl = await getQdnResourceUrl('AUDIO', songToPlay.name, downloadKey);
-        dispatch(
-          setAddToDownloads({
-            name: songToPlay.name,
-            service: 'AUDIO',
-            id: downloadKey,
-            identifier: downloadKey,
-            url: resolvedUrl ?? undefined,
-            status: songToPlay?.status,
-            title: songToPlay?.title || '',
-            author: authorName,
-          }),
-        );
-      } else {
-        downloadVideo({
-          name: songToPlay.name,
-          service: 'AUDIO',
-          identifier: downloadKey,
-          title: songToPlay?.title || '',
-          author: authorName,
-          id: downloadKey,
-        });
-      }
+      await downloadVideo({
+        name: songToPlay.name,
+        service: 'AUDIO',
+        identifier: downloadKey,
+        title: songToPlay?.title || '',
+        author: authorName,
+        id: downloadKey,
+      });
     },
-    [dispatch, downloadVideo, downloads, resolveIdentifier],
+    [dispatch, downloadVideo, resolveIdentifier],
   );
 
   const handleToggleShuffle = useCallback(() => {

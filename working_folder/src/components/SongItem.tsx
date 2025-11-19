@@ -13,13 +13,13 @@ import { Song } from "../types";
 import { AddToPlaylistButton } from "./AddToPlayistButton";
 import { toast } from "react-hot-toast";
 import { buildSongShareUrl } from "../utils/qortalLinks";
-import { getQdnResourceUrl } from "../utils/qortalApi";
 import { Link, useNavigate } from "react-router-dom";
 import useSendTipModal from "../hooks/useSendTipModal";
 import { fetchSongLikeCount, hasUserLikedSong, likeSong, unlikeSong } from "../services/songLikes";
 import useUploadModal from "../hooks/useUploadModal";
 import useCoverImage from "../hooks/useCoverImage";
 import { buildDownloadFilename } from '../utils/downloadFilename';
+import { getQdnResourceUrl } from "../utils/qortalApi";
 
 interface SongItemProps {
   data: SongMeta;
@@ -104,32 +104,18 @@ const SongItem: React.FC<SongItemProps> = ({
 
   const handlePlay = useCallback(async (event?: MouseEvent<HTMLButtonElement>) => {
     event?.stopPropagation();
-    if (data?.status?.status === 'READY' || downloads[data.id]?.status?.status === 'READY') {
-      const resolvedUrl = await getQdnResourceUrl('AUDIO', data.name, data.id);
-      dispatch(setAddToDownloads({
-        name: data.name,
-        service: 'AUDIO',
-        id: data.id,
-        identifier: data.id,
-        url: resolvedUrl ?? undefined,
-        status: data?.status,
-        title: data?.title || "",
-        author: creatorDisplay,
-      }));
-    } else {
-      downloadVideo({
-        name: data.name,
-        service: 'AUDIO',
-        identifier: data.id,
-        title: data?.title || "",
-        author: creatorDisplay,
-        id: data.id,
-      });
-    }
+    await downloadVideo({
+      name: data.name,
+      service: 'AUDIO',
+      identifier: data.id,
+      title: data?.title || "",
+      author: creatorDisplay,
+      id: data.id,
+    });
 
     dispatch(setCurrentSong(data.id));
     onClick(data.id);
-  }, [creatorDisplay, data, downloads, dispatch, downloadVideo, onClick]);
+  }, [creatorDisplay, data, dispatch, downloadVideo, onClick]);
 
   const handleNavigate = useCallback(() => {
     if (!data?.name || !data?.id) return;

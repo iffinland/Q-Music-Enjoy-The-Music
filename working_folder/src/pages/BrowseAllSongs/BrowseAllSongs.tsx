@@ -11,6 +11,7 @@ import SortControls from "../../components/common/SortControls";
 import { MUSIC_CATEGORIES } from "../../constants/categories";
 import Button from "../../components/Button";
 import useUploadModal from "../../hooks/useUploadModal";
+import useUploadFolderModal from "../../hooks/useUploadFolderModal";
 
 type SourceKey = "ALL" | "QMUSIC" | "EARBUMP";
 type AlphabetKey = "ALL" | string;
@@ -104,6 +105,7 @@ const BrowseAllSongs: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const uploadModal = useUploadModal();
+  const uploadFolderModal = useUploadFolderModal();
 
   const fetchSongsForPrefix = useCallback(
     async (prefix?: string) => {
@@ -311,13 +313,20 @@ const BrowseAllSongs: React.FC = () => {
                 Discover every song across Q-Music and Ear-Bump catalogs.
               </p>
             </div>
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
               <Button
                 type="button"
                 onClick={() => uploadModal.openSingle()}
                 className="w-full md:w-auto"
               >
                 Add Audio Track
+              </Button>
+              <Button
+                type="button"
+                onClick={() => uploadFolderModal.open()}
+                className="w-full md:w-auto"
+              >
+                Publish Folder
               </Button>
             </div>
           </div>

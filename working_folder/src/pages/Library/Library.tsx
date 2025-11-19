@@ -18,7 +18,7 @@ import { FavPlaylists } from '../Playlists/FavPlaylists';
 import { IoMdCloudUpload } from 'react-icons/io';
 import GoBackButton from '../../components/GoBackButton';
 import { toast } from 'react-hot-toast';
-import { setAddToDownloads, setCurrentPlaylist, setCurrentSong, setNowPlayingPlaylist } from '../../state/features/globalSlice';
+import { setCurrentPlaylist, setCurrentSong, setNowPlayingPlaylist } from '../../state/features/globalSlice';
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
 import likeImg from '../../assets/img/like-button.png';
@@ -85,7 +85,6 @@ export const Library: React.FC = () => {
   const songListLibrary = useSelector((state: RootState) => state?.global.songListLibrary);
   const favoriteList = useSelector((state: RootState) => state.global.favoriteList);
   const favorites = useSelector((state: RootState) => state.global.favorites);
-  const downloads = useSelector((state: RootState) => state.global.downloads);
 
   const initialSongFetch = useRef(false);
 
@@ -433,39 +432,20 @@ export const Library: React.FC = () => {
     dispatch(setNowPlayingPlaylist(favoriteList));
 
     try {
-      if (
-        firstLikedSong?.status?.status === 'READY' ||
-        downloads[firstLikedSong.id]?.status?.status === 'READY'
-      ) {
-        const resolvedUrl = await getQdnResourceUrl('AUDIO', firstLikedSong.name, firstLikedSong.id);
-        dispatch(
-          setAddToDownloads({
-            name: firstLikedSong.name,
-            service: 'AUDIO',
-            id: firstLikedSong.id,
-            identifier: firstLikedSong.id,
-            url: resolvedUrl ?? undefined,
-            status: firstLikedSong?.status,
-            title: firstLikedSong?.title || '',
-            author: firstLikedSong?.author || '',
-          }),
-        );
-      } else {
-        downloadVideo({
-          name: firstLikedSong.name,
-          service: 'AUDIO',
-          identifier: firstLikedSong.id,
-          title: firstLikedSong?.title || '',
-          author: firstLikedSong?.author || '',
-          id: firstLikedSong.id,
-        });
-      }
+      await downloadVideo({
+        name: firstLikedSong.name,
+        service: 'AUDIO',
+        identifier: firstLikedSong.id,
+        title: firstLikedSong?.title || '',
+        author: firstLikedSong?.author || '',
+        id: firstLikedSong.id,
+      });
 
       dispatch(setCurrentSong(firstLikedSong.id));
     } catch (error) {
       toast.error('Unable to start playback right now.');
     }
-  }, [dispatch, downloadVideo, downloads, favoriteList]);
+  }, [dispatch, downloadVideo, favoriteList]);
 
   const favoritesAvailable = Boolean(favorites);
   const hasAnyLikes =
