@@ -49,6 +49,14 @@ const playlistFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites',
 });
 
+const isValidPlaylistEntry = (playlist: PlayList | null | undefined): playlist is PlayList =>
+  Boolean(playlist && typeof playlist.id === 'string' && playlist.id.trim().length > 0);
+
+const sanitizeFavorites = (entries: PlayList[] | null | undefined): PlayList[] => {
+  if (!Array.isArray(entries)) return [];
+  return entries.filter(isValidPlaylistEntry);
+};
+
 const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
   const dispatch = useDispatch();
   const username = useSelector((state: RootState) => state.auth.user?.name);
@@ -76,7 +84,7 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
   const coverImage = data?.image || coverUrl || radioImg;
 
   const isFavorited = useMemo(
-    () => favoritesPlaylist?.some((playlist) => playlist.id === data.id) ?? false,
+    () => favoritesPlaylist?.some((playlist) => playlist?.id === data.id) ?? false,
     [favoritesPlaylist, data.id],
   );
   const isOwner = useMemo(() => {
@@ -253,9 +261,10 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
 
       try {
         setIsFavoriteBusy(true);
-        const existing =
+        const existing = sanitizeFavorites(
           (await playlistFavoritesStorage.getItem<PlayList[]>('favoritesPlaylist')) ||
-          [];
+            [],
+        );
 
         if (isFavorited) {
           const updated = existing.filter((playlist) => playlist.id !== data.id);

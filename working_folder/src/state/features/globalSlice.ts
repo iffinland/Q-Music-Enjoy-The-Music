@@ -115,6 +115,29 @@ export interface Favorites {
   songs: Record<string, FavSong>
   playlists: Record<string, FavPlaylist>
 }
+
+const ensureValidPlaylist = (playlist: PlayList | null | undefined): PlayList | null => {
+  if (!playlist) return null;
+  const rawId = typeof playlist.id === 'string' ? playlist.id : '';
+  const normalizedId = rawId.trim();
+  if (!normalizedId) return null;
+  if (rawId === normalizedId) return playlist;
+  return { ...playlist, id: normalizedId };
+};
+
+const normalizePlaylistList = (
+  list: Array<PlayList | null | undefined>,
+): PlayList[] => {
+  const result: PlayList[] = [];
+  list.forEach((entry) => {
+    const normalized = ensureValidPlaylist(entry);
+    if (normalized) {
+      result.push(normalized);
+    }
+  });
+  return result;
+};
+
 const initialState: GlobalState = {
   isLoadingGlobal: false,
   downloads: {},
@@ -212,21 +235,25 @@ export const globalSlice = createSlice({
     },
     upsertPlaylists: (state, action) => {
       action.payload.forEach((playlist: PlayList) => {
-        const index = state.playlists.findIndex((p) => p.id === playlist.id)
+        const normalized = ensureValidPlaylist(playlist)
+        if (!normalized) return
+        const index = state.playlists.findIndex((p) => p.id === normalized.id)
         if (index !== -1) {
-          state.playlists[index] = playlist
+          state.playlists[index] = normalized
         } else {
-          state.playlists.push(playlist)
+          state.playlists.push(normalized)
         }
       })
     },
     upsertMyPlaylists: (state, action) => {
       action.payload.forEach((playlist: PlayList) => {
-        const index = state.myPlaylists.findIndex((p) => p.id === playlist.id)
+        const normalized = ensureValidPlaylist(playlist)
+        if (!normalized) return
+        const index = state.myPlaylists.findIndex((p) => p.id === normalized.id)
         if (index !== -1) {
-          state.myPlaylists[index] = playlist
+          state.myPlaylists[index] = normalized
         } else {
-          state.myPlaylists.push(playlist)
+          state.myPlaylists.push(normalized)
         }
       })
     },
@@ -236,11 +263,13 @@ export const globalSlice = createSlice({
     },
     upsertQueriedPlaylist: (state, action) => {
       action.payload.forEach((playlist: PlayList) => {
-        const index = state.playlistQueried.findIndex((p) => p.id === playlist.id)
+        const normalized = ensureValidPlaylist(playlist)
+        if (!normalized) return
+        const index = state.playlistQueried.findIndex((p) => p.id === normalized.id)
         if (index !== -1) {
-          state.playlistQueried[index] = playlist
+          state.playlistQueried[index] = normalized
         } else {
-          state.playlistQueried.push(playlist)
+          state.playlistQueried.push(normalized)
         }
       })
     },
@@ -287,18 +316,28 @@ export const globalSlice = createSlice({
 
     },
     setFavPlaylist: (state, action) => {
-      if (state.favoritesPlaylist) {
-        const playlist = action.payload
-
-        state.favoritesPlaylist.unshift(playlist)
+      if (!state.favoritesPlaylist) {
+        state.favoritesPlaylist = [];
       }
-
+      const normalizedList = normalizePlaylistList(state.favoritesPlaylist);
+      const normalized = ensureValidPlaylist(action.payload);
+      if (!normalized) {
+        state.favoritesPlaylist = normalizedList;
+        return;
+      }
+      state.favoritesPlaylist = [normalized, ...normalizedList];
     },
     removeFavPlaylist: (state, action) => {
       if (state.favoritesPlaylist) {
-        const playlist = action.payload
-
-        state.favoritesPlaylist = state.favoritesPlaylist.filter((play) => play.id !== playlist.id)
+        const normalized = ensureValidPlaylist(action.payload);
+        const normalizedList = normalizePlaylistList(state.favoritesPlaylist);
+        if (!normalized) {
+          state.favoritesPlaylist = normalizedList;
+          return;
+        }
+        state.favoritesPlaylist = normalizedList.filter(
+          (play) => play.id !== normalized.id,
+        )
       }
 
     },
@@ -306,7 +345,10 @@ export const globalSlice = createSlice({
       state.favorites = action.payload
     },
     setFavoritesFromStoragePlaylists: (state, action) => {
-      state.favoritesPlaylist = action.payload
+      const payload = Array.isArray(action.payload)
+        ? action.payload
+        : [];
+      state.favoritesPlaylist = normalizePlaylistList(payload)
     },
     upsertNowPlayingPlaylist: (state, action) => {
       action.payload.forEach((song: Song) => {
@@ -328,16 +370,17 @@ export const globalSlice = createSlice({
       state.newPlayList = action.payload
     },
     addToPlaylistHashMap: (state, action) => {
-      const playlist = action.payload
-      state.playlistHash[playlist.id] = playlist
+      const normalized = ensureValidPlaylist(action.payload)
+      if (!normalized) return
+      state.playlistHash[normalized.id] = normalized
     },
     removePlaylistById: (state, action: PayloadAction<string>) => {
       const playlistId = action.payload
-      state.playlists = state.playlists.filter((playlist) => playlist.id !== playlistId)
-      state.myPlaylists = state.myPlaylists.filter((playlist) => playlist.id !== playlistId)
-      state.playlistQueried = state.playlistQueried.filter((playlist) => playlist.id !== playlistId)
+      state.playlists = normalizePlaylistList(state.playlists).filter((playlist) => playlist.id !== playlistId)
+      state.myPlaylists = normalizePlaylistList(state.myPlaylists).filter((playlist) => playlist.id !== playlistId)
+      state.playlistQueried = normalizePlaylistList(state.playlistQueried).filter((playlist) => playlist.id !== playlistId)
       if (state.favoritesPlaylist) {
-        state.favoritesPlaylist = state.favoritesPlaylist.filter((playlist) => playlist.id !== playlistId)
+        state.favoritesPlaylist = normalizePlaylistList(state.favoritesPlaylist).filter((playlist) => playlist.id !== playlistId)
       }
       if (state.newPlayList?.id === playlistId) {
         state.newPlayList = null

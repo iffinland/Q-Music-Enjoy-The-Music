@@ -14,7 +14,6 @@ import {
   setCurrentPlaylist,
   setCurrentSong,
   setFavPlaylist,
-  setIsLoadingGlobal,
   setNewPlayList,
   upsertMyPlaylists,
   setNowPlayingPlaylist,
@@ -43,6 +42,13 @@ const favoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites'
 })
 
+const sanitizeFavoritesList = (entries: PlayList[] | null | undefined): PlayList[] => {
+  if (!Array.isArray(entries)) return [];
+  return entries.filter(
+    (playlist) => playlist && typeof playlist.id === 'string' && playlist.id.trim().length > 0,
+  );
+};
+
 export const Playlist = () => {
   const uploadPlaylistModal = useUploadPlaylistModal();
   const username = useSelector((state: RootState) => state.auth?.user?.name);
@@ -61,6 +67,7 @@ export const Playlist = () => {
     (state: RootState) => state.global.downloads
   )
   const [playListData, setPlaylistData] = useState<any>(null)
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isReordering, setIsReordering] = useState(false);
   const [reorderedSongs, setReorderedSongs] = useState<SongReference[]>([]);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
@@ -68,7 +75,7 @@ export const Playlist = () => {
   const getPlaylistData = React.useCallback(async (name: string, id: string) => {
     try {
       if (!name || !playlistId) return
-      dispatch(setIsLoadingGlobal(true))
+      setIsLoadingDetails(true)
 
       const responseDataSearch = await cachedSearchQdnResources({
         mode: 'ALL',
@@ -123,9 +130,9 @@ export const Playlist = () => {
 
     } catch (error) {
     } finally {
-      dispatch(setIsLoadingGlobal(false))
+      setIsLoadingDetails(false)
     }
-  }, [])
+  }, [dispatch, playlistId])
   
 
   React.useEffect(() => {
@@ -133,8 +140,8 @@ export const Playlist = () => {
     const hashEntry = playlistHash[playlistId];
     const fallbackEntry =
       hashEntry ||
-      globalPlaylists.find((playlist) => playlist.id === playlistId) ||
-      myPlaylists.find((playlist) => playlist.id === playlistId);
+      globalPlaylists.find((playlist) => playlist?.id === playlistId) ||
+      myPlaylists.find((playlist) => playlist?.id === playlistId);
     if (fallbackEntry) {
       setPlaylistData(fallbackEntry);
     }
@@ -151,7 +158,7 @@ export const Playlist = () => {
       isLiked = false
       return isLiked
     }
-    if(favoritesPlaylist?.find(play=> play.id === playlistId)) return true
+    if(favoritesPlaylist?.find((play)=> play?.id === playlistId)) return true
 
     return isLiked
    
@@ -237,6 +244,7 @@ export const Playlist = () => {
       const updatedPlaylist = {
         ...playListData,
         songs: reorderedSongs.map((song) => ({ ...song })),
+        updated: Date.now(),
       };
       setPlaylistData(updatedPlaylist);
       dispatch(addToPlaylistHashMap(updatedPlaylist));
@@ -244,6 +252,14 @@ export const Playlist = () => {
       dispatch(setNewPlayList(updatedPlaylist));
       toast.success('Playlist order updated.');
       setIsReordering(false);
+      window.dispatchEvent(
+        new CustomEvent('playlists:refresh', {
+          detail: {
+            playlist: updatedPlaylist,
+            mode: 'edit',
+          },
+        }),
+      );
     } catch (error) {
       toast.error('Failed to update playlist order.');
     } finally {
@@ -385,31 +401,29 @@ export const Playlist = () => {
     try {
       if(isfavoriting.current) return
       isfavoriting.current = true
-      const isLiked =  !!favoritesPlaylist?.find(play=> play.id === playlistId)
+      const isLiked =  !!favoritesPlaylist?.find((play)=> play?.id === playlistId)
       if(isLiked){
         dispatch(removeFavPlaylist(playListData))
   
-        const favoritesObj: PlayList[] | null = await favoritesStorage.getItem('favoritesPlaylist') || null
-  
-        if(favoritesObj){
-          const newFavs = favoritesObj.filter((fav)=> fav?.id !== playlistId)
+        const favoritesObj = sanitizeFavoritesList(
+          await favoritesStorage.getItem<PlayList[]>('favoritesPlaylist'),
+        )
+
+        if(favoritesObj.length){
+          const newFavs = favoritesObj.filter((fav)=> fav.id !== playlistId)
           await favoritesStorage.setItem('favoritesPlaylist', newFavs)
         } 
         
       }else {
         dispatch(setFavPlaylist(playListData))
-  
-        const favoritesObj:  PlayList[] | null =
-        await favoritesStorage.getItem('favoritesPlaylist') || null
-  
-        if(!favoritesObj){
-        const newObj: PlayList[] =   [playListData]
-  
+
+        const favoritesObj = sanitizeFavoritesList(
+          await favoritesStorage.getItem<PlayList[]>('favoritesPlaylist'),
+        )
+        if (playListData?.id) {
+          const filtered = favoritesObj.filter((fav)=> fav.id !== playlistId)
+          const newObj: PlayList[] =   [playListData, ...filtered]
           await favoritesStorage.setItem('favoritesPlaylist', newObj)
-        }  else {
-          const newObj: PlayList[] =   [playListData, ...favoritesObj]
-  
-          await favoritesStorage.setItem('favoritesPlaylist', favoritesObj)
         }
       }
   
@@ -510,6 +524,11 @@ export const Playlist = () => {
       </div>
     </div>
   </Header>
+      {isLoadingDetails && (
+        <div className="px-6 py-2 text-xs text-sky-200/80">
+          Loading latest playlist data…
+        </div>
+      )}
       {playListData && !isReordering && (
         <SearchContent
           songs={songs}

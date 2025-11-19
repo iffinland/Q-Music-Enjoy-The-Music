@@ -66,6 +66,7 @@ type PlaylistSong = SongReference & { status?: Status; id?: string; url?: string
 interface PlayerPlaybackProps {
   song: DownloadEntry;
   songUrl: string;
+  autoPlay: boolean;
   onPlaybackStateChange: (isPlaying: boolean) => void;
   onProgressChange?: (progress: { currentTime: number; duration: number }) => void;
   onRegisterControls?: (controls: PlayerExternalControls) => void;
@@ -604,6 +605,7 @@ const VolumeControl: React.FC<{
 const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   song,
   songUrl,
+  autoPlay,
   onPlaybackStateChange,
   onProgressChange,
   onRegisterControls,
@@ -815,6 +817,7 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   );
 
   const [play, { pause, sound }] = useSound(songUrl || '', {
+    preload: true,
     volume,
     onplay: () => {
       setIsLoaded(true);
@@ -856,12 +859,20 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   }, [buildShuffleOrder, getActivePlaylistEntries, isShuffleEnabled]);
 
   useEffect(() => {
-    sound?.play();
+    if (!sound || !autoPlay) return undefined;
+
+    sound.play();
+
     return () => {
+      sound.stop();
+      setIsPlaying(false);
       onPlaybackStateChange(false);
-      sound?.unload();
     };
-  }, [onPlaybackStateChange, sound]);
+  }, [autoPlay, onPlaybackStateChange, sound]);
+
+  useEffect(() => () => {
+    sound?.unload();
+  }, [sound]);
 
   useEffect(() => {
     if (!sound) return undefined;
@@ -1511,7 +1522,8 @@ const Player = () => {
   }, [downloads, currentSongId]);
 
   const status = songItem?.status?.status ?? '';
-  const songUrl = status === 'READY' && songItem?.url ? songItem.url : null;
+  const isSongReady = status === 'READY';
+  const songUrl = songItem?.url ?? null;
 
   useEffect(() => {
     if (!songUrl) {
@@ -1620,22 +1632,27 @@ const Player = () => {
                 <span className="hidden sm:inline">Collapse</span>
               </button>
             </div>
-            {songUrl ? (
-              <PlayerPlayback
-                song={songItem}
-                songUrl={songUrl}
-                onPlaybackStateChange={setIsAudioPlaying}
-                onProgressChange={({ currentTime, duration }) =>
-                  setPlaybackTimes({ currentTime, duration })
-                }
-                onRegisterControls={setExternalControls}
-                isShuffleEnabled={isShuffleEnabled}
-                setIsShuffleEnabled={setIsShuffleEnabled}
-                repeatMode={repeatMode}
-                setRepeatMode={setRepeatMode}
-                shuffleOrderRef={shuffleOrderRef}
-              />
-            ) : (
+            {songUrl && (
+              <div className={isSongReady ? '' : 'hidden'}>
+                {/* Keep playback mounted so QDN download can progress while UI shows the loader */}
+                <PlayerPlayback
+                  song={songItem}
+                  songUrl={songUrl}
+                  autoPlay={isSongReady}
+                  onPlaybackStateChange={setIsAudioPlaying}
+                  onProgressChange={({ currentTime, duration }) =>
+                    setPlaybackTimes({ currentTime, duration })
+                  }
+                  onRegisterControls={setExternalControls}
+                  isShuffleEnabled={isShuffleEnabled}
+                  setIsShuffleEnabled={setIsShuffleEnabled}
+                  repeatMode={repeatMode}
+                  setRepeatMode={setRepeatMode}
+                  shuffleOrderRef={shuffleOrderRef}
+                />
+              </div>
+            )}
+            {(!songUrl || !isSongReady) && (
               <PlayerLoading
                 song={songItem}
                 percentLoaded={percentLoaded}

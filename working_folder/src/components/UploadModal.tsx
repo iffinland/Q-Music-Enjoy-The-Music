@@ -207,7 +207,7 @@ const UploadModal = () => {
   const selectedPlaylist = useMemo(() => {
     if (!selectedPlaylistId) return null;
     return (
-      availablePlaylists.find((playlist) => playlist.id === selectedPlaylistId) ||
+      availablePlaylists.find((playlist) => playlist?.id === selectedPlaylistId) ||
       null
     );
   }, [availablePlaylists, selectedPlaylistId]);
@@ -311,7 +311,7 @@ const UploadModal = () => {
       songAuthor: string,
     ) => {
       const basePlaylist =
-        availablePlaylists.find((playlist) => playlist.id === playlistId) ||
+        availablePlaylists.find((playlist) => playlist?.id === playlistId) ||
         playlistHash[playlistId];
       if (!basePlaylist) {
         throw new Error('Playlist not found');

@@ -48,6 +48,9 @@ export const PlayListsContent: React.FC<PlaylistsContentProps> = ({
     const pending: PlayList[] = [];
 
     playlists.forEach((playlist) => {
+      if (!playlist || !playlist.id) {
+        return;
+      }
       const existing = playlistHash[playlist.id];
       if (existing) {
         resolved.push(existing);
@@ -140,9 +143,9 @@ export const PlayListsContent: React.FC<PlaylistsContentProps> = ({
             No playlists match the selected filters.
           </div>
         )}
-        {pendingPlaylists.map((playlist) => (
+        {pendingPlaylists.map((playlist, index) => (
           <Skeleton
-            key={`playlist-skeleton-${playlist.id}`}
+            key={`playlist-skeleton-${playlist.id ?? `fallback-${index}`}`}
             variant="rectangular"
             style={{
               width: "100%",

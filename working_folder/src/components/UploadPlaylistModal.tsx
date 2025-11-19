@@ -202,34 +202,39 @@ const UploadPlaylistModal = () => {
           resources: resources
         }
         await qortalRequest(multiplePublish)
+      const now = Date.now();
+      const isExistingPlaylist =
+        Boolean(newPlaylist?.id) && !newPlaylist?.id?.startsWith('draft-playlist-');
+      const normalizedPlaylist: PlayList = {
+        user: newPlaylist?.user ? newPlaylist?.user : username,
+        id: identifier,
+        songs: Array.isArray(newPlaylist?.songs) ? newPlaylist!.songs : [],
+        title,
+        description,
+        image: (newPlaylist?.id && prevSavedImg) ? prevSavedImg  : 'data:image/webp;base64,' +  compressedImg,
+        created: typeof newPlaylist?.created === 'number' ? newPlaylist.created : now,
+        updated: now,
+        category: newPlaylist?.category,
+        categoryName: newPlaylist?.categoryName,
+        tags: newPlaylist?.tags,
+      };
       toast.success('The playlist was published successfully!', { duration: successRedirectDelay });
-      if(newPlaylist?.id){
-        //update playlist in store
+      if(isExistingPlaylist){
         dispatch(addToPlaylistHashMap(
-            {
-              user: newPlaylist?.user ? newPlaylist?.user : username,
-              service: 'PLAYLIST',
-              id: identifier,
-              filename,
-            songs: newPlaylist.songs,
-          title,
-          description,
-          image: (newPlaylist?.id && prevSavedImg) ? prevSavedImg  : 'data:image/webp;base64,' +  compressedImg}
+            normalizedPlaylist
           ))
-      } else {
-        //add playlist to store
-        dispatch(upsertPlaylists(
-          {
-            user: newPlaylist?.user ? newPlaylist?.user : username,
-              service: 'PLAYLIST',
-              id: identifier,
-              filename,
-            songs: newPlaylist.songs,
-          title,
-          description,
-          image: (newPlaylist?.id && prevSavedImg) ? prevSavedImg  : 'data:image/webp;base64,' +  compressedImg}
-        ))
       }
+      dispatch(upsertPlaylists(
+        [normalizedPlaylist]
+      ))
+      window.dispatchEvent(
+        new CustomEvent('playlists:refresh', {
+          detail: {
+            playlist: normalizedPlaylist,
+            mode: isExistingPlaylist ? 'edit' : 'create',
+          },
+        }),
+      );
       successTimeoutRef.current = window.setTimeout(() => {
         reset();
         dispatch(setNewPlayList(null))

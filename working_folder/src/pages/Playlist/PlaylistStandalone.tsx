@@ -3,7 +3,7 @@ import Header from '../../components/Header'
 import SearchContent from '../../components/SearchContent'
 import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '../../state/store'
-import { PlayList, SongReference, Status, addToPlaylistHashMap, removeFavPlaylist, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavPlaylist, setIsLoadingGlobal, setNewPlayList, setNowPlayingPlaylist } from '../../state/features/globalSlice'
+import { PlayList, SongReference, Status, addToPlaylistHashMap, removeFavPlaylist, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavPlaylist, setNewPlayList, setNowPlayingPlaylist } from '../../state/features/globalSlice'
 import { AiFillEdit, AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { FaPlay } from 'react-icons/fa'
 import { FiShare2, FiFlag } from 'react-icons/fi';
@@ -25,6 +25,13 @@ const favoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites'
 })
 
+const sanitizeFavoritesList = (entries: PlayList[] | null | undefined): PlayList[] => {
+  if (!Array.isArray(entries)) return [];
+  return entries.filter(
+    (playlist) => playlist && typeof playlist.id === 'string' && playlist.id.trim().length > 0,
+  );
+};
+
 export const PlaylistStandalone = ({
   playlistId,
   name
@@ -42,11 +49,12 @@ export const PlaylistStandalone = ({
     (state: RootState) => state.global.downloads
   )
   const [playListData, setPlaylistData] = useState<any>(null)
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false)
 
   const getPlaylistData = React.useCallback(async (name: string, id: string) => {
     try {
       if (!name || !playlistId) return
-      dispatch(setIsLoadingGlobal(true))
+      setIsLoadingDetails(true)
 
       const responseDataSearch = await cachedSearchQdnResources({
         mode: 'ALL',
@@ -101,9 +109,9 @@ export const PlaylistStandalone = ({
 
     } catch (error) {
     } finally {
-      dispatch(setIsLoadingGlobal(false))
+      setIsLoadingDetails(false)
     }
-  }, [])
+  }, [dispatch, playlistId])
   
 
   React.useEffect(() => {
@@ -128,7 +136,7 @@ export const PlaylistStandalone = ({
       isLiked = false
       return isLiked
     }
-    if(favoritesPlaylist?.find(play=> play.id === playlistId)) return true
+    if(favoritesPlaylist?.find((play)=> play?.id === playlistId)) return true
 
     return isLiked
    
@@ -276,31 +284,29 @@ export const PlaylistStandalone = ({
     try {
       if(isfavoriting.current) return
       isfavoriting.current = true
-      const isLiked =  !!favoritesPlaylist?.find(play=> play.id === playlistId)
+    const isLiked =  !!favoritesPlaylist?.find((play)=> play?.id === playlistId)
       if(isLiked){
         dispatch(removeFavPlaylist(playListData))
   
-        const favoritesObj: PlayList[] | null = await favoritesStorage.getItem('favoritesPlaylist') || null
-  
-        if(favoritesObj){
-          const newFavs = favoritesObj.filter((fav)=> fav?.id !== playlistId)
+        const favoritesObj = sanitizeFavoritesList(
+          await favoritesStorage.getItem<PlayList[]>('favoritesPlaylist'),
+        )
+
+        if(favoritesObj.length){
+          const newFavs = favoritesObj.filter((fav)=> fav.id !== playlistId)
           await favoritesStorage.setItem('favoritesPlaylist', newFavs)
         } 
         
       }else {
         dispatch(setFavPlaylist(playListData))
   
-        const favoritesObj:  PlayList[] | null =
-        await favoritesStorage.getItem('favoritesPlaylist') || null
-  
-        if(!favoritesObj){
-        const newObj: PlayList[] =   [playListData]
-  
+        const favoritesObj = sanitizeFavoritesList(
+          await favoritesStorage.getItem<PlayList[]>('favoritesPlaylist'),
+        )
+        if (playListData?.id) {
+          const filtered = favoritesObj.filter((fav)=> fav.id !== playlistId)
+          const newObj: PlayList[] =   [playListData, ...filtered]
           await favoritesStorage.setItem('favoritesPlaylist', newObj)
-        }  else {
-          const newObj: PlayList[] =   [playListData, ...favoritesObj]
-  
-          await favoritesStorage.setItem('favoritesPlaylist', favoritesObj)
         }
       }
   
@@ -434,6 +440,11 @@ export const PlaylistStandalone = ({
         </div>
       </div>
     </Header>
+      {isLoadingDetails && (
+        <div className="px-6 py-2 text-xs text-sky-200/80">
+          Loading latest playlist data…
+        </div>
+      )}
       {playListData && (
         <SearchContent
           songs={songs}

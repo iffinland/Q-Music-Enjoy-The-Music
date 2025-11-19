@@ -39,6 +39,14 @@ const playlistFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites',
 });
 
+const isValidPlaylistEntry = (playlist: PlayList | null | undefined): playlist is PlayList =>
+  Boolean(playlist && typeof playlist.id === 'string' && playlist.id.trim().length > 0);
+
+const sanitizeFavorites = (entries: PlayList[] | null | undefined): PlayList[] => {
+  if (!Array.isArray(entries)) return [];
+  return entries.filter(isValidPlaylistEntry);
+};
+
 interface LibraryPlaylistActionsProps {
   playlist: PlayList;
 }
@@ -65,7 +73,7 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
   const { ensurePlaylistSongs } = usePlaylistPlayback();
 
   const isFavorited = useMemo(
-    () => favoritesPlaylist?.some((item) => item.id === playlist.id) ?? false,
+    () => favoritesPlaylist?.some((item) => item?.id === playlist.id) ?? false,
     [favoritesPlaylist, playlist.id],
   );
 
@@ -176,9 +184,10 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
 
     try {
       setFavBusy(true);
-      const existing =
+      const existing = sanitizeFavorites(
         (await playlistFavoritesStorage.getItem<PlayList[]>('favoritesPlaylist')) ||
-        [];
+          [],
+      );
 
       if (isFavorited) {
         const updated = existing.filter((item) => item.id !== playlist.id);
@@ -235,13 +244,23 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
       await deletePlaylistResource(username, playlist.id);
       dispatch(removePlaylistById(playlist.id));
       if (isFavorited) {
-        const existing =
-          (await playlistFavoritesStorage.getItem<PlayList[]>('favoritesPlaylist')) || [];
+        const existing = sanitizeFavorites(
+          (await playlistFavoritesStorage.getItem<PlayList[]>('favoritesPlaylist')) ||
+            [],
+        );
         const updated = existing.filter((item) => item.id !== playlist.id);
         await playlistFavoritesStorage.setItem('favoritesPlaylist', updated);
         dispatch(removeFavPlaylist(playlist));
       }
       toast.success('Playlist deleted.');
+      window.dispatchEvent(
+        new CustomEvent('playlists:refresh', {
+          detail: {
+            playlistId: playlist.id,
+            mode: 'delete',
+          },
+        }),
+      );
     } catch (error: any) {
       toast.error(error?.message || 'Failed to delete playlist.');
     } finally {
