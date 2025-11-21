@@ -15,7 +15,7 @@ import { toast } from 'react-hot-toast';
 import moment from 'moment';
 import { FiDownload, FiPlay, FiShare2, FiEdit2 } from 'react-icons/fi';
 import { MyContext } from '../../wrappers/DownloadWrapper';
-import { setAddToDownloads, setCurrentSong } from '../../state/features/globalSlice';
+import { setAddToDownloads, setCurrentPlaylist, setCurrentSong, setNowPlayingPlaylist } from '../../state/features/globalSlice';
 import useUploadAudiobookModal from '../../hooks/useUploadAudiobookModal';
 
 const DEFAULT_COVER =
@@ -90,15 +90,16 @@ const AudiobookDetail: React.FC = () => {
     if (!audiobook) return;
 
     try {
+      const service = 'AUDIO';
       const existingDownload = downloads[audiobook.id];
       const resolvedUrl =
         existingDownload?.url ||
-        (await getQdnResourceUrl('AUDIO', publisher, identifier));
+        (await getQdnResourceUrl(service, publisher, identifier));
 
       if (resolvedUrl) {
         dispatch(setAddToDownloads({
           name: publisher,
-          service: 'AUDIO',
+          service,
           id: identifier,
           identifier,
           url: resolvedUrl,
@@ -109,7 +110,7 @@ const AudiobookDetail: React.FC = () => {
       } else {
         downloadVideo({
           name: publisher,
-          service: 'AUDIO',
+          service,
           identifier,
           title: audiobook.title || '',
           author: audiobook.publisher,
@@ -118,6 +119,14 @@ const AudiobookDetail: React.FC = () => {
       }
 
       dispatch(setCurrentSong(identifier));
+      dispatch(setCurrentPlaylist('nowPlayingPlaylist'));
+      dispatch(setNowPlayingPlaylist([{
+        id: audiobook.id,
+        title: audiobook.title,
+        name: audiobook.publisher,
+        author: audiobook.publisher,
+        service,
+      }]));
     } catch (playError) {
       console.error('Failed to play audiobook', playError);
       toast.error('Failed to start playback. Please try again.');
@@ -128,9 +137,10 @@ const AudiobookDetail: React.FC = () => {
     if (!audiobook) return;
 
     try {
+      const service = 'AUDIO';
       const resolvedUrl =
         downloads[audiobook.id]?.url ||
-        (await getQdnResourceUrl('AUDIO', publisher, identifier));
+        (await getQdnResourceUrl(service, publisher, identifier));
 
       if (!resolvedUrl) {
         toast.error('Unable to locate the audiobook file right now.');

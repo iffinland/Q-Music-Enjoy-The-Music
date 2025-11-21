@@ -15,7 +15,7 @@ import { toast } from 'react-hot-toast';
 import moment from 'moment';
 import { FiDownload, FiPlay, FiShare2, FiEdit2 } from 'react-icons/fi';
 import { MyContext } from '../../wrappers/DownloadWrapper';
-import { setAddToDownloads, setCurrentSong } from '../../state/features/globalSlice';
+import { setAddToDownloads, setCurrentPlaylist, setCurrentSong, setNowPlayingPlaylist } from '../../state/features/globalSlice';
 import useUploadPodcastModal from '../../hooks/useUploadPodcastModal';
 
 const DEFAULT_COVER =
@@ -91,15 +91,16 @@ const PodcastDetail: React.FC = () => {
     if (!podcast) return;
 
     try {
+      const service = 'AUDIO';
       const existingDownload = downloads[podcast.id];
       const resolvedUrl =
         existingDownload?.url ||
-        (await getQdnResourceUrl('AUDIO', publisher, identifier));
+        (await getQdnResourceUrl(service, publisher, identifier));
 
       if (resolvedUrl) {
         dispatch(setAddToDownloads({
           name: publisher,
-          service: 'AUDIO',
+          service,
           id: identifier,
           identifier,
           url: resolvedUrl,
@@ -110,7 +111,7 @@ const PodcastDetail: React.FC = () => {
       } else {
         downloadVideo({
           name: publisher,
-          service: 'AUDIO',
+          service,
           identifier,
           title: podcast.title || '',
           author: podcast.publisher,
@@ -119,6 +120,14 @@ const PodcastDetail: React.FC = () => {
       }
 
       dispatch(setCurrentSong(identifier));
+      dispatch(setCurrentPlaylist('nowPlayingPlaylist'));
+      dispatch(setNowPlayingPlaylist([{
+        id: podcast.id,
+        title: podcast.title,
+        name: podcast.publisher,
+        author: podcast.publisher,
+        service,
+      }]));
     } catch (playError) {
       console.error('Failed to play podcast', playError);
       toast.error('Failed to start playback. Please try again.');
@@ -129,9 +138,10 @@ const PodcastDetail: React.FC = () => {
     if (!podcast) return;
 
     try {
+      const service = 'AUDIO';
       const resolvedUrl =
         downloads[podcast.id]?.url ||
-        (await getQdnResourceUrl('AUDIO', publisher, identifier));
+        (await getQdnResourceUrl(service, publisher, identifier));
 
       if (!resolvedUrl) {
         toast.error('Unable to locate the podcast file right now.');

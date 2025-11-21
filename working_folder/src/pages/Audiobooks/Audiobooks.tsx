@@ -18,7 +18,7 @@ import { buildAudiobookShareUrl } from '../../utils/qortalLinks';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
-import { Favorites, removeFavSong, setAddToDownloads, setCurrentSong, setFavSong } from '../../state/features/globalSlice';
+import { Favorites, removeFavSong, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavSong, setNowPlayingPlaylist } from '../../state/features/globalSlice';
 import { deleteHostedData, deleteQdnResource, getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
 import { MyContext } from '../../wrappers/DownloadWrapper';
@@ -413,6 +413,14 @@ const Audiobooks: React.FC = () => {
 
   const handlePlayAudiobook = useCallback(async (audiobook: Audiobook) => {
     try {
+      const service = 'AUDIO';
+      const queue = filteredAudiobooks.map<Song>((item) => ({
+        id: item.id,
+        title: item.title,
+        name: item.publisher,
+        author: item.publisher,
+        service,
+      }));
       const existingDownload = downloads[audiobook.id];
       const isReady =
         existingDownload?.status?.status === 'READY' ||
@@ -421,11 +429,11 @@ const Audiobooks: React.FC = () => {
       if (isReady) {
         const resolvedUrl =
           existingDownload?.url ||
-          (await getQdnResourceUrl('AUDIO', audiobook.publisher, audiobook.id));
+          (await getQdnResourceUrl(service, audiobook.publisher, audiobook.id));
 
         dispatch(setAddToDownloads({
           name: audiobook.publisher,
-          service: 'AUDIO',
+          service,
           id: audiobook.id,
           identifier: audiobook.id,
           url: resolvedUrl ?? undefined,
@@ -437,7 +445,7 @@ const Audiobooks: React.FC = () => {
         toast.success('Fetching the audiobook. It will start playing once ready.');
         downloadVideo({
           name: audiobook.publisher,
-          service: 'AUDIO',
+          service,
           identifier: audiobook.id,
           title: audiobook.title || '',
           author: audiobook.publisher,
@@ -446,18 +454,27 @@ const Audiobooks: React.FC = () => {
       }
 
       dispatch(setCurrentSong(audiobook.id));
+      dispatch(setCurrentPlaylist('nowPlayingPlaylist'));
+      dispatch(setNowPlayingPlaylist(queue.length ? queue : [{
+        id: audiobook.id,
+        title: audiobook.title,
+        name: audiobook.publisher,
+        author: audiobook.publisher,
+        service,
+      }]));
     } catch (error) {
       console.error('Failed to play audiobook', error);
       toast.error('Could not start the audiobook. Please try again.');
     }
-  }, [dispatch, downloadVideo, downloads]);
+  }, [dispatch, downloadVideo, downloads, filteredAudiobooks]);
 
   const handleDownloadAudiobook = useCallback(async (audiobook: Audiobook) => {
     try {
+      const service = 'AUDIO';
       const existingDownload = downloads[audiobook.id];
       const directUrl =
         existingDownload?.url ||
-        (await getQdnResourceUrl('AUDIO', audiobook.publisher, audiobook.id));
+        (await getQdnResourceUrl(service, audiobook.publisher, audiobook.id));
 
       if (directUrl) {
         const anchor = document.createElement('a');
@@ -477,7 +494,7 @@ const Audiobooks: React.FC = () => {
 
         dispatch(setAddToDownloads({
           name: audiobook.publisher,
-          service: 'AUDIO',
+          service,
           id: audiobook.id,
           identifier: audiobook.id,
           url: directUrl,
@@ -492,7 +509,7 @@ const Audiobooks: React.FC = () => {
       toast.loading('Preparing download… This may take a moment.', { id: toastId });
       downloadVideo({
         name: audiobook.publisher,
-        service: 'AUDIO',
+        service,
         identifier: audiobook.id,
         title: audiobook.title || '',
         author: audiobook.publisher,
@@ -500,7 +517,7 @@ const Audiobooks: React.FC = () => {
       });
 
       window.setTimeout(async () => {
-        const refreshedUrl = await getQdnResourceUrl('AUDIO', audiobook.publisher, audiobook.id);
+        const refreshedUrl = await getQdnResourceUrl(service, audiobook.publisher, audiobook.id);
         toast.dismiss(toastId);
         if (refreshedUrl) {
           const anchor = document.createElement('a');

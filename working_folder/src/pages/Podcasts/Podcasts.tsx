@@ -18,7 +18,7 @@ import { buildPodcastShareUrl } from '../../utils/qortalLinks';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
-import { Favorites, removeFavSong, setAddToDownloads, setCurrentSong, setFavSong } from '../../state/features/globalSlice';
+import { Favorites, removeFavSong, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavSong, setNowPlayingPlaylist } from '../../state/features/globalSlice';
 import { deleteHostedData, deleteQdnResource, getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
 import { MyContext } from '../../wrappers/DownloadWrapper';
@@ -413,6 +413,14 @@ const Podcasts: React.FC = () => {
 
   const handlePlayPodcast = useCallback(async (podcast: Podcast) => {
     try {
+      const service = 'AUDIO';
+      const queue = filteredPodcasts.map<Song>((item) => ({
+        id: item.id,
+        title: item.title,
+        name: item.publisher,
+        author: item.publisher,
+        service,
+      }));
       const existingDownload = downloads[podcast.id];
       const isReady =
         existingDownload?.status?.status === 'READY' ||
@@ -421,11 +429,11 @@ const Podcasts: React.FC = () => {
       if (isReady) {
         const resolvedUrl =
           existingDownload?.url ||
-          (await getQdnResourceUrl('AUDIO', podcast.publisher, podcast.id));
+          (await getQdnResourceUrl(service, podcast.publisher, podcast.id));
 
         dispatch(setAddToDownloads({
           name: podcast.publisher,
-          service: 'AUDIO',
+          service,
           id: podcast.id,
           identifier: podcast.id,
           url: resolvedUrl ?? undefined,
@@ -437,7 +445,7 @@ const Podcasts: React.FC = () => {
         toast.success('Fetching the podcast. It will start playing once ready.');
         downloadVideo({
           name: podcast.publisher,
-          service: 'AUDIO',
+          service,
           identifier: podcast.id,
           title: podcast.title || '',
           author: podcast.publisher,
@@ -446,18 +454,27 @@ const Podcasts: React.FC = () => {
       }
 
       dispatch(setCurrentSong(podcast.id));
+      dispatch(setCurrentPlaylist('nowPlayingPlaylist'));
+      dispatch(setNowPlayingPlaylist(queue.length ? queue : [{
+        id: podcast.id,
+        title: podcast.title,
+        name: podcast.publisher,
+        author: podcast.publisher,
+        service,
+      }]));
     } catch (error) {
       console.error('Failed to play podcast', error);
       toast.error('Could not start the podcast. Please try again.');
     }
-  }, [dispatch, downloadVideo, downloads]);
+  }, [dispatch, downloadVideo, downloads, filteredPodcasts]);
 
   const handleDownloadPodcast = useCallback(async (podcast: Podcast) => {
     try {
+      const service = 'AUDIO';
       const existingDownload = downloads[podcast.id];
       const directUrl =
         existingDownload?.url ||
-        (await getQdnResourceUrl('AUDIO', podcast.publisher, podcast.id));
+        (await getQdnResourceUrl(service, podcast.publisher, podcast.id));
 
       if (directUrl) {
         const anchor = document.createElement('a');
@@ -477,7 +494,7 @@ const Podcasts: React.FC = () => {
 
         dispatch(setAddToDownloads({
           name: podcast.publisher,
-          service: 'AUDIO',
+          service,
           id: podcast.id,
           identifier: podcast.id,
           url: directUrl,
@@ -492,7 +509,7 @@ const Podcasts: React.FC = () => {
       toast.loading('Preparing download… This may take a moment.', { id: toastId });
       downloadVideo({
         name: podcast.publisher,
-        service: 'AUDIO',
+        service,
         identifier: podcast.id,
         title: podcast.title || '',
         author: podcast.publisher,
@@ -500,7 +517,7 @@ const Podcasts: React.FC = () => {
       });
 
       window.setTimeout(async () => {
-        const refreshedUrl = await getQdnResourceUrl('AUDIO', podcast.publisher, podcast.id);
+        const refreshedUrl = await getQdnResourceUrl(service, podcast.publisher, podcast.id);
         toast.dismiss(toastId);
         if (refreshedUrl) {
           const anchor = document.createElement('a');

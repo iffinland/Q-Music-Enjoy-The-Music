@@ -171,7 +171,7 @@ export const getNamesByAddress = async (address: string): Promise<string[]> => {
 
 // In-flight de-dupe and caching for GET_QDN_RESOURCE_URL specifically
 const urlInflight = new Map<string, Promise<string | null>>();
-const urlCache = new Map<string, { url: string | null; expiresAt: number }>();
+const urlCache = new Map<string, { url: string; expiresAt: number }>();
 const URL_TTL_MS = 5 * 60_000; // 5 minutes
 
 export const getQdnResourceUrl = async (
@@ -196,8 +196,16 @@ export const getQdnResourceUrl = async (
         name,
         identifier,
       });
-      const url = typeof result === 'string' && result !== 'Resource does not exist' ? result : null;
-      urlCache.set(key, { url, expiresAt: Date.now() + URL_TTL_MS });
+      const url =
+        typeof result === 'string' && result !== 'Resource does not exist'
+          ? result
+          : null;
+      // Only cache successful resolutions so we keep retrying on null/404
+      if (url) {
+        urlCache.set(key, { url, expiresAt: Date.now() + URL_TTL_MS });
+      } else {
+        urlCache.delete(key);
+      }
       urlInflight.delete(key);
       return url;
     })().catch((e) => {
