@@ -2,7 +2,6 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from 're
 import { useNavigate, useParams } from 'react-router-dom';
 import Header from '../../components/Header';
 import Box from '../../components/Box';
-import Button from '../../components/Button';
 import GoBackButton from '../../components/GoBackButton';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
@@ -13,7 +12,8 @@ import { buildPodcastShareUrl } from '../../utils/qortalLinks';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
 import { toast } from 'react-hot-toast';
 import moment from 'moment';
-import { FiDownload, FiPlay, FiShare2, FiEdit2 } from 'react-icons/fi';
+import { FiDownload, FiPlay, FiEdit2 } from 'react-icons/fi';
+import { LuCopy } from 'react-icons/lu';
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import { setAddToDownloads, setCurrentPlaylist, setCurrentSong, setNowPlayingPlaylist } from '../../state/features/globalSlice';
 import useUploadPodcastModal from '../../hooks/useUploadPodcastModal';
@@ -280,6 +280,33 @@ const PodcastDetail: React.FC = () => {
     ? `Published ${publishedLabel}`
     : 'Discover engaging podcasts';
 
+  const QuickActionWrapper: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+    <div className="group relative">
+      {children}
+      <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2 whitespace-nowrap rounded-full border border-sky-900/50 bg-sky-950/80 px-3 py-1 text-xs font-medium text-sky-100 opacity-0 shadow-lg shadow-sky-950/50 transition group-hover:opacity-100">
+        {label}
+      </span>
+    </div>
+  );
+
+  const QuickActionButton: React.FC<{
+    icon: React.ReactNode;
+    label: string;
+    onClick?: () => void;
+    disabled?: boolean;
+  }> = ({ icon, label, onClick, disabled }) => (
+    <QuickActionWrapper label={label}>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-sky-900/60 bg-gradient-to-br from-sky-900/70 to-slate-900/80 text-sky-100 shadow-lg shadow-sky-950/50 transition hover:-translate-y-0.5 hover:border-sky-500/60 hover:from-sky-800/80 hover:to-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {icon}
+      </button>
+    </QuickActionWrapper>
+  );
+
   return (
     <div className="px-4 py-6">
       <Header>
@@ -288,48 +315,42 @@ const PodcastDetail: React.FC = () => {
             <h1 className="text-3xl font-bold text-white">{headerTitle}</h1>
             <p className="text-sky-300/80">{headerSubtitle}</p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Button
-              type="button"
-              onClick={handlePlayPodcast}
-              disabled={!canInteract}
-              className="flex items-center justify-center gap-2 rounded-md bg-emerald-500/90 px-5 py-2 text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <FiPlay />
-              {currentDownloadStatus === 'READY' ? 'Play again' : 'Play podcast'}
-            </Button>
-            <Button
-              type="button"
-              onClick={handleDownloadPodcast}
-              disabled={!canInteract}
-              className="flex items-center justify-center gap-2 rounded-md border border-sky-700/60 bg-sky-900/40 px-5 py-2 text-white transition hover:bg-sky-800/60 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <FiDownload />
-              Download
-            </Button>
-            <Button
-              type="button"
-              onClick={handleSharePodcast}
-              disabled={!canInteract}
-              className="flex items-center justify-center gap-2 rounded-md bg-sky-700/80 px-5 py-2 text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <FiShare2 />
-              Share
-            </Button>
-            {isOwner && podcast && (
-              <Button
-                type="button"
-                onClick={handleEditPodcast}
-                className="flex items-center justify-center gap-2 rounded-md border border-sky-700/60 bg-sky-900/60 px-5 py-2 text-sky-100 transition hover:bg-sky-800/60"
-              >
-                <FiEdit2 />
-                Edit
-              </Button>
-            )}
-            <GoBackButton className="bg-slate-900/50 border border-sky-900/60 px-5 py-2 text-sky-200/80 hover:bg-slate-900/40" />
-          </div>
         </div>
       </Header>
+
+      <div className="mt-4 rounded-2xl border border-sky-900/50 bg-sky-950/40 p-4 shadow-lg shadow-sky-950/30">
+        <div className="flex flex-wrap items-center gap-4">
+          <QuickActionButton
+            icon={<FiPlay className="h-5 w-5" />}
+            label={currentDownloadStatus === 'READY' ? 'Play Again' : 'Play This'}
+            onClick={handlePlayPodcast}
+            disabled={!canInteract}
+          />
+          <QuickActionButton
+            icon={<LuCopy className="h-5 w-5" />}
+            label="Copy Link & Share It"
+            onClick={handleSharePodcast}
+            disabled={!canInteract}
+          />
+          <QuickActionButton
+            icon={<FiDownload className="h-5 w-5" />}
+            label="Download This"
+            onClick={handleDownloadPodcast}
+            disabled={!canInteract}
+          />
+          {isOwner && podcast && (
+            <QuickActionButton
+              icon={<FiEdit2 className="h-5 w-5" />}
+              label="Edit"
+              onClick={handleEditPodcast}
+              disabled={!canInteract}
+            />
+          )}
+          <div className="ml-auto">
+            <GoBackButton className="flex items-center gap-2 rounded-xl border border-sky-900/60 bg-sky-950/30 px-4 py-2 text-sky-100 transition hover:-translate-y-0.5 hover:border-sky-500/60" />
+          </div>
+        </div>
+      </div>
 
       {isLoading ? (
         <div className="mt-6 text-sky-200/80">Loading podcast information…</div>

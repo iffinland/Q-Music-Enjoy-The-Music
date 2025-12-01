@@ -31,6 +31,7 @@ type FolderTrack = {
   file: File;
   title: string;
   artist: string;
+  include: boolean;
   coverFile: File | null;
   coverPreview: string | null;
 };
@@ -81,6 +82,7 @@ const UploadFolderModal: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(false);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
+  const filesInputRef = useRef<HTMLInputElement | null>(null);
   const albumImageInputRef = useRef<HTMLInputElement | null>(null);
 
   const {
@@ -116,6 +118,11 @@ const UploadFolderModal: React.FC = () => {
       .filter((playlist) => playlist.user === username)
       .map((playlist) => playlistHash[playlist.id] ?? playlist);
   }, [myPlaylists, playlistHash, username]);
+
+  const selectedTracks = useMemo(
+    () => tracks.filter((track) => track.include),
+    [tracks],
+  );
 
   const playlistOptions = useMemo(() => {
     return availablePlaylists.map((playlist) => ({
@@ -336,9 +343,21 @@ const UploadFolderModal: React.FC = () => {
     folderModal.close();
   }, [folderModal, resetState]);
 
-  const handleFolderSelection = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(event.target.files || []);
+  const buildTracksFromFiles = useCallback((files: File[]): FolderTrack[] => {
+    return files.map((file, index) => ({
+      id: `${file.name}-${index}-${file.lastModified}`,
+      file,
+      title: formatTitleFromFilename(file.name),
+      artist: '',
+      include: true,
+      coverFile: null,
+      coverPreview: null,
+    }));
+  }, []);
+
+  const processSelectedFiles = useCallback(
+    (fileList: FileList | null, source: 'folder' | 'files') => {
+      const files = Array.from(fileList || []);
       if (!files.length) {
         setTracks([]);
         return;
@@ -351,24 +370,35 @@ const UploadFolderModal: React.FC = () => {
 
       if (!audioFiles.length) {
         setTracks([]);
-        toast.error('No audio files detected in the selected folder.');
+        toast.error('No audio files detected in your selection.');
         return;
       }
 
-      const mapped: FolderTrack[] = audioFiles.map((file, index) => ({
-        id: `${file.name}-${index}-${file.lastModified}`,
-        file,
-        title: formatTitleFromFilename(file.name),
-        artist: '',
-        coverFile: null,
-        coverPreview: null,
-      }));
-
+      const mapped = buildTracksFromFiles(audioFiles);
       setTracks(mapped);
-      toast.success(`${mapped.length} audio file(s) imported.`);
+      toast.success(
+        `${mapped.length} audio file${mapped.length === 1 ? '' : 's'} imported via ${
+          source === 'folder' ? 'folder' : 'file picker'
+        }.`,
+      );
+    },
+    [buildTracksFromFiles],
+  );
+
+  const handleFolderSelection = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      processSelectedFiles(event.target.files, 'folder');
       event.target.value = '';
     },
-    []
+    [processSelectedFiles]
+  );
+
+  const handleFilesSelection = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      processSelectedFiles(event.target.files, 'files');
+      event.target.value = '';
+    },
+    [processSelectedFiles]
   );
 
   const handleAlbumImageSelection = useCallback(
@@ -427,6 +457,18 @@ const UploadFolderModal: React.FC = () => {
     []
   );
 
+  const handleTrackIncludeToggle = useCallback((trackId: string, checked: boolean) => {
+    setTracks((prev) =>
+      prev.map((track) =>
+        track.id === trackId ? { ...track, include: checked } : track
+      )
+    );
+  }, []);
+
+  const toggleAllTracks = useCallback((include: boolean) => {
+    setTracks((prev) => prev.map((track) => ({ ...track, include })));
+  }, []);
+
   const onSubmit: SubmitHandler<UploadFolderFormValues> = async (values) => {
     if (!username) {
       toast.error('Log in to continue');
@@ -435,6 +477,11 @@ const UploadFolderModal: React.FC = () => {
 
     if (!tracks.length) {
       toast.error('Select a folder that contains audio files before publishing.');
+      return;
+    }
+
+    if (!selectedTracks.length) {
+      toast.error('Select at least one track from the folder to publish.');
       return;
     }
 
@@ -477,7 +524,7 @@ const UploadFolderModal: React.FC = () => {
         coverBase64: string | null;
       }> = [];
 
-      for (const track of tracks) {
+      for (const track of selectedTracks) {
         const safeTitle = track.title.trim() || formatTitleFromFilename(track.file.name);
         const safeArtist = track.artist.trim() || albumArtist;
 
@@ -805,8 +852,7 @@ const UploadFolderModal: React.FC = () => {
           <div className="rounded-xl border border-sky-900/60 bg-sky-950/40 p-4">
             <p className="text-sm font-semibold text-white mb-2">Select folder</p>
             <p className="text-xs text-sky-300/70 mb-4">
-              Choose a folder from your computer. We will scan it for supported audio
-              files.
+              Choose a folder (we scan it automatically) or pick the audio files manually.
             </p>
             <input
               ref={folderInputRef}
@@ -820,6 +866,14 @@ const UploadFolderModal: React.FC = () => {
               // @ts-ignore
               directory=""
             />
+            <input
+              ref={filesInputRef}
+              type="file"
+              multiple
+              accept="audio/*"
+              className="hidden"
+              onChange={handleFilesSelection}
+            />
             <Button
               type="button"
               disabled={isLoading}
@@ -828,6 +882,16 @@ const UploadFolderModal: React.FC = () => {
             >
               Browse folder
             </Button>
+            <div className="mt-2">
+              <Button
+                type="button"
+                disabled={isLoading}
+                onClick={() => filesInputRef.current?.click()}
+                className="w-full"
+              >
+                Select audio files
+              </Button>
+            </div>
             <p className="mt-3 text-xs text-sky-300/80">
               {tracks.length
                 ? `${tracks.length} audio file${tracks.length === 1 ? '' : 's'} selected.`
@@ -869,12 +933,30 @@ const UploadFolderModal: React.FC = () => {
           <div className="mb-4 flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm font-semibold text-white">
-                Selected tracks ({tracks.length})
+                Selected tracks ({selectedTracks.length}/{tracks.length})
               </p>
               <p className="text-xs text-sky-300/70">
                 Update titles, singers, and optional cover art for each file.
               </p>
             </div>
+            {tracks.length > 0 && (
+              <div className="flex items-center gap-2 text-xs">
+                <button
+                  type="button"
+                  className="rounded-md border border-sky-800/70 bg-sky-900/60 px-3 py-1 font-semibold text-sky-100 transition hover:bg-sky-800/60"
+                  onClick={() => toggleAllTracks(true)}
+                >
+                  Select all
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-sky-800/70 bg-sky-900/60 px-3 py-1 font-semibold text-sky-100 transition hover:bg-sky-800/60"
+                  onClick={() => toggleAllTracks(false)}
+                >
+                  Deselect all
+                </button>
+              </div>
+            )}
           </div>
           {tracks.length === 0 && (
             <div className="rounded-md border border-dashed border-sky-800/70 bg-sky-950/40 p-6 text-center text-sm text-sky-300/70">
@@ -888,8 +970,22 @@ const UploadFolderModal: React.FC = () => {
                   key={track.id}
                   className="rounded-xl border border-sky-900/60 bg-sky-950/70 p-4"
                 >
-                  <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-sky-300/80">
-                    Track {index + 1}: {track.file.name}
+                  <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-sky-300/80">
+                      Track {index + 1}: {track.file.name}
+                    </div>
+                    <label className="inline-flex items-center gap-2 text-xs font-semibold text-sky-100">
+                      <input
+                        type="checkbox"
+                        checked={track.include}
+                        disabled={isLoading}
+                        onChange={(event) =>
+                          handleTrackIncludeToggle(track.id, event.target.checked)
+                        }
+                        className="h-4 w-4 rounded border-sky-800/70 bg-sky-950/60 text-qm-primary focus:ring-qm-primary"
+                      />
+                      Include in upload
+                    </label>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
                     <div>
@@ -946,8 +1042,12 @@ const UploadFolderModal: React.FC = () => {
           )}
         </div>
 
-        <Button type="submit" disabled={isLoading || tracks.length === 0}>
-          {tracks.length === 0 ? 'Select audio folder first' : 'Publish folder'}
+        <Button type="submit" disabled={isLoading || selectedTracks.length === 0}>
+          {tracks.length === 0
+            ? 'Select audio folder first'
+            : selectedTracks.length === 0
+              ? 'Choose tracks to publish'
+              : `Publish ${selectedTracks.length} track${selectedTracks.length === 1 ? '' : 's'}`}
         </Button>
       </form>
     </Modal>

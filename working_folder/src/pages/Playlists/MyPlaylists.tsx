@@ -31,6 +31,11 @@ export const MyPlaylists = () => {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isQMusicPlaylist = useCallback((playlist?: PlayList) => {
+    if (!playlist?.id) return false;
+    return playlist.id.toLowerCase().includes('enjoymusic_playlist_');
+  }, []);
+
   useEffect(() => {
     playlistsRef.current = playlists;
   }, [playlists]);
@@ -48,9 +53,9 @@ export const MyPlaylists = () => {
           merged.unshift(pending);
         }
       });
-      return merged;
+      return merged.filter(isQMusicPlaylist);
     },
-    [],
+    [isQMusicPlaylist],
   );
 
   const loadPlaylists = useCallback(
@@ -77,11 +82,12 @@ export const MyPlaylists = () => {
         });
         setHasMore(result.hasMore);
         setPlaylists((prev) => {
+          const filteredItems = result.items.filter(isQMusicPlaylist);
           if (reset) {
-            return mergeWithPending(result.items);
+            return mergeWithPending(filteredItems);
           }
           const merged = [...prev];
-          result.items.forEach((playlist) => {
+          filteredItems.forEach((playlist) => {
             const idx = merged.findIndex((entry) => entry.id === playlist.id);
             if (idx !== -1) {
               merged[idx] = playlist;
@@ -152,6 +158,11 @@ export const MyPlaylists = () => {
 
       const playlistDetail = detail.playlist;
       if (playlistDetail) {
+        if (!isQMusicPlaylist(playlistDetail)) {
+          pendingOptimisticRef.current.delete(playlistDetail.id);
+          setPlaylists((prev) => prev.filter((entry) => entry.id !== playlistDetail.id));
+          return;
+        }
         pendingOptimisticRef.current.set(playlistDetail.id, playlistDetail);
         setPlaylists((prev) => {
           const idx = prev.findIndex((entry) => entry.id === playlistDetail.id);
@@ -181,7 +192,7 @@ export const MyPlaylists = () => {
       <div className="flex flex-col gap-y-2">
         <h1 className="text-white text-3xl font-semibold">My Playlists</h1>
         <p className="text-sm text-sky-200/80">
-          Browse every playlist you have published to Q-Music or Ear-Bump.
+          Browse every playlist you have published to Q-Music.
         </p>
       </div>
 
