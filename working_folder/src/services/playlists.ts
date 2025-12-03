@@ -4,7 +4,7 @@ import { objectToBase64 } from '../utils/toBase64';
 import { cachedSearchQdnResources } from './resourceCache';
 import { mapPlaylistSummary } from '../utils/playlistHelpers';
 
-const PLAYLIST_PREFIXES = ['enjoymusic_playlist_', 'earbump_playlist_'] as const;
+const PLAYLIST_PREFIXES = ['enjoymusic_playlist_'] as const;
 
 const uniqueByIdentifier = (items: any[]): any[] => {
   const seen = new Set<string>();

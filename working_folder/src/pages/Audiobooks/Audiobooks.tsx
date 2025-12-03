@@ -18,7 +18,7 @@ import { buildAudiobookShareUrl } from '../../utils/qortalLinks';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
-import { Favorites, removeFavSong, setAddToDownloads, setCurrentPlaylist, setCurrentSong, setFavSong, setNowPlayingPlaylist } from '../../state/features/globalSlice';
+import { Favorites, removeFavSong, setAddToDownloads, setCurrentSong, setFavSong } from '../../state/features/globalSlice';
 import { deleteHostedData, deleteQdnResource, getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
 import { MyContext } from '../../wrappers/DownloadWrapper';
@@ -33,6 +33,7 @@ import { objectToBase64 } from '../../utils/toBase64';
 import { AUDIOBOOK_CATEGORIES } from '../../constants/categories';
 import SortControls from '../../components/common/SortControls';
 import Button from '../../components/Button';
+import { resolveAudioUrl } from '../../utils/resolveAudioUrl';
 
 const PAGE_SIZE = 15;
 const SLOGAN = 'Immerse yourself in community-narrated stories, lessons, and adventures.';
@@ -413,68 +414,60 @@ const Audiobooks: React.FC = () => {
 
   const handlePlayAudiobook = useCallback(async (audiobook: Audiobook) => {
     try {
-      const service = 'AUDIO';
-      const queue = filteredAudiobooks.map<Song>((item) => ({
-        id: item.id,
-        title: item.title,
-        name: item.publisher,
-        author: item.publisher,
-        service,
-      }));
       const existingDownload = downloads[audiobook.id];
-      const isReady =
-        existingDownload?.status?.status === 'READY' ||
-        audiobook.status?.status === 'READY';
+      const resolvedUrl =
+        existingDownload?.url ||
+        (await resolveAudioUrl(audiobook.publisher, audiobook.id));
 
-      if (isReady) {
-        const resolvedUrl =
-          existingDownload?.url ||
-          (await getQdnResourceUrl(service, audiobook.publisher, audiobook.id));
+      if (resolvedUrl) {
+        const readyStatus =
+          existingDownload?.status?.status === 'READY' || audiobook.status?.status === 'READY'
+            ? existingDownload?.status || audiobook.status
+            : { ...(audiobook.status ?? {}), status: 'READY', percentLoaded: 100 };
 
         dispatch(setAddToDownloads({
           name: audiobook.publisher,
-          service,
+          service: 'AUDIO',
           id: audiobook.id,
           identifier: audiobook.id,
-          url: resolvedUrl ?? undefined,
-          status: audiobook.status,
+          url: resolvedUrl,
+          status: readyStatus,
           title: audiobook.title || '',
           author: audiobook.publisher,
+          mediaType: 'AUDIOBOOK',
         }));
       } else {
         toast.success('Fetching the audiobook. It will start playing once ready.');
         downloadVideo({
           name: audiobook.publisher,
-          service,
+          service: 'AUDIO',
           identifier: audiobook.id,
           title: audiobook.title || '',
           author: audiobook.publisher,
           id: audiobook.id,
+          mediaType: 'AUDIOBOOK',
         });
       }
 
       dispatch(setCurrentSong(audiobook.id));
-      dispatch(setCurrentPlaylist('nowPlayingPlaylist'));
-      dispatch(setNowPlayingPlaylist(queue.length ? queue : [{
-        id: audiobook.id,
-        title: audiobook.title,
-        name: audiobook.publisher,
-        author: audiobook.publisher,
-        service,
-      }]));
     } catch (error) {
       console.error('Failed to play audiobook', error);
       toast.error('Could not start the audiobook. Please try again.');
     }
-  }, [dispatch, downloadVideo, downloads, filteredAudiobooks]);
+  }, [dispatch, downloadVideo, downloads]);
 
   const handleDownloadAudiobook = useCallback(async (audiobook: Audiobook) => {
     try {
-      const service = 'AUDIO';
       const existingDownload = downloads[audiobook.id];
       const directUrl =
         existingDownload?.url ||
-        (await getQdnResourceUrl(service, audiobook.publisher, audiobook.id));
+        (await getQdnResourceUrl('AUDIO', audiobook.publisher, audiobook.id));
+      const readyStatus =
+        directUrl && (audiobook.status?.status === 'READY' || existingDownload?.status?.status === 'READY')
+          ? existingDownload?.status || audiobook.status
+          : directUrl
+          ? { ...(audiobook.status ?? {}), status: 'READY', percentLoaded: 100 }
+          : audiobook.status;
 
       if (directUrl) {
         const anchor = document.createElement('a');
@@ -494,13 +487,14 @@ const Audiobooks: React.FC = () => {
 
         dispatch(setAddToDownloads({
           name: audiobook.publisher,
-          service,
+          service: 'AUDIO',
           id: audiobook.id,
           identifier: audiobook.id,
           url: directUrl,
-          status: audiobook.status,
+          status: readyStatus,
           title: audiobook.title || '',
           author: audiobook.publisher,
+          mediaType: 'AUDIOBOOK',
         }));
         return;
       }
@@ -509,15 +503,16 @@ const Audiobooks: React.FC = () => {
       toast.loading('Preparing download… This may take a moment.', { id: toastId });
       downloadVideo({
         name: audiobook.publisher,
-        service,
+        service: 'AUDIO',
         identifier: audiobook.id,
         title: audiobook.title || '',
         author: audiobook.publisher,
         id: audiobook.id,
+        mediaType: 'AUDIOBOOK',
       });
 
       window.setTimeout(async () => {
-        const refreshedUrl = await getQdnResourceUrl(service, audiobook.publisher, audiobook.id);
+        const refreshedUrl = await getQdnResourceUrl('AUDIO', audiobook.publisher, audiobook.id);
         toast.dismiss(toastId);
         if (refreshedUrl) {
           const anchor = document.createElement('a');

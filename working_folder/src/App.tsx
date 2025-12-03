@@ -11,7 +11,7 @@ import ToasterProvider from "./wrappers/ToasterProvider";
 import DownloadWrapper from "./wrappers/DownloadWrapper";
 import { Library } from "./pages/Library/Library";
 import { Playlists } from "./pages/Playlists/Playlists";
-import { PlaylistStandalone } from "./pages/Playlist/PlaylistStandalone";
+import { Playlist } from "./pages/Playlist/Playlist";
 import { Newest } from "./pages/Newest/Newest";
 import BrowseAllSongs from "./pages/BrowseAllSongs/BrowseAllSongs";
 import BrowseAllPlaylists from "./pages/BrowseAllPlaylists/BrowseAllPlaylists";
@@ -42,7 +42,7 @@ function App() {
             <Route path="/search" element={<Search />} />
             <Route path="/playlists" element={<Playlists />} />
             <Route path="/playlists/all" element={<BrowseAllPlaylists />} />
-            <Route path="/playlists/:name/:playlistId" element={<PlaylistStandalone />} />
+            <Route path="/playlists/:name/:playlistId" element={<Playlist />} />
             <Route path="/liked" element={<Navigate to="/library" replace />} />
             <Route path="/library" element={<Library />} />
             <Route path="/newest" element={<Newest />} />

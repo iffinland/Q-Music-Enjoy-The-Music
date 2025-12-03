@@ -9,8 +9,8 @@ import { cachedSearchQdnResources } from "../services/resourceCache";
 import { shouldHideQdnResource } from "../utils/qdnResourceFilters";
 import { mapPlaylistSummary } from "../utils/playlistHelpers";
 
-const SONG_PREFIXES = ["enjoymusic_song_", "earbump_song_"] as const;
-const PLAYLIST_PREFIXES = ["enjoymusic_playlist_", "earbump_playlist_"] as const;
+const SONG_PREFIXES = ["enjoymusic_song_"] as const;
+const PLAYLIST_PREFIXES = ["enjoymusic_playlist_"] as const;
 
 const isFulfilled = <T,>(result: PromiseSettledResult<T>): result is PromiseFulfilledResult<T> => result.status === "fulfilled";
 

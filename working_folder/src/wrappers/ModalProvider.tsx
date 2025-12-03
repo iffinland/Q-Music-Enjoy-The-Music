@@ -9,7 +9,6 @@ import AddRequestModal from "../components/requests/AddRequestModal";
 import FillRequestModal from "../components/requests/FillRequestModal";
 import AddSongToPlaylistModal from "../components/AddSongToPlaylistModal";
 import SendTipModal from "../components/SendTipModal";
-import UploadFolderModal from "../components/UploadFolderModal";
 
 
 
@@ -35,7 +34,6 @@ const ModalProvider: React.FC = () => {
       <AddSongToPlaylistModal />
       <SendTipModal />
       <UploadPlaylistModal />
-      <UploadFolderModal />
      
     </>
   );

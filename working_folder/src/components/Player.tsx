@@ -42,7 +42,7 @@ import {
 import { Song } from '../types';
 import { MyContext } from '../wrappers/DownloadWrapper';
 import { getQdnResourceUrl } from '../utils/qortalApi';
-import { buildSongShareUrl } from '../utils/qortalLinks';
+import { buildAudiobookShareUrl, buildPodcastShareUrl, buildSongShareUrl } from '../utils/qortalLinks';
 import { buildDownloadFilename } from '../utils/downloadFilename';
 import useSendTipModal from '../hooks/useSendTipModal';
 import useUploadModal from '../hooks/useUploadModal';
@@ -59,6 +59,7 @@ type DownloadEntry = Song & {
   url?: string;
   status?: DownloadStatus;
   coverImage?: string | null;
+  mediaType?: string;
 };
 
 type PlaylistSong = SongReference & { status?: Status; id?: string; url?: string; artist?: string };
@@ -278,14 +279,26 @@ const useSongActions = (song?: Song) => {
     return username.toLowerCase() === song.name.toLowerCase();
   }, [song?.name, username]);
 
+  const mediaType = useMemo(() => (song as any)?.mediaType?.toUpperCase?.() || 'SONG', [song]);
+
   const handleOpenDetails = useCallback(() => {
     if (!song?.name || !song?.id) {
       toast.error('Song details are missing.');
       return;
     }
 
+    if (mediaType === 'PODCAST') {
+      navigate(`/podcasts/${encodeURIComponent(song.name)}/${encodeURIComponent(song.id)}`);
+      return;
+    }
+
+    if (mediaType === 'AUDIOBOOK') {
+      navigate(`/audiobooks/${encodeURIComponent(song.name)}/${encodeURIComponent(song.id)}`);
+      return;
+    }
+
     navigate(`/songs/${encodeURIComponent(song.name)}/${encodeURIComponent(song.id)}`);
-  }, [navigate, song?.name, song?.id]);
+  }, [mediaType, navigate, song?.name, song?.id]);
 
   const copyToClipboard = useCallback(async (text: string) => {
     if (navigator?.clipboard?.writeText) {
@@ -311,14 +324,22 @@ const useSongActions = (song?: Song) => {
     }
 
     try {
-      const shareLink = buildSongShareUrl(song.name, song.id);
+      let shareLink: string;
+      if (mediaType === 'PODCAST') {
+        shareLink = buildPodcastShareUrl(song.name, song.id);
+      } else if (mediaType === 'AUDIOBOOK') {
+        shareLink = buildAudiobookShareUrl(song.name, song.id);
+      } else {
+        shareLink = buildSongShareUrl(song.name, song.id);
+      }
+
       await copyToClipboard(shareLink);
       toast.success('Copying the link to the clipboard was successful. Happy sharing!');
     } catch (error) {
       console.error('Failed to copy song link', error);
       toast.error('Failed to copy the link. Please try again.');
     }
-  }, [copyToClipboard, song?.id, song?.name]);
+  }, [copyToClipboard, mediaType, song?.id, song?.name]);
 
   const handleDownload = useCallback(async () => {
     if (!song?.name || !song?.id) {
@@ -722,16 +743,35 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
 
       const authorName = resolveAuthorName(songToPlay);
 
-      await downloadVideo({
-        name: songToPlay.name,
-        service: 'AUDIO',
-        identifier: downloadKey,
-        title: songToPlay?.title || '',
-        author: authorName,
-        id: downloadKey,
-      });
+      if (
+        songToPlay?.status?.status === 'READY' ||
+        downloads[downloadKey]?.status?.status === 'READY'
+      ) {
+        const resolvedUrl = await getQdnResourceUrl('AUDIO', songToPlay.name, downloadKey);
+        dispatch(
+          setAddToDownloads({
+            name: songToPlay.name,
+            service: 'AUDIO',
+            id: downloadKey,
+            identifier: downloadKey,
+            url: resolvedUrl ?? undefined,
+            status: songToPlay?.status,
+            title: songToPlay?.title || '',
+            author: authorName,
+          }),
+        );
+      } else {
+        downloadVideo({
+          name: songToPlay.name,
+          service: 'AUDIO',
+          identifier: downloadKey,
+          title: songToPlay?.title || '',
+          author: authorName,
+          id: downloadKey,
+        });
+      }
     },
-    [dispatch, downloadVideo, resolveIdentifier],
+    [dispatch, downloadVideo, downloads, resolveIdentifier],
   );
 
   const handleToggleShuffle = useCallback(() => {
@@ -798,8 +838,10 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   );
 
   const [play, { pause, sound }] = useSound(songUrl || '', {
-    preload: true,
+    html5: true,
+    preload: 'metadata',
     volume,
+    format: ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac', 'webm'],
     onplay: () => {
       setIsLoaded(true);
       setIsPlaying(true);
@@ -819,10 +861,23 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
       setIsPlaying(false);
       onPlaybackStateChange(false);
     },
-    format: ['mp3', 'wav', 'ogg'],
     onload: () => {
       const total = sound?.duration() ?? 0;
       setDuration(total);
+    },
+    onloaderror: (_: string, error: Error) => {
+      console.error('Player load error', error);
+      setIsLoaded(false);
+      setIsPlaying(false);
+      onPlaybackStateChange(false);
+      toast.error('Heli laadimine ebaõnnestus.');
+    },
+    onplayerror: (_: string, error: Error) => {
+      console.error('Player play error', error);
+      setIsLoaded(false);
+      setIsPlaying(false);
+      onPlaybackStateChange(false);
+      toast.error('Heli esitamine ebaõnnestus. Proovi uuesti.');
     },
   });
 
@@ -1503,8 +1558,8 @@ const Player = () => {
   }, [downloads, currentSongId]);
 
   const status = songItem?.status?.status ?? '';
-  const isSongReady = status === 'READY';
   const songUrl = songItem?.url ?? null;
+  const isSongReady = Boolean(songUrl);
 
   useEffect(() => {
     if (!songUrl) {

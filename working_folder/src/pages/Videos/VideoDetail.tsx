@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Header from '../../components/Header';
 import Box from '../../components/Box';
+import Button from '../../components/Button';
 import GoBackButton from '../../components/GoBackButton';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
@@ -11,9 +12,7 @@ import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildVideoShareUrl } from '../../utils/qortalLinks';
 import { toast } from 'react-hot-toast';
 import moment from 'moment';
-import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
-import { FiDownload, FiPlay, FiThumbsUp } from 'react-icons/fi';
-import { LuCopy } from 'react-icons/lu';
+import { FiDownload, FiPlay, FiShare2 } from 'react-icons/fi';
 import {
   Favorites,
   removeFavSong,
@@ -51,7 +50,6 @@ const VideoDetail: React.FC = () => {
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [likeCount, setLikeCount] = useState<number>(0);
   const [isLiked, setIsLiked] = useState<boolean>(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const artistOrBand = useMemo(() => {
     if (!video) return null;
     const fromAuthor = typeof video.author === 'string' ? video.author.trim() : '';
@@ -137,55 +135,6 @@ const VideoDetail: React.FC = () => {
     loadLikeInfo();
   }, [video, username]);
 
-  const isFavorite = useMemo(() => Boolean(video && favorites?.songs?.[video.id]), [favorites?.songs, video]);
-
-  const handlePlayVideo = useCallback(() => {
-    if (videoUrl && videoRef.current) {
-      videoRef.current.play();
-      videoRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-    toast.error('Video stream is not ready yet. Please try downloading instead.');
-  }, [videoUrl]);
-
-  const publishedLabel = useMemo(() => {
-    if (!video) return null;
-    return moment(video.updated ?? video.created).format('MMM D, YYYY • HH:mm');
-  }, [video]);
-
-  const QuickActionWrapper: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-    <div className="group relative">
-      {children}
-      <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2 whitespace-nowrap rounded-full border border-sky-900/50 bg-sky-950/80 px-3 py-1 text-xs font-medium text-sky-100 opacity-0 shadow-lg shadow-sky-950/50 transition group-hover:opacity-100">
-        {label}
-      </span>
-    </div>
-  );
-
-  const QuickActionButton: React.FC<{
-    icon: React.ReactNode;
-    label: string;
-    onClick?: () => void;
-    disabled?: boolean;
-    badge?: React.ReactNode;
-  }> = ({ icon, label, onClick, disabled, badge }) => (
-    <QuickActionWrapper label={label}>
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={disabled}
-        className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-sky-900/60 bg-gradient-to-br from-sky-900/70 to-slate-900/80 text-sky-100 shadow-lg shadow-sky-950/50 transition hover:-translate-y-0.5 hover:border-sky-500/60 hover:from-sky-800/80 hover:to-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {icon}
-        {badge && (
-          <span className="absolute -right-1 -top-1 rounded-full bg-emerald-500/80 px-1.5 text-[10px] font-semibold text-black">
-            {badge}
-          </span>
-        )}
-      </button>
-    </QuickActionWrapper>
-  );
-
   const handleShareVideo = useCallback(async () => {
     if (!video) return;
 
@@ -246,6 +195,7 @@ const VideoDetail: React.FC = () => {
     }
 
     try {
+      const isFavorite = Boolean(favorites.songs?.[video.id]);
       const songData = {
         id: video.id,
         title: video.title,
@@ -290,7 +240,7 @@ const VideoDetail: React.FC = () => {
       console.error('Failed to toggle video favorite', error);
       toast.error('Could not update favorites. Please try again.');
     }
-  }, [dispatch, favorites, isFavorite, video]);
+  }, [dispatch, favorites, video]);
 
   const handleLikeVideo = useCallback(async () => {
     if (!video) return;
@@ -317,176 +267,175 @@ const VideoDetail: React.FC = () => {
     }
   }, [isLiked, username, video]);
 
-  const headerTitle = video?.title || identifier || 'Video detail';
-  const headerSubtitle = video?.publisher
-    ? `Published by ${video.publisher}${publishedLabel ? ` • ${publishedLabel}` : ''}`
-    : publishedLabel
-    ? `Published ${publishedLabel}`
-    : 'Discover videos on Q-Music';
-  const canInteract = Boolean(video) && !isLoadingVideo;
-
   return (
     <div className="px-4 py-6">
       <Header>
-        <div className="flex w-full flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">{headerTitle}</h1>
-            <p className="text-sky-300/80">{headerSubtitle}</p>
-          </div>
+        <div className="flex items-center gap-3">
+          <GoBackButton className="bg-sky-900/60 text-sky-100 hover:bg-sky-800/80 md:w-auto" label="Go Back" />
+          <h1 className="text-3xl font-bold text-white">Video detail</h1>
         </div>
       </Header>
 
-      <div className="mt-4 rounded-2xl border border-sky-900/50 bg-sky-950/40 p-4 shadow-lg shadow-sky-950/30">
-        <div className="flex flex-wrap items-center gap-4">
-          <QuickActionButton
-            icon={<FiPlay className="h-5 w-5" />}
-            label={videoUrl ? 'Play This' : 'Prepare Stream'}
-            onClick={handlePlayVideo}
-            disabled={!canInteract}
-          />
-          <QuickActionButton
-            icon={<FiThumbsUp className={`h-5 w-5 ${isLiked ? 'text-emerald-300' : ''}`} />}
-            label="Like It"
-            onClick={handleLikeVideo}
-            disabled={!canInteract}
-            badge={likeCount}
-          />
-          <QuickActionButton
-            icon={
-              isFavorite ? (
-                <AiFillHeart className="h-5 w-5 text-emerald-300" />
-              ) : (
-                <AiOutlineHeart className="h-5 w-5" />
-              )
-            }
-            label={isFavorite ? 'Remove Favorite' : 'Add to Favorites'}
-            onClick={handleFavoriteVideo}
-            disabled={!canInteract || !favorites}
-          />
-          <QuickActionButton
-            icon={<LuCopy className="h-5 w-5" />}
-            label="Copy Link & Share It"
-            onClick={handleShareVideo}
-            disabled={!canInteract}
-          />
-          <QuickActionButton
-            icon={<FiDownload className="h-5 w-5" />}
-            label="Download This"
-            onClick={handleDownloadVideo}
-            disabled={!canInteract}
-          />
-          <div className="ml-auto">
-            <GoBackButton className="flex items-center gap-2 rounded-xl border border-sky-900/60 bg-sky-950/30 px-4 py-2 text-sky-100 transition hover:-translate-y-0.5 hover:border-sky-500/60" />
-          </div>
-        </div>
-      </div>
-
-      {isLoadingVideo ? (
-        <div className="mt-6 text-sky-200/80">Loading video information…</div>
-      ) : videoError ? (
-        <div className="mt-6 rounded-md border border-red-500/40 bg-red-900/30 px-4 py-6 text-center text-sm font-medium text-red-200">
-          {videoError}
-        </div>
-      ) : !video ? (
-        <div className="mt-6 rounded-md border border-sky-900/60 bg-sky-950/60 px-4 py-6 text-center text-sm font-semibold text-sky-200/80">
-          Video details are unavailable.
-        </div>
-      ) : (
-        <div className="mt-6 grid gap-6 lg:grid-cols-[360px,1fr]">
-          <Box className="flex flex-col gap-4 p-4">
-            <div className="overflow-hidden rounded-lg border border-sky-900/60 shadow-inner">
-              <div className="relative w-full bg-black">
-                {isLoadingUrl ? (
-                  <div className="flex h-52 items-center justify-center text-sm font-semibold text-sky-200/80">
-                    Preparing video stream…
-                  </div>
-                ) : videoUrl ? (
-                  <video
-                    ref={videoRef}
-                    src={videoUrl}
-                    controls
-                    className="h-full w-full bg-black"
-                  >
-                    Your browser does not support the video tag.
-                  </video>
-                ) : (
-                  <img
-                    src={coverUrl}
-                    alt={`Cover for ${video.title}`}
-                    className="h-52 w-full object-cover"
-                  />
-                )}
-              </div>
+      <div className="mt-6 flex flex-col gap-6">
+        <Box className="p-6">
+          {isLoadingVideo ? (
+            <p className="text-sky-200/80">Loading video information…</p>
+          ) : videoError ? (
+            <div className="rounded-md border border-red-500/40 bg-red-900/30 px-4 py-6 text-center text-sm font-medium text-red-200">
+              {videoError}
             </div>
-            <div className="w-full text-center md:text-left">
-              {artistOrBand && (
-                <p className="text-xs font-semibold uppercase tracking-wide text-sky-400">
-                  Artist / Band
-                </p>
-              )}
-              <h2 className="text-xl font-semibold text-white">
-                {artistOrBand || video.title}
-              </h2>
-              <p className="text-sm font-medium uppercase tracking-wide text-sky-400">
-                {publishedLabel ? `Published ${publishedLabel}` : 'Published'} by {video.publisher}
-              </p>
+          ) : !video ? (
+            <div className="rounded-md border border-sky-900/60 bg-sky-950/60 px-4 py-6 text-center text-sm font-semibold text-sky-200/80">
+              Video details are unavailable.
             </div>
-          </Box>
-
-          <div className="flex flex-col gap-6">
-            <Box className="p-6">
-              <h3 className="mb-3 text-lg font-semibold text-white">Description</h3>
-              {video.description ? (
-                <p className="text-sky-100/90 leading-relaxed whitespace-pre-line">
-                  {video.description}
-                </p>
-              ) : (
-                <p className="text-sm text-sky-200/70">
-                  No description has been provided for this video yet.
-                </p>
-              )}
-            </Box>
-
-            {(video.author || video.genre || video.mood || video.language || video.notes) && (
-              <Box className="p-6">
-                <h3 className="mb-3 text-lg font-semibold text-white">Additional details</h3>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {video.author && (
-                    <div>
-                      <p className="text-xs font-medium uppercase text-sky-400">Artist or band</p>
-                      <p className="text-sm text-sky-100/90">{video.author}</p>
+          ) : (
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+              <div className="w-full max-w-[360px] overflow-hidden rounded-xl border border-sky-900/60 shadow-inner">
+                <div className="relative w-full bg-black">
+                  {isLoadingUrl ? (
+                    <div className="flex h-52 items-center justify-center text-sm font-semibold text-sky-200/80">
+                      Preparing video stream…
                     </div>
-                  )}
-                  {video.genre && (
-                    <div>
-                      <p className="text-xs font-medium uppercase text-sky-400">Genre</p>
-                      <p className="text-sm text-sky-100/90">{video.genre}</p>
-                    </div>
-                  )}
-                  {video.mood && (
-                    <div>
-                      <p className="text-xs font-medium uppercase text-sky-400">Mood</p>
-                      <p className="text-sm text-sky-100/90">{video.mood}</p>
-                    </div>
-                  )}
-                  {video.language && (
-                    <div>
-                      <p className="text-xs font-medium uppercase text-sky-400">Language</p>
-                      <p className="text-sm text-sky-100/90">{video.language}</p>
-                    </div>
-                  )}
-                  {video.notes && (
-                    <div className="md:col-span-2">
-                      <p className="text-xs font-medium uppercase text-sky-400">Notes</p>
-                      <p className="text-sm text-sky-100/90 whitespace-pre-line">{video.notes}</p>
-                    </div>
+                  ) : videoUrl ? (
+                    <video
+                      src={videoUrl}
+                      controls
+                      className="h-full w-full bg-black"
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <img
+                      src={coverUrl}
+                      alt={`Cover for ${video.title}`}
+                      className="h-52 w-full object-cover"
+                    />
                   )}
                 </div>
-              </Box>
-            )}
-          </div>
-        </div>
-      )}
+              </div>
+
+              <div className="flex flex-1 flex-col gap-4">
+                <div className="space-y-2">
+                  {artistOrBand && (
+                    <>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-sky-400">
+                        Artist / Band
+                      </p>
+                      <p className="text-xl font-semibold text-white">
+                        {artistOrBand}
+                      </p>
+                    </>
+                  )}
+                  <h2 className="text-2xl font-semibold text-sky-100">
+                    {video.title}
+                  </h2>
+                  <p className="text-sm font-medium uppercase tracking-wide text-sky-400">
+                    Published {moment(video.updated ?? video.created).format('MMM D, YYYY • HH:mm')} by {video.publisher}
+                  </p>
+                </div>
+
+                {video.description && (
+                  <p className="text-sky-100/90 leading-relaxed whitespace-pre-line">
+                    {video.description}
+                  </p>
+                )}
+
+                {(video.author || video.genre || video.mood || video.language || video.notes) && (
+                  <div className="rounded-lg border border-sky-900/60 bg-sky-950/50 p-4">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-sky-300/80">
+                      Additional details
+                    </h3>
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      {video.author && (
+                        <div>
+                          <p className="text-xs font-medium uppercase text-sky-400">Artist or band</p>
+                          <p className="text-sm text-sky-100/90">{video.author}</p>
+                        </div>
+                      )}
+                      {video.genre && (
+                        <div>
+                          <p className="text-xs font-medium uppercase text-sky-400">Genre</p>
+                          <p className="text-sm text-sky-100/90">{video.genre}</p>
+                        </div>
+                      )}
+                      {video.mood && (
+                        <div>
+                          <p className="text-xs font-medium uppercase text-sky-400">Mood</p>
+                          <p className="text-sm text-sky-100/90">{video.mood}</p>
+                        </div>
+                      )}
+                      {video.language && (
+                        <div>
+                          <p className="text-xs font-medium uppercase text-sky-400">Language</p>
+                          <p className="text-sm text-sky-100/90">{video.language}</p>
+                        </div>
+                      )}
+                      {video.notes && (
+                        <div className="md:col-span-2">
+                          <p className="text-xs font-medium uppercase text-sky-400">Notes</p>
+                          <p className="text-sm text-sky-100/90 whitespace-pre-line">{video.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    type="button"
+                    onClick={() => videoUrl ? undefined : toast('Video preview unavailable, try downloading instead.', { icon: 'ℹ️' })}
+                    className="flex items-center gap-2 bg-orange-500 hover:bg-orange-400 md:w-auto"
+                  >
+                    <FiPlay />
+                    {videoUrl ? 'Play inline' : 'Play'}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleDownloadVideo}
+                    className="flex items-center gap-2 border border-sky-700 bg-sky-900/40 text-white hover:bg-sky-800/60 md:w-auto"
+                  >
+                    <FiDownload />
+                    Download
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleShareVideo}
+                    className="flex items-center gap-2 border border-sky-700 bg-sky-900/40 text-white hover:bg-sky-800/60 md:w-auto"
+                  >
+                    <FiShare2 />
+                    Share
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleFavoriteVideo}
+                    className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                      favorites?.songs?.[video.id]
+                        ? 'border-sky-400 bg-sky-800/70 text-white'
+                        : 'border-sky-800/80 bg-sky-950/60 text-sky-200 hover:border-sky-500 hover:text-white'
+                    }`}
+                  >
+                    {favorites?.songs?.[video.id] ? 'Remove from favorites' : 'Add to favorites'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLikeVideo}
+                    className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                      isLiked
+                        ? 'border-sky-400 bg-sky-800/70 text-white'
+                        : 'border-sky-800/80 bg-sky-950/60 text-sky-200 hover:border-sky-500 hover:text-white'
+                    }`}
+                  >
+                    {isLiked ? 'Unlike' : 'Like'} ({likeCount})
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </Box>
+      </div>
     </div>
   );
 };

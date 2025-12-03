@@ -26,6 +26,7 @@ import {
 } from '../../state/features/globalSlice';
 import { RootState } from '../../state/store';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
+import { resolveAudioUrl } from '../../utils/resolveAudioUrl';
 import { buildAudiobookShareUrl } from '../../utils/qortalLinks';
 import useSendTipModal from '../../hooks/useSendTipModal';
 import useUploadAudiobookModal from '../../hooks/useUploadAudiobookModal';
@@ -172,11 +173,30 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
         const isReady =
           existingDownload?.status?.status === 'READY' ||
           audiobook.status?.status === 'READY';
+        const readyStatus =
+          existingDownload?.status?.status === 'READY' || audiobook.status?.status === 'READY'
+            ? existingDownload?.status || audiobook.status
+            : null;
 
         if (isReady) {
           const resolvedUrl =
             existingDownload?.url ||
-            (await getQdnResourceUrl('AUDIO', audiobook.publisher, audiobook.id));
+            (await resolveAudioUrl(audiobook.publisher, audiobook.id));
+
+          if (!resolvedUrl) {
+            toast.success('Fetching the audiobook. Playback will start shortly.');
+          downloadVideo({
+            name: audiobook.publisher,
+            service: 'AUDIO',
+            identifier: audiobook.id,
+            title: audiobook.title || '',
+            author: creatorDisplay,
+            id: audiobook.id,
+            mediaType: 'AUDIOBOOK',
+          });
+          dispatch(setCurrentSong(audiobook.id));
+          return;
+        }
 
         dispatch(
           setAddToDownloads({
@@ -184,10 +204,13 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
             service: 'AUDIO',
             id: audiobook.id,
             identifier: audiobook.id,
-            url: resolvedUrl ?? undefined,
-            status: audiobook.status,
+            url: resolvedUrl,
+            status:
+              readyStatus ??
+              { ...(audiobook.status ?? {}), status: 'READY', percentLoaded: 100 },
             title: audiobook.title || '',
             author: creatorDisplay,
+            mediaType: 'AUDIOBOOK',
           }),
         );
       } else {
@@ -199,6 +222,7 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
           title: audiobook.title || '',
           author: creatorDisplay,
           id: audiobook.id,
+          mediaType: 'AUDIOBOOK',
         });
       }
 
@@ -276,6 +300,7 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
     async (event: MouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
       try {
+        const existingDownload = downloads[audiobook.id];
         const directUrl = await getQdnResourceUrl(
           'AUDIO',
           audiobook.publisher,
@@ -308,8 +333,14 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
             id: audiobook.id,
             identifier: audiobook.id,
             url: directUrl,
-            status: audiobook.status,
+            status:
+              directUrl && (audiobook.status?.status === 'READY' || existingDownload?.status?.status === 'READY')
+                ? existingDownload?.status || audiobook.status
+                : directUrl
+                ? { ...(audiobook.status ?? {}), status: 'READY', percentLoaded: 100 }
+                : audiobook.status,
             title: audiobook.title || '',
+            mediaType: 'AUDIOBOOK',
             author: creatorDisplay,
           }),
         );

@@ -7,6 +7,7 @@ export interface Song {
   name: string;
   service?: string;
   status?: Status
+  mediaType?: 'SONG' | 'PODCAST' | 'AUDIOBOOK' | 'VIDEO' | string;
 }
 
 export interface Product {
@@ -33,6 +34,7 @@ export interface Podcast {
   audioMimeType?: string;
   category?: string;
   author?: string;
+  mediaType?: 'PODCAST' | 'AUDIOBOOK' | string;
 }
 
 export type Audiobook = Podcast;

@@ -17,6 +17,7 @@ import radioImg from '../assets/img/enjoy-music.jpg';
 import {
   PlayList,
   removeFavPlaylist,
+  setAddToDownloads,
   setCurrentPlaylist,
   setCurrentSong,
   setFavPlaylist,
@@ -25,6 +26,7 @@ import {
 } from '../state/features/globalSlice';
 import { RootState } from '../state/store';
 import { MyContext } from '../wrappers/DownloadWrapper';
+import { getQdnResourceUrl } from '../utils/qortalApi';
 import { buildPlaylistShareUrl } from '../utils/qortalLinks';
 import {
   fetchPlaylistLikeCount,
@@ -58,6 +60,7 @@ const sanitizeFavorites = (entries: PlayList[] | null | undefined): PlayList[] =
 const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
   const dispatch = useDispatch();
   const username = useSelector((state: RootState) => state.auth.user?.name);
+  const downloads = useSelector((state: RootState) => state.global.downloads);
   const favoritesPlaylist = useSelector(
     (state: RootState) => state.global.favoritesPlaylist,
   );
@@ -80,13 +83,10 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
 
   const coverImage = data?.image || coverUrl || radioImg;
 
-  const isFavorited = useMemo(() => {
-    return (
-      favoritesPlaylist?.some(
-        (playlist: PlayList | null | undefined) => playlist?.id === data.id,
-      ) ?? false
-    );
-  }, [favoritesPlaylist, data.id]);
+  const isFavorited = useMemo(
+    () => favoritesPlaylist?.some((playlist) => playlist?.id === data.id) ?? false,
+    [favoritesPlaylist, data.id],
+  );
   const isOwner = useMemo(() => {
     if (!username || !data?.user) return false;
     return username.toLowerCase() === data.user.toLowerCase();
@@ -171,14 +171,37 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
         dispatch(setCurrentPlaylist(ready.id));
         dispatch(setNowPlayingPlaylist(mapPlaylistSongsToSongs(ready.songs)));
 
-        await downloadVideo({
-          name: firstTrack.name,
-          service,
-          identifier: trackId,
-          title: firstTrack.title || '',
-          author: firstTrack.author || firstTrack.name,
-          id: trackId,
-        });
+        const downloadEntry = downloads[trackId];
+        const isReady = downloadEntry?.status?.status === 'READY';
+
+        if (isReady) {
+          const resolvedUrl = await getQdnResourceUrl(
+            service,
+            firstTrack.name,
+            trackId,
+          );
+          dispatch(
+            setAddToDownloads({
+              name: firstTrack.name,
+              service,
+              id: trackId,
+              identifier: trackId,
+              url: resolvedUrl ?? undefined,
+              status: downloadEntry?.status,
+              title: firstTrack.title || '',
+              author: firstTrack.author || firstTrack.name,
+            }),
+          );
+        } else {
+          downloadVideo({
+            name: firstTrack.name,
+            service,
+            identifier: trackId,
+            title: firstTrack.title || '',
+            author: firstTrack.author || firstTrack.name,
+            id: trackId,
+          });
+        }
 
         dispatch(setCurrentSong(trackId));
         toast.success('Playlist playback starting…');
@@ -189,7 +212,7 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
         setIsPlayBusy(false);
       }
     },
-    [data, dispatch, downloadVideo, ensurePlaylistSongs, isPlayBusy],
+    [data, dispatch, downloadVideo, downloads, ensurePlaylistSongs, isPlayBusy],
   );
 
   const handleSharePlaylist = useCallback(

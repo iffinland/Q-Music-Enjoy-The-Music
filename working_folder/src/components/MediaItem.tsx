@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useCallback, useContext } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { FiPlay } from "react-icons/fi";
 
 import { Song } from "../types";
+import { RootState } from "../state/store";
 import radioImg from "../assets/img/enjoy-music.jpg";
 import { MyContext } from "../wrappers/DownloadWrapper";
 import { setAddToDownloads, setCurrentSong } from "../state/features/globalSlice";
+import { getQdnResourceUrl } from "../utils/qortalApi";
 import useCoverImage from "../hooks/useCoverImage";
 
 interface MediaItemProps {
@@ -18,6 +20,7 @@ interface MediaItemProps {
 }
 
 const MediaItem: React.FC<MediaItemProps> = ({ data, onClick, showPlayButton = true }) => {
+  const downloads = useSelector((state: RootState) => state.global.downloads);
   const { downloadVideo } = useContext(MyContext);
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -32,18 +35,32 @@ const MediaItem: React.FC<MediaItemProps> = ({ data, onClick, showPlayButton = t
   const handlePlay = useCallback(async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
 
-    await downloadVideo({
-      name: data.name,
-      service: 'AUDIO',
-      identifier: data.id,
-      title: data?.title || '',
-      author: creatorDisplay,
-      id: data.id,
-    });
+    if (data?.status?.status === 'READY' || downloads[data.id]?.status?.status === 'READY') {
+      const resolvedUrl = await getQdnResourceUrl('AUDIO', data.name, data.id);
+      dispatch(setAddToDownloads({
+        name: data.name,
+        service: 'AUDIO',
+        id: data.id,
+        identifier: data.id,
+        url: resolvedUrl ?? undefined,
+        status: data?.status,
+        title: data?.title || '',
+        author: creatorDisplay,
+      }));
+    } else {
+      downloadVideo({
+        name: data.name,
+        service: 'AUDIO',
+        identifier: data.id,
+        title: data?.title || '',
+        author: creatorDisplay,
+        id: data.id,
+      });
+    }
 
     dispatch(setCurrentSong(data.id));
     onClick?.(data.id);
-  }, [creatorDisplay, data, dispatch, downloadVideo, onClick]);
+  }, [creatorDisplay, data, downloads, dispatch, downloadVideo, onClick]);
 
   const handleNavigate = useCallback(() => {
     if (!data?.name || !data?.id) return;

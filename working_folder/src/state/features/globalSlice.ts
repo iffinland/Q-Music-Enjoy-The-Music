@@ -44,8 +44,6 @@ interface StatisticsData {
   allPlaylists: number
   qmusicSongs: number
   qmusicPlaylists: number
-  earbumpSongs: number
-  earbumpPlaylists: number
   totalPodcasts: number
   totalAudiobooks: number
   musicVideos: number
@@ -395,8 +393,6 @@ export const globalSlice = createSlice({
         stats.allPlaylists = Math.max(0, stats.allPlaylists - 1)
         if (playlistId.startsWith('enjoymusic_playlist_')) {
           stats.qmusicPlaylists = Math.max(0, stats.qmusicPlaylists - 1)
-        } else if (playlistId.startsWith('earbump_playlist_')) {
-          stats.earbumpPlaylists = Math.max(0, stats.earbumpPlaylists - 1)
         }
       }
     },

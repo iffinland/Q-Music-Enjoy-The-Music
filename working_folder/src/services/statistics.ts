@@ -13,17 +13,13 @@ type ResourcePrefixConfig = {
   service: 'AUDIO' | 'PLAYLIST' | 'DOCUMENT' | 'VIDEO';
 };
 
-const TRACKED_AUDIO_SERIES_PREFIXES = ['enjoymusic', 'earbump'];
+const TRACKED_AUDIO_SERIES_PREFIXES = ['enjoymusic'];
 
 const RESOURCE_PREFIXES: ResourcePrefixConfig[] = [
   { key: 'enjoymusic_song', service: 'AUDIO' },
-  { key: 'earbump_song', service: 'AUDIO' },
   { key: 'enjoymusic_playlist', service: 'PLAYLIST' },
-  { key: 'earbump_playlist', service: 'PLAYLIST' },
   { key: 'enjoymusic_podcast', service: 'AUDIO' },
-  { key: 'earbump_podcast', service: 'AUDIO' },
   { key: 'enjoymusic_audiobooks', service: 'AUDIO' },
-  { key: 'earbump_audiobooks', service: 'AUDIO' },
   { key: 'enjoymusic_video', service: 'VIDEO' },
 ];
 
@@ -93,8 +89,6 @@ export interface StatisticsSnapshot {
   allPlaylists: number;
   qmusicSongs: number;
   qmusicPlaylists: number;
-  earbumpSongs: number;
-  earbumpPlaylists: number;
   totalPodcasts: number;
   totalAudiobooks: number;
   musicVideos: number;
@@ -114,15 +108,11 @@ export const fetchStatisticsSnapshot = async (): Promise<StatisticsSnapshot> => 
   );
 
   const qmusicSongs = prefixResults.get('enjoymusic_song')?.count ?? 0;
-  const earbumpSongs = prefixResults.get('earbump_song')?.count ?? 0;
   const qmusicPlaylists = prefixResults.get('enjoymusic_playlist')?.count ?? 0;
-  const earbumpPlaylists = prefixResults.get('earbump_playlist')?.count ?? 0;
   const qmusicPodcasts = prefixResults.get('enjoymusic_podcast')?.count ?? 0;
-  const earbumpPodcasts = prefixResults.get('earbump_podcast')?.count ?? 0;
-  const totalPodcasts = qmusicPodcasts + earbumpPodcasts;
   const qmusicAudiobooks = prefixResults.get('enjoymusic_audiobooks')?.count ?? 0;
-  const earbumpAudiobooks = prefixResults.get('earbump_audiobooks')?.count ?? 0;
-  const totalAudiobooks = qmusicAudiobooks + earbumpAudiobooks;
+  const totalPodcasts = qmusicPodcasts;
+  const totalAudiobooks = qmusicAudiobooks;
   const musicVideos = prefixResults.get('enjoymusic_video')?.count ?? 0;
 
   const publisherSet = new Set<string>();
@@ -143,12 +133,10 @@ export const fetchStatisticsSnapshot = async (): Promise<StatisticsSnapshot> => 
   const filledRequests = requests.length - openRequests;
 
   return {
-    allSongs: qmusicSongs + earbumpSongs,
-    allPlaylists: qmusicPlaylists + earbumpPlaylists,
+    allSongs: qmusicSongs,
+    allPlaylists: qmusicPlaylists,
     qmusicSongs,
     qmusicPlaylists,
-    earbumpSongs,
-    earbumpPlaylists,
     totalPodcasts,
     totalAudiobooks,
     musicVideos,

@@ -13,6 +13,7 @@ const favoritesStorage = localforage.createInstance({
 import { RequestQueue } from "../utils/queue";
 import { fetchStatisticsSnapshot } from "../services/statistics";
 import { getNamesByAddress, getQdnResourceUrl } from "../utils/qortalApi";
+import { resolveAudioUrl } from "../utils/resolveAudioUrl";
 import { MyContext } from "./DownloadWrapper";
 import { fetchSongByIdentifier } from "../services/songs";
 import { fetchVideoByIdentifier } from "../services/videos";
@@ -190,7 +191,13 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
       try {
         const podcastMeta = await fetchPodcastByIdentifier(podcastPublisher, podcastId);
         if (podcastMeta) {
-          const resolvedUrl = await getQdnResourceUrl('AUDIO', podcastPublisher, podcastId);
+          const resolvedUrl = await resolveAudioUrl(podcastPublisher, podcastId);
+          const readyStatus =
+            resolvedUrl && podcastMeta.status?.status === 'READY'
+              ? podcastMeta.status
+              : resolvedUrl
+              ? { ...(podcastMeta.status ?? {}), status: 'READY', percentLoaded: 100 }
+              : podcastMeta.status;
 
           if (resolvedUrl) {
             dispatch(setAddToDownloads({
@@ -199,9 +206,10 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
               id: podcastId,
               identifier: podcastId,
               url: resolvedUrl,
-              status: podcastMeta.status,
+              status: readyStatus,
               title: podcastMeta.title || '',
               author: podcastPublisher,
+              mediaType: 'PODCAST',
             }));
           } else {
             downloadVideo({
@@ -211,6 +219,7 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
               title: podcastMeta.title || '',
               author: podcastPublisher,
               id: podcastId,
+              mediaType: 'PODCAST',
             });
           }
 
@@ -234,7 +243,13 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
       try {
         const audiobookMeta = await fetchAudiobookByIdentifier(audiobookPublisher, audiobookId);
         if (audiobookMeta) {
-          const resolvedUrl = await getQdnResourceUrl('AUDIO', audiobookPublisher, audiobookId);
+          const resolvedUrl = await resolveAudioUrl(audiobookPublisher, audiobookId);
+          const readyStatus =
+            resolvedUrl && audiobookMeta.status?.status === 'READY'
+              ? audiobookMeta.status
+              : resolvedUrl
+              ? { ...(audiobookMeta.status ?? {}), status: 'READY', percentLoaded: 100 }
+              : audiobookMeta.status;
 
           if (resolvedUrl) {
             dispatch(setAddToDownloads({
@@ -243,9 +258,10 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
               id: audiobookId,
               identifier: audiobookId,
               url: resolvedUrl,
-              status: audiobookMeta.status,
+              status: readyStatus,
               title: audiobookMeta.title || '',
               author: audiobookPublisher,
+              mediaType: 'AUDIOBOOK',
             }));
           } else {
             downloadVideo({
@@ -255,6 +271,7 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
               title: audiobookMeta.title || '',
               author: audiobookPublisher,
               id: audiobookId,
+              mediaType: 'AUDIOBOOK',
             });
           }
 
@@ -315,6 +332,7 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
           status: songMeta.status,
           title: songMeta.title || "",
           author: songMeta.author || "",
+          mediaType: 'SONG',
         }));
       } else {
         downloadVideo({
@@ -324,6 +342,7 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
           title: songMeta.title || "",
           author: songMeta.author || "",
           id: identifier,
+          mediaType: 'SONG',
         });
       }
 

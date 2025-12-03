@@ -20,7 +20,6 @@ import {
 
 const SONG_PREFIX = 'enjoymusic_song_';
 const PLAYLIST_PREFIX_QMUSIC = 'enjoymusic_playlist_';
-const PLAYLIST_PREFIX_EARBUMP = 'earbump_playlist_';
 const VIDEO_PREFIX = 'enjoymusic_video_';
 const PODCAST_PREFIX = 'enjoymusic_podcast_';
 const REQUEST_PREFIX = 'enjoymusic_request_';
@@ -111,7 +110,6 @@ export const useSearch = () => {
       const [
         songResults,
         playlistResultsQmusic,
-        playlistResultsEarbump,
         videoDocumentResults,
         videoBinaryResults,
         podcastResults,
@@ -119,7 +117,6 @@ export const useSearch = () => {
       ] = await Promise.all([
         searchWithPrefix('AUDIO', SONG_PREFIX),
         searchWithPrefix('PLAYLIST', PLAYLIST_PREFIX_QMUSIC),
-        searchWithPrefix('PLAYLIST', PLAYLIST_PREFIX_EARBUMP),
         searchWithPrefix('DOCUMENT', VIDEO_PREFIX),
         searchWithPrefix('VIDEO', VIDEO_PREFIX),
         searchWithPrefix('DOCUMENT', PODCAST_PREFIX),
@@ -153,7 +150,7 @@ export const useSearch = () => {
           service: 'AUDIO',
         }));
 
-      const playlists = [...playlistResultsQmusic, ...playlistResultsEarbump]
+      const playlists = playlistResultsQmusic
         .filter((playlist: any) => {
           const title = resolvePlaylistTitle(playlist);
           const description = resolvePlaylistDescription(playlist);

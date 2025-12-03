@@ -46,6 +46,7 @@ export const LibrarySongActions: React.FC<LibrarySongActionsProps> = ({
 }) => {
   const dispatch = useDispatch();
   const { downloadVideo } = useContext(MyContext);
+  const downloads = useSelector((state: RootState) => state.global.downloads);
   const username = useSelector((state: RootState) => state.auth.user?.name);
   const sendTipModal = useSendTipModal();
   const uploadModal = useUploadModal();
@@ -110,21 +111,44 @@ export const LibrarySongActions: React.FC<LibrarySongActionsProps> = ({
       return;
     }
 
+    const downloadEntry = downloads[song.id];
+    const isReady =
+      downloadEntry?.status?.status === 'READY' ||
+      song.status?.status === 'READY';
+
     try {
-      await downloadVideo({
-        name: song.name,
-        service: 'AUDIO',
-        identifier: song.id,
-        title: song.title || '',
-        author: song.author || '',
-        id: song.id,
-      });
+      if (isReady) {
+        const resolvedUrl =
+          downloadEntry?.url ||
+          (await getQdnResourceUrl('AUDIO', song.name, song.id));
+        dispatch(
+          setAddToDownloads({
+            name: song.name,
+            service: 'AUDIO',
+            id: song.id,
+            identifier: song.id,
+            url: resolvedUrl ?? undefined,
+            status: song.status,
+            title: song.title || '',
+            author: song.author || '',
+          }),
+        );
+      } else {
+        downloadVideo({
+          name: song.name,
+          service: 'AUDIO',
+          identifier: song.id,
+          title: song.title || '',
+          author: song.author || '',
+          id: song.id,
+        });
+      }
 
       dispatch(setCurrentSong(song.id));
     } catch (error) {
       toast.error('Unable to start playback right now.');
     }
-  }, [dispatch, downloadVideo, song]);
+  }, [dispatch, downloadVideo, downloads, song]);
 
   const handleToggleLike = useCallback(
     async (event: MouseEvent<HTMLButtonElement>) => {

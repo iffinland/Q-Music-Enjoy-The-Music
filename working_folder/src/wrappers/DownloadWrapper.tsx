@@ -1,9 +1,7 @@
 import React from 'react';
 import { useDispatch } from 'react-redux';
-import { toast } from 'react-hot-toast';
 
 import { setAddToDownloads, updateDownloads } from '../state/features/globalSlice';
-import { getQdnResourceUrl } from '../utils/qortalApi';
 
 interface Props {
   children: React.ReactNode;
@@ -16,6 +14,7 @@ interface IDownloadVideoParams {
   title: string;
   id: string;
   author: string;
+  mediaType?: string;
 }
 
 interface MyContextInterface {
@@ -92,8 +91,6 @@ const DownloadWrapper: React.FC<Props> = ({ children }) => {
     let isCalling = false;
     let percentLoaded = 0;
     let timer = 24;
-    let attempts = 0;
-    const MAX_ATTEMPTS = 15; // ~75s
     const intervalId = setInterval(async () => {
       if (isCalling) return;
       isCalling = true;
@@ -104,27 +101,6 @@ const DownloadWrapper: React.FC<Props> = ({ children }) => {
         identifier,
       })) as ResourceStatus;
       isCalling = false;
-      attempts += 1;
-
-      const failedStatus =
-        res?.status && ['MISSING', 'NOT_FOUND', 'ERROR', 'INVALID'].includes(res.status);
-      if (failedStatus) {
-        clearInterval(intervalId);
-        dispatch(
-          updateDownloads({
-            name,
-            service,
-            identifier,
-            status: {
-              ...res,
-              status: res.status,
-              percentLoaded: res?.percentLoaded ?? percentLoaded ?? 0,
-            },
-          }),
-        );
-        toast.error('Playback file is unavailable right now. Please try again later.');
-        return;
-      }
       if (res.localChunkCount) {
         if (res.percentLoaded) {
           if (res.percentLoaded === percentLoaded && res.percentLoaded !== 100) {
@@ -171,8 +147,6 @@ const DownloadWrapper: React.FC<Props> = ({ children }) => {
       // check if progress is 100% and clear interval if true
       if (res?.status === 'READY') {
         clearInterval(intervalId);
-        // Ensure we resolve the URL once READY
-        fetchVideoUrl({ name, service, identifier });
         dispatch(
           updateDownloads({
             name,
@@ -181,24 +155,6 @@ const DownloadWrapper: React.FC<Props> = ({ children }) => {
             status: res,
           }),
         );
-        return;
-      }
-
-      if (attempts >= MAX_ATTEMPTS) {
-        clearInterval(intervalId);
-        dispatch(
-          updateDownloads({
-            name,
-            service,
-            identifier,
-            status: {
-              ...res,
-              status: 'ERROR',
-              percentLoaded: res?.percentLoaded ?? percentLoaded ?? 0,
-            },
-          }),
-        );
-        toast.error('Playback is taking too long. Please try again in a bit.');
       }
     }, 5000); // 5 second interval
 
@@ -209,31 +165,6 @@ const DownloadWrapper: React.FC<Props> = ({ children }) => {
     });
   };
 
-  const tryImmediatePlayback = async (
-    params: IDownloadVideoParams,
-  ): Promise<string | null> => {
-    try {
-      const url = await getQdnResourceUrl(params.service, params.name, params.identifier);
-      if (!url) {
-        return null;
-      }
-      dispatch(
-        setAddToDownloads({
-          ...params,
-          url,
-          status: {
-            status: 'READY',
-            percentLoaded: 100,
-          },
-        }),
-      );
-      return url;
-    } catch (error) {
-      console.warn('Immediate QDN playback resolution failed', error);
-      return null;
-    }
-  };
-
   const downloadVideo = async ({
     name,
     service,
@@ -241,15 +172,6 @@ const DownloadWrapper: React.FC<Props> = ({ children }) => {
     ...props
   }: IDownloadVideoParams) => {
     try {
-      const resolvedUrl = await tryImmediatePlayback({
-        name,
-        service,
-        identifier,
-        ...props,
-      });
-      if (resolvedUrl) {
-        return 'ready';
-      }
 
       performDownload({
         name,

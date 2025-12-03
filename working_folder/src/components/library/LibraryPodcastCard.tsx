@@ -26,6 +26,7 @@ import {
 } from '../../state/features/globalSlice';
 import { RootState } from '../../state/store';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
+import { resolveAudioUrl } from '../../utils/resolveAudioUrl';
 import { buildPodcastShareUrl } from '../../utils/qortalLinks';
 import useSendTipModal from '../../hooks/useSendTipModal';
 import useUploadPodcastModal from '../../hooks/useUploadPodcastModal';
@@ -172,24 +173,46 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
         const isReady =
           existingDownload?.status?.status === 'READY' ||
           podcast.status?.status === 'READY';
+        const readyStatus =
+          existingDownload?.status?.status === 'READY' || podcast.status?.status === 'READY'
+            ? existingDownload?.status || podcast.status
+            : null;
 
         if (isReady) {
           const resolvedUrl =
             existingDownload?.url ||
-            (await getQdnResourceUrl('AUDIO', podcast.publisher, podcast.id));
+            (await resolveAudioUrl(podcast.publisher, podcast.id));
 
-        dispatch(
-          setAddToDownloads({
-            name: podcast.publisher,
-            service: 'AUDIO',
-            id: podcast.id,
-            identifier: podcast.id,
-            url: resolvedUrl ?? undefined,
-            status: podcast.status,
-            title: podcast.title || '',
-            author: creatorDisplay,
-          }),
-        );
+          if (!resolvedUrl) {
+            toast.success('Fetching the podcast. Playback will start shortly.');
+            downloadVideo({
+              name: podcast.publisher,
+              service: 'AUDIO',
+              identifier: podcast.id,
+              title: podcast.title || '',
+              author: creatorDisplay,
+              id: podcast.id,
+              mediaType: 'PODCAST',
+            });
+            dispatch(setCurrentSong(podcast.id));
+            return;
+          }
+
+          dispatch(
+            setAddToDownloads({
+              name: podcast.publisher,
+              service: 'AUDIO',
+              id: podcast.id,
+              identifier: podcast.id,
+              url: resolvedUrl,
+              status:
+                readyStatus ??
+                { ...(podcast.status ?? {}), status: 'READY', percentLoaded: 100 },
+              title: podcast.title || '',
+              author: creatorDisplay,
+              mediaType: 'PODCAST',
+            }),
+          );
       } else {
         toast.success('Fetching the podcast. Playback will start shortly.');
         downloadVideo({
@@ -199,6 +222,7 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
           title: podcast.title || '',
           author: creatorDisplay,
           id: podcast.id,
+          mediaType: 'PODCAST',
         });
       }
 
@@ -276,6 +300,7 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
     async (event: MouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
       try {
+        const existingDownload = downloads[podcast.id];
         const directUrl = await getQdnResourceUrl(
           'AUDIO',
           podcast.publisher,
@@ -308,8 +333,14 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
             id: podcast.id,
             identifier: podcast.id,
             url: directUrl,
-            status: podcast.status,
+            status:
+              directUrl && (podcast.status?.status === 'READY' || existingDownload?.status?.status === 'READY')
+                ? existingDownload?.status || podcast.status
+                : directUrl
+                ? { ...(podcast.status ?? {}), status: 'READY', percentLoaded: 100 }
+                : podcast.status,
             title: podcast.title || '',
+            mediaType: 'PODCAST',
             author: creatorDisplay,
           }),
         );

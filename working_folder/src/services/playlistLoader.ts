@@ -26,7 +26,7 @@ export const loadPlaylistMeta = async (user: string, id: string): Promise<PlayLi
     const results = await cachedSearchQdnResources({
       mode: 'ALL',
       service: 'PLAYLIST',
-      identifier: id.startsWith('enjoymusic_playlist_') || id.startsWith('earbump_playlist_') ? undefined : id,
+      identifier: id.startsWith('enjoymusic_playlist_') ? undefined : id,
       query: id,
       limit: 1,
       includeMetadata: true,

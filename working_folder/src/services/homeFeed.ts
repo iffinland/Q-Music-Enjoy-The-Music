@@ -13,11 +13,11 @@ type Resource = Record<string, unknown> & {
   created?: number;
 };
 
-const SONG_PREFIXES = ['enjoymusic_song_', 'earbump_song_'] as const;
-const PLAYLIST_PREFIXES = ['enjoymusic_playlist_', 'earbump_playlist_'] as const;
-const PODCAST_PREFIXES = ['enjoymusic_podcast_', 'earbump_podcast_'] as const;
-const AUDIOBOOK_PREFIXES = ['enjoymusic_audiobooks_', 'earbump_audiobooks_'] as const;
-const VIDEO_PREFIXES = ['enjoymusic_video_', 'earbump_video_'] as const;
+const SONG_PREFIXES = ['enjoymusic_song_'] as const;
+const PLAYLIST_PREFIXES = ['enjoymusic_playlist_'] as const;
+const PODCAST_PREFIXES = ['enjoymusic_podcast_'] as const;
+const AUDIOBOOK_PREFIXES = ['enjoymusic_audiobooks_'] as const;
+const VIDEO_PREFIXES = ['enjoymusic_video_'] as const;
 const VIDEO_LIKE_IDENTIFIER_PREFIX = 'video_like_';
 
 const isFulfilled = <T,>(input: PromiseSettledResult<T>): input is PromiseFulfilledResult<T> => input.status === 'fulfilled';

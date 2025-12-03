@@ -20,7 +20,7 @@ import { mapPlaylistSummary } from "../../utils/playlistHelpers";
 import Button from "../../components/Button";
 import useUploadPlaylistModal from "../../hooks/useUploadPlaylistModal";
 
-type SourceKey = "ALL" | "QMUSIC" | "EARBUMP";
+type SourceKey = "ALL" | "QMUSIC";
 type AlphabetKey = "ALL" | string;
 
 const SOURCE_FILTERS: Array<{
@@ -30,11 +30,6 @@ const SOURCE_FILTERS: Array<{
 }> = [
   { key: "ALL", label: "All playlists" },
   { key: "QMUSIC", label: "Q-Music playlists", prefix: "enjoymusic_playlist_" },
-  {
-    key: "EARBUMP",
-    label: "Ear-Bump playlists",
-    prefix: "earbump_playlist_",
-  },
 ];
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
@@ -161,15 +156,11 @@ const BrowseAllPlaylists: React.FC = () => {
       let aggregated: PlayList[] = [];
 
       if (activeSource === "ALL") {
-        const [qMusicPlaylists, earBumpPlaylists] = await Promise.all([
-          fetchPlaylistsForPrefix("enjoymusic_playlist_"),
-          fetchPlaylistsForPrefix("earbump_playlist_"),
-        ]);
-        aggregated = [...qMusicPlaylists, ...earBumpPlaylists];
+        aggregated = await fetchPlaylistsForPrefix("enjoymusic_playlist_");
       } else {
         const { prefix } =
           SOURCE_FILTERS.find((filter) => filter.key === activeSource) || {};
-        aggregated = await fetchPlaylistsForPrefix(prefix);
+        aggregated = await fetchPlaylistsForPrefix(prefix || "enjoymusic_playlist_");
       }
 
       const uniquePlaylists = Array.from(
@@ -338,7 +329,7 @@ const BrowseAllPlaylists: React.FC = () => {
                 Browse All Playlists
               </h1>
               <p className="text-sky-200/80 text-sm mt-2">
-                Explore curated playlists across Q-Music and Ear-Bump.
+                Explore curated playlists from Q-Music.
               </p>
             </div>
             <div className="flex justify-center">

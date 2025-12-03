@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import Header from '../../components/Header';
 import Box from '../../components/Box';
@@ -12,11 +12,11 @@ import { buildAudiobookShareUrl } from '../../utils/qortalLinks';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
 import { toast } from 'react-hot-toast';
 import moment from 'moment';
-import { FiDownload, FiPlay, FiEdit2 } from 'react-icons/fi';
-import { LuCopy } from 'react-icons/lu';
+import { FiDownload, FiPlay, FiShare2, FiEdit2 } from 'react-icons/fi';
 import { MyContext } from '../../wrappers/DownloadWrapper';
-import { setAddToDownloads, setCurrentPlaylist, setCurrentSong, setNowPlayingPlaylist } from '../../state/features/globalSlice';
+import { setAddToDownloads, setCurrentSong } from '../../state/features/globalSlice';
 import useUploadAudiobookModal from '../../hooks/useUploadAudiobookModal';
+import { resolveAudioUrl } from '../../utils/resolveAudioUrl';
 
 const DEFAULT_COVER =
   'data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"400\"%3E%3Crect width=\"100%25\" height=\"100%25\" fill=\"%230b2137\"%3E%3C/rect%3E%3Ctext x=\"50%25\" y=\"50%25\" fill=\"%2355a8ff\" font-size=\"28\" font-family=\"Arial\" text-anchor=\"middle\"%3ENo Cover%3C/text%3E%3C/svg%3E';
@@ -90,43 +90,42 @@ const AudiobookDetail: React.FC = () => {
     if (!audiobook) return;
 
     try {
-      const service = 'AUDIO';
       const existingDownload = downloads[audiobook.id];
       const resolvedUrl =
         existingDownload?.url ||
-        (await getQdnResourceUrl(service, publisher, identifier));
+        (await resolveAudioUrl(publisher, identifier));
 
       if (resolvedUrl) {
+        const readyStatus =
+          existingDownload?.status?.status === 'READY'
+            ? existingDownload?.status
+            : { ...(audiobook.status ?? {}), status: 'READY', percentLoaded: 100 };
         dispatch(setAddToDownloads({
           name: publisher,
-          service,
+          service: 'AUDIO',
           id: identifier,
           identifier,
           url: resolvedUrl,
-          status: audiobook.status,
+          status: readyStatus,
           title: audiobook.title || '',
           author: audiobook.publisher,
+          mediaType: 'AUDIOBOOK',
         }));
       } else {
+        console.error('[AudiobookDetail] Audio URL not found', { publisher, identifier });
+        toast.error('Helifaili ei leitud. Proovi hiljem.');
         downloadVideo({
           name: publisher,
-          service,
+          service: 'AUDIO',
           identifier,
           title: audiobook.title || '',
           author: audiobook.publisher,
           id: identifier,
+          mediaType: 'AUDIOBOOK',
         });
       }
 
       dispatch(setCurrentSong(identifier));
-      dispatch(setCurrentPlaylist('nowPlayingPlaylist'));
-      dispatch(setNowPlayingPlaylist([{
-        id: audiobook.id,
-        title: audiobook.title,
-        name: audiobook.publisher,
-        author: audiobook.publisher,
-        service,
-      }]));
     } catch (playError) {
       console.error('Failed to play audiobook', playError);
       toast.error('Failed to start playback. Please try again.');
@@ -137,13 +136,17 @@ const AudiobookDetail: React.FC = () => {
     if (!audiobook) return;
 
     try {
-      const service = 'AUDIO';
       const resolvedUrl =
         downloads[audiobook.id]?.url ||
-        (await getQdnResourceUrl(service, publisher, identifier));
+        (await resolveAudioUrl(publisher, identifier));
+      const readyStatus =
+        resolvedUrl
+          ? downloads[audiobook.id]?.status || audiobook.status || { status: 'READY', percentLoaded: 100 }
+          : audiobook.status;
 
       if (!resolvedUrl) {
-        toast.error('Unable to locate the audiobook file right now.');
+        console.error('[AudiobookDetail] Download URL not found', { publisher, identifier });
+        toast.error('Helifaili ei leitud. Proovi hiljem.');
         return;
       }
 
@@ -161,6 +164,18 @@ const AudiobookDetail: React.FC = () => {
       anchor.click();
       document.body.removeChild(anchor);
       toast.success('Audiobook download started.');
+
+      dispatch(setAddToDownloads({
+        name: publisher,
+        service: 'AUDIO',
+        id: identifier,
+        identifier,
+        url: resolvedUrl,
+        status: readyStatus,
+        title: audiobook.title || '',
+        author: audiobook.publisher,
+        mediaType: 'AUDIOBOOK',
+      }));
     } catch (downloadError) {
       console.error('Failed to download audiobook', downloadError);
       toast.error('Failed to download the audiobook.');
@@ -210,6 +225,39 @@ const AudiobookDetail: React.FC = () => {
     if (!timestamp) return null;
     return moment(timestamp).format('MMMM D, YYYY • HH:mm');
   }, [audiobook]);
+
+  const QuickActionWrapper: React.FC<{ label: string; children: ReactNode }> = ({ label, children }) => (
+    <div className="group relative">
+      {children}
+      <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2 whitespace-nowrap rounded-full border border-sky-900/50 bg-sky-950/80 px-3 py-1 text-xs font-medium text-sky-100 opacity-0 shadow-lg shadow-sky-950/50 transition group-hover:opacity-100">
+        {label}
+      </span>
+    </div>
+  );
+
+  const QuickActionButton: React.FC<{
+    icon: ReactNode;
+    label: string;
+    onClick?: () => void;
+    disabled?: boolean;
+    badge?: ReactNode;
+  }> = ({ icon, label, onClick, disabled, badge }) => (
+    <QuickActionWrapper label={label}>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-sky-900/60 bg-gradient-to-br from-sky-900/70 to-slate-900/80 text-sky-100 shadow-lg shadow-sky-950/50 transition hover:-translate-y-0.5 hover:border-sky-500/60 hover:from-sky-800/80 hover:to-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {icon}
+        {badge && (
+          <span className="absolute -right-1 -top-1 rounded-full bg-emerald-500/80 px-1.5 text-[10px] font-semibold text-black">
+            {badge}
+          </span>
+        )}
+      </button>
+    </QuickActionWrapper>
+  );
 
   const infoEntries = useMemo(() => {
     if (!audiobook) return [];
@@ -279,41 +327,17 @@ const AudiobookDetail: React.FC = () => {
     ? `Published ${publishedLabel}`
     : 'Discover engaging audiobooks';
 
-  const QuickActionWrapper: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-    <div className="group relative">
-      {children}
-      <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2 whitespace-nowrap rounded-full border border-sky-900/50 bg-sky-950/80 px-3 py-1 text-xs font-medium text-sky-100 opacity-0 shadow-lg shadow-sky-950/50 transition group-hover:opacity-100">
-        {label}
-      </span>
-    </div>
-  );
-
-  const QuickActionButton: React.FC<{
-    icon: React.ReactNode;
-    label: string;
-    onClick?: () => void;
-    disabled?: boolean;
-  }> = ({ icon, label, onClick, disabled }) => (
-    <QuickActionWrapper label={label}>
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={disabled}
-        className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-sky-900/60 bg-gradient-to-br from-sky-900/70 to-slate-900/80 text-sky-100 shadow-lg shadow-sky-950/50 transition hover:-translate-y-0.5 hover:border-sky-500/60 hover:from-sky-800/80 hover:to-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {icon}
-      </button>
-    </QuickActionWrapper>
-  );
-
   return (
     <div className="px-4 py-6">
       <Header>
-        <div className="flex w-full flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex w-full flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-white">{headerTitle}</h1>
             <p className="text-sky-300/80">{headerSubtitle}</p>
           </div>
+          <p className="text-sm text-sky-200/70">
+            Audiobooks now use the same quick actions as songs for consistency.
+          </p>
         </div>
       </Header>
 
@@ -326,7 +350,7 @@ const AudiobookDetail: React.FC = () => {
             disabled={!canInteract}
           />
           <QuickActionButton
-            icon={<LuCopy className="h-5 w-5" />}
+            icon={<FiShare2 className="h-5 w-5" />}
             label="Copy Link & Share It"
             onClick={handleShareAudiobook}
             disabled={!canInteract}
@@ -342,7 +366,6 @@ const AudiobookDetail: React.FC = () => {
               icon={<FiEdit2 className="h-5 w-5" />}
               label="Edit"
               onClick={handleEditAudiobook}
-              disabled={!canInteract}
             />
           )}
           <div className="ml-auto">

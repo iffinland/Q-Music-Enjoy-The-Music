@@ -1,4 +1,4 @@
-const TRACKING_PREFIXES = ['enjoymusic_', 'earbump_', 'qmusic_'];
+const TRACKING_PREFIXES = ['enjoymusic_', 'qmusic_'];
 const LIKE_ARTIFACT_PREFIXES = [
   'song_like_',
   'playlist_like_',
