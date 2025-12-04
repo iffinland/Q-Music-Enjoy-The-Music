@@ -3,6 +3,7 @@ import { fetchQdnResource, getQdnResourceUrl } from '../utils/qortalApi';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { cachedSearchQdnResources } from './resourceCache';
 import { objectToBase64 } from '../utils/toBase64';
+import { qdnClient } from '../state/api/client';
 
 const VIDEO_IDENTIFIER_PREFIX = 'enjoymusic_video_';
 const VIDEO_LIKE_IDENTIFIER_PREFIX = 'video_like_';
@@ -458,8 +459,7 @@ export const deleteVideoResources = async (publisher: string, identifier: string
     },
   ];
 
-  await qortalRequest({
-    action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+  await qdnClient.publishResource({
     resources,
   });
 };

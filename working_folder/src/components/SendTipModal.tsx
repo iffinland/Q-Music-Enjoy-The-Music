@@ -5,6 +5,7 @@ import Modal from './Modal';
 import Input from './Input';
 import Button from './Button';
 import useSendTipModal from '../hooks/useSendTipModal';
+import { qdnClient } from '../state/api/client';
 
 const DEFAULT_AMOUNT = '5';
 const ADJUST_STEP = 1;
@@ -107,7 +108,7 @@ const SendTipModal: React.FC = () => {
     const fetchBalance = async () => {
       setIsBalanceLoading(true);
       try {
-        const response = await qortalRequest({
+        const response = await qdnClient.rawRequest({
           action: 'GET_WALLET_BALANCE',
           coin: 'QORT',
         });
@@ -173,7 +174,7 @@ const SendTipModal: React.FC = () => {
 
     try {
       setIsSubmitting(true);
-      await qortalRequest({
+      await qdnClient.rawRequest({
         action: 'SEND_COIN',
         coin: 'QORT',
         recipient,

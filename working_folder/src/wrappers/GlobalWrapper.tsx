@@ -20,6 +20,7 @@ import { fetchVideoByIdentifier } from "../services/videos";
 import { fetchPodcastByIdentifier } from "../services/podcasts";
 import { fetchAudiobookByIdentifier } from "../services/audiobooks";
 import { useNavigate } from "react-router-dom";
+import { qdnClient } from "../state/api/client";
 
 interface Props {
   children: React.ReactNode;
@@ -51,7 +52,7 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
 
   const askForAccountInformation = useCallback(async () => {
     try {
-      const account = await qortalRequest({
+      const account = await qdnClient.rawRequest({
         action: "GET_USER_ACCOUNT"
       });
 

@@ -22,6 +22,7 @@ import { Song } from '../types';
 import { objectToBase64, toBase64 } from '../utils/toBase64';
 import { removeTrailingUnderscore } from '../utils/extra';
 import { useFetchSongs } from '../hooks/fetchSongs';
+import { qdnClient } from '../state/api/client';
 
 const uid = new ShortUniqueId();
 
@@ -134,9 +135,13 @@ const AddSongToPlaylistModal: React.FC = () => {
         return cached;
       }
 
-      const response = await qortalRequest({
-        action: 'FETCH_QDN_RESOURCE',
-        name: playlist.user,
+      const playlistOwner = playlist.user;
+      if (!playlistOwner) {
+        throw new Error('Playlist owner is missing');
+      }
+
+      const response = await qdnClient.fetchResource({
+        name: playlistOwner,
         service: 'PLAYLIST',
         identifier: playlist.id,
       });
@@ -200,8 +205,7 @@ const AddSongToPlaylistModal: React.FC = () => {
         },
       ];
 
-      await qortalRequest({
-        action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+      await qdnClient.publishResource({
         resources,
       });
     },

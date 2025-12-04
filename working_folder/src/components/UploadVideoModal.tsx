@@ -16,6 +16,7 @@ import { stripDiacritics } from '../utils/stringHelpers';
 import useUploadVideoModal from '../hooks/useUploadVideoModal';
 import { Video } from '../types';
 import { MUSIC_CATEGORIES } from '../constants/categories';
+import { qdnClient } from '../state/api/client';
 
 const uid = new ShortUniqueId();
 
@@ -429,8 +430,7 @@ const UploadVideoModal: React.FC = () => {
         });
       }
 
-      await qortalRequest({
-        action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+      await qdnClient.publishResource({
         resources,
       });
 

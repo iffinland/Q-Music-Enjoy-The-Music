@@ -1,6 +1,7 @@
 import ShortUniqueId from 'short-unique-id';
 import { searchQdnResources, fetchQdnResource } from '../utils/qortalApi';
 import { objectToBase64 } from '../utils/toBase64';
+import { qdnClient } from '../state/api/client';
 
 const COMMENT_PREFIX = 'enjoymusic_song_comment_';
 const FETCH_LIMIT = 50;
@@ -157,8 +158,7 @@ export const publishSongComment = async ({
   const data64 = await objectToBase64(payload);
   const filename = `${commentIdentifier}.json`;
 
-  await qortalRequest({
-    action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+  await qdnClient.publishResource({
     resources: [
       {
         name: author,
@@ -187,8 +187,7 @@ export const deleteSongComment = async (
   songPublisher?: string,
   songIdentifier?: string,
 ) => {
-  await qortalRequest({
-    action: 'DELETE_QDN_RESOURCE',
+  await qdnClient.deleteResource({
     name: author,
     service: 'DOCUMENT',
     identifier,
@@ -213,8 +212,7 @@ export const updateSongComment = async (
   const data64 = await objectToBase64(payload);
   const filename = `${comment.id}.json`;
 
-  await qortalRequest({
-    action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+  await qdnClient.publishResource({
     resources: [
       {
         name: comment.author,

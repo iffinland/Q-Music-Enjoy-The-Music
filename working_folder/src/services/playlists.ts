@@ -3,6 +3,7 @@ import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { objectToBase64 } from '../utils/toBase64';
 import { cachedSearchQdnResources } from './resourceCache';
 import { mapPlaylistSummary } from '../utils/playlistHelpers';
+import { qdnClient } from '../state/api/client';
 
 const PLAYLIST_PREFIXES = ['enjoymusic_playlist_'] as const;
 
@@ -125,8 +126,7 @@ export const deletePlaylistResource = async (owner: string, identifier: string):
 
   const data64 = await objectToBase64(payload as Record<string, unknown>);
 
-  await qortalRequest({
-    action: 'PUBLISH_QDN_RESOURCE',
+  await qdnClient.publishResource({
     name: owner,
     service: 'PLAYLIST',
     identifier,

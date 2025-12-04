@@ -6,7 +6,7 @@ export type QErr = {
   data?: unknown
 }
 
-export type QdnService = 'AUDIO' | 'DOCUMENT'
+export type QdnService = 'AUDIO' | 'DOCUMENT' | string
 
 export type QdnLocator = {
   service: QdnService

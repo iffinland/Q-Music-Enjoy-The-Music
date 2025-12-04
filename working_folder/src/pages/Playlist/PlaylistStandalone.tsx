@@ -18,6 +18,7 @@ import { objectToBase64 } from '../../utils/toBase64';
 import { shouldHideQdnResource } from '../../utils/qdnResourceFilters';
 import { cachedSearchQdnResources } from '../../services/resourceCache';
 import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../../hooks/usePlaylistPlayback';
+import { qdnClient } from '../../state/api/client';
 import GoBackButton from '../../components/GoBackButton';
 import { mapPlaylistSummary } from '../../utils/playlistHelpers';
 
@@ -69,28 +70,12 @@ export const PlaylistStandalone = ({
         offset: 0,
         identifier: playlistId,
       });
-
-      // const responseDataSearch = await qortalRequest({
-      //   action: "SEARCH_QDN_RESOURCES",
-      //   mode: "ALL",
-      //   service: "DOCUMENT",
-      //   query: "bteon_vid_",
-      //   limit: 1,
-      //   offset: 0,
-      //   includeMetadata: true,
-      //   reverse: true,
-      //   excludeBlocked: true,
-      //   exactMatchNames: true,
-      //   name: name,
-      //   identifier: id
-      // })
       if (responseDataSearch?.length > 0) {
         const resourceEntry = responseDataSearch.find((entry: any) => !shouldHideQdnResource(entry));
         if (!resourceEntry) return;
         const resourceData = mapPlaylistSummary(resourceEntry);
       
-        const responseData = await qortalRequest({
-          action: 'FETCH_QDN_RESOURCE',
+        const responseData = await qdnClient.fetchResource({
           name: name,
           service: 'PLAYLIST',
           identifier: playlistId
@@ -183,8 +168,7 @@ export const PlaylistStandalone = ({
         created: Date.now(),
       };
       const data64 = await objectToBase64(payload);
-      await qortalRequest({
-        action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+      await qdnClient.publishResource({
         resources: [
           {
             name: username,

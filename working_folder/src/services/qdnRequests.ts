@@ -1,6 +1,7 @@
 import { RequestFill, SongRequest } from '../state/features/requestsSlice';
 import { objectToBase64 } from '../utils/toBase64';
 import { cachedSearchQdnResources } from './resourceCache';
+import { qdnClient } from '../state/api/client';
 
 const REQUEST_IDENTIFIER_PREFIX = 'enjoymusic_request_';
 const REQUEST_FILL_IDENTIFIER_PREFIX = 'enjoymusic_request_fill_';
@@ -9,8 +10,7 @@ const PAGE_SIZE = 200;
 
 const fetchQdnJson = async (name: string, service: string, identifier: string) => {
   try {
-    const payload = await qortalRequest({
-      action: 'FETCH_QDN_RESOURCE',
+    const payload = await qdnClient.fetchResource({
       name,
       service,
       identifier,
@@ -125,8 +125,7 @@ export const deleteRequestResource = async (publisher: string, identifier: strin
     updated: Date.now(),
   };
   const data64 = await objectToBase64(payload);
-  await qortalRequest({
-    action: 'PUBLISH_QDN_RESOURCE',
+  await qdnClient.publishResource({
     name: publisher,
     service: 'DOCUMENT',
     identifier,
@@ -184,8 +183,7 @@ export const updateRequest = async (request: SongRequest): Promise<SongRequest> 
 
   const data64 = await objectToBase64(payload);
 
-  await qortalRequest({
-    action: 'PUBLISH_QDN_RESOURCE',
+  await qdnClient.publishResource({
     name: request.publisher,
     service: 'DOCUMENT',
     identifier: request.id,

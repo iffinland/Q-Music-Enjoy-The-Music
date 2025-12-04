@@ -38,6 +38,7 @@ import useUploadPlaylistModal from '../hooks/useUploadPlaylistModal';
 import useSendTipModal from '../hooks/useSendTipModal';
 import { RiHandCoinLine } from 'react-icons/ri';
 import useCoverImage from '../hooks/useCoverImage';
+import { qdnClient } from '../state/api/client';
 import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../hooks/usePlaylistPlayback';
 
 interface PlaylistCardProps {
@@ -333,8 +334,7 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
       }
 
       try {
-        const resource = await qortalRequest({
-          action: 'FETCH_QDN_RESOURCE',
+        const resource = await qdnClient.fetchResource({
           name: data.user,
           service: 'PLAYLIST',
           identifier: data.id,

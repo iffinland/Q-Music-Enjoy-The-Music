@@ -48,6 +48,7 @@ import useSendTipModal from '../hooks/useSendTipModal';
 import useUploadModal from '../hooks/useUploadModal';
 import useCoverImage from '../hooks/useCoverImage';
 import { fetchSongLikeCount, hasUserLikedSong, likeSong, unlikeSong } from '../services/songLikes';
+import { qdnClient } from '../state/api/client';
 
 interface DownloadStatus {
   status?: string;
@@ -1575,7 +1576,7 @@ const Player = () => {
 
   const refetch = useCallback(async ({ name, service, identifier }: ResourceIdentifier) => {
     try {
-      await qortalRequest({
+      await qdnClient.rawRequest({
         action: 'GET_QDN_RESOURCE_PROPERTIES',
         name,
         service,

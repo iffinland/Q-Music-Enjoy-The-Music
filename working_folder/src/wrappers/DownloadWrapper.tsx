@@ -2,6 +2,7 @@ import React from 'react';
 import { useDispatch } from 'react-redux';
 
 import { setAddToDownloads, updateDownloads } from '../state/features/globalSlice';
+import { qdnClient } from '../state/api/client';
 
 interface Props {
   children: React.ReactNode;
@@ -43,7 +44,7 @@ const DownloadWrapper: React.FC<Props> = ({ children }) => {
 
   const fetchResource = async ({ name, service, identifier }: ResourceIdentifier) => {
     try {
-      await qortalRequest({
+      await qdnClient.rawRequest({
         action: 'GET_QDN_RESOURCE_PROPERTIES',
         name,
         service,
@@ -57,8 +58,7 @@ const DownloadWrapper: React.FC<Props> = ({ children }) => {
   const fetchVideoUrl = async ({ name, service, identifier }: ResourceIdentifier) => {
     try {
       await fetchResource({ name, service, identifier });
-      const url = await qortalRequest({
-        action: 'GET_QDN_RESOURCE_URL',
+      const url = await qdnClient.getResourceUrl({
         service,
         name,
         identifier,
@@ -94,8 +94,7 @@ const DownloadWrapper: React.FC<Props> = ({ children }) => {
     const intervalId = setInterval(async () => {
       if (isCalling) return;
       isCalling = true;
-      const res = (await qortalRequest({
-        action: 'GET_QDN_RESOURCE_STATUS',
+      const res = (await qdnClient.getStatus({
         name,
         service,
         identifier,

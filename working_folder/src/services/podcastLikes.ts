@@ -2,6 +2,7 @@ import { Podcast } from '../types';
 import { deleteQdnResource, fetchQdnResource } from '../utils/qortalApi';
 import { objectToBase64 } from '../utils/toBase64';
 import { cachedSearchQdnResources } from './resourceCache';
+import { qdnClient } from '../state/api/client';
 
 const PODCAST_LIKE_PREFIX = 'podcast_like_';
 const LIKE_FETCH_LIMIT = 50;
@@ -138,8 +139,7 @@ export const likePodcast = async (username: string, podcast: Podcast): Promise<v
 
   const data64 = await objectToBase64(payload);
 
-  await qortalRequest({
-    action: 'PUBLISH_QDN_RESOURCE',
+  await qdnClient.publishResource({
     name: username,
     service: 'DOCUMENT',
     identifier,

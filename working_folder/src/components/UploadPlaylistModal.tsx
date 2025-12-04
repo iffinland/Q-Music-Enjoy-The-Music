@@ -20,6 +20,7 @@ import {AiOutlineClose} from  "react-icons/ai";
 import { Song } from '../types';
 import { removeTrailingUnderscore } from '../utils/extra';
 import { useNavigate } from 'react-router-dom';
+import { qdnClient } from '../state/api/client';
 const uid = new ShortUniqueId()
 
 const UploadPlaylistModal = () => {
@@ -201,7 +202,7 @@ const UploadPlaylistModal = () => {
           action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
           resources: resources
         }
-        await qortalRequest(multiplePublish)
+        await qdnClient.publishResource(multiplePublish)
       const now = Date.now();
       const isExistingPlaylist =
         Boolean(newPlaylist?.id) && !newPlaylist?.id?.startsWith('draft-playlist-');

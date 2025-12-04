@@ -18,6 +18,7 @@ import { buildAudiobookShareUrl } from '../../utils/qortalLinks';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
+import { qdnClient } from '../../state/api/client';
 import { Favorites, removeFavSong, setAddToDownloads, setCurrentSong, setFavSong } from '../../state/features/globalSlice';
 import { deleteHostedData, deleteQdnResource, getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
@@ -586,8 +587,7 @@ const Audiobooks: React.FC = () => {
 
       const deletionData64 = await objectToBase64(deletionDocument);
 
-      await qortalRequest({
-        action: 'PUBLISH_QDN_RESOURCE',
+      await qdnClient.publishResource({
         name: audiobook.publisher,
         service: 'DOCUMENT',
         identifier: audiobook.id,

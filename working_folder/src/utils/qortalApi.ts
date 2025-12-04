@@ -1,3 +1,12 @@
+import { qdnClient } from '../state/api/client'
+import type {
+  DeleteResourceRequest,
+  FetchResourceRequest,
+  GetResourceUrlRequest,
+  GetStatusRequest,
+  SearchResourcesRequest
+} from '../state/api/endpoints'
+
 type SearchMode = 'ALL' | 'LATEST' | 'RANDOM' | string;
 
 export interface SearchQdnResourcesParams {
@@ -71,9 +80,7 @@ const setCached = (key: CacheKey, value: any[], ttlMs = DEFAULT_TTL_MS) => {
 export const searchQdnResources = async (
   params: SearchQdnResourcesParams,
 ): Promise<any[]> => {
-  const payload: Record<string, unknown> = {
-    action: 'SEARCH_QDN_RESOURCES',
-  };
+  const payload: SearchResourcesRequest = {}
 
   assignIfDefined(payload, 'mode', params.mode);
   assignIfDefined(payload, 'service', params.service);
@@ -89,7 +96,7 @@ export const searchQdnResources = async (
   assignIfDefined(payload, 'namePrefix', params.namePrefix);
   assignIfDefined(payload, 'exactMatchNames', params.exactMatchNames);
 
-  const key = stableKey(payload);
+  const key = stableKey(payload as Record<string, unknown>);
 
   const cached = getCached(key);
   if (cached) {
@@ -102,7 +109,7 @@ export const searchQdnResources = async (
   }
 
   const promise = (async () => {
-    const result = await qortalRequest(payload as any);
+    const result = await qdnClient.searchResources(payload);
     const arr = Array.isArray(result) ? result : [];
     setCached(key, arr);
     inflight.delete(key);
@@ -123,33 +130,31 @@ export interface FetchQdnResourceParams {
 }
 
 export const fetchQdnResource = async (params: FetchQdnResourceParams) => {
-  const payload: Record<string, unknown> = {
-    action: 'FETCH_QDN_RESOURCE',
+  const payload: FetchResourceRequest = {
     ...params,
   };
   // Cache fetch of playlist or other resources too (small TTL)
-  const key = stableKey(payload);
+  const key = stableKey({ action: 'FETCH_QDN_RESOURCE', ...payload });
   const cached = getCached(key);
   if (cached) {
     return cached;
   }
-  const result = await qortalRequest(payload as any);
+  const result = await qdnClient.fetchResource(payload);
   const value = Array.isArray(result) ? result : result ? [result] : [];
   setCached(key, value, 30_000); // 30s TTL
   return result;
 };
 
 export const getNamesByAddress = async (address: string): Promise<string[]> => {
-  const payload: Record<string, unknown> = {
-    action: 'GET_ACCOUNT_NAMES',
+  const payload = {
     address,
   };
-  const key = stableKey(payload);
+  const key = stableKey({ action: 'GET_ACCOUNT_NAMES', ...payload });
   const cached = getCached(key);
   if (cached) {
     return cached as unknown as string[];
   }
-  const names = await qortalRequest(payload as any);
+  const names = await qdnClient.getAccountNames(payload);
   let normalized: string[] = [];
   if (Array.isArray(names)) {
     normalized = names
@@ -190,12 +195,12 @@ export const getQdnResourceUrl = async (
       return inflightExisting;
     }
     const p = (async () => {
-      const result = await qortalRequest({
-        action: 'GET_QDN_RESOURCE_URL',
+      const request: GetResourceUrlRequest = {
         service,
         name,
         identifier,
-      });
+      }
+      const result = await qdnClient.getResourceUrl(request);
       const url = typeof result === 'string' && result !== 'Resource does not exist' ? result : null;
       urlCache.set(key, { url, expiresAt: Date.now() + URL_TTL_MS });
       urlInflight.delete(key);
@@ -225,10 +230,12 @@ export const deleteHostedData = async (
     return;
   }
 
-  await qortalRequest({
-    action: 'DELETE_HOSTED_DATA',
+  await qdnClient.deleteResource({
+    service: hostedData[0].service,
+    name: hostedData[0].name,
+    identifier: hostedData[0].identifier,
     hostedData,
-  } as any);
+  });
 };
 
 const DELETE_RETRY_ATTEMPTS = 3;
@@ -258,18 +265,14 @@ const performDeleteRequest = async (
   reference: HostedDataReference,
   timeoutMs: number,
 ) => {
-  const payload = {
-    action: 'DELETE_QDN_RESOURCE',
+  const payload: DeleteResourceRequest = {
     name: reference.name,
     service: reference.service,
     identifier: reference.identifier,
-  } as any;
-
-  if (typeof qortalRequestWithTimeout === 'function' && Number.isFinite(timeoutMs)) {
-    return qortalRequestWithTimeout(payload, timeoutMs);
   }
 
-  return qortalRequest(payload);
+  // NOTE: timeout currently not applied when using RTK Query transport
+  return qdnClient.deleteResource(payload);
 };
 
 export const deleteQdnResource = async (
@@ -305,12 +308,12 @@ export const getQdnResourceStatus = async (
   reference: HostedDataReference,
 ): Promise<Record<string, unknown> | null> => {
   try {
-    const result = await qortalRequest({
-      action: 'GET_QDN_RESOURCE_STATUS',
+    const request: GetStatusRequest = {
       name: reference.name,
       service: reference.service,
       identifier: reference.identifier,
-    } as any);
+    }
+    const result = await qdnClient.getStatus(request);
     if (result && typeof result === 'object') {
       return result as Record<string, unknown>;
     }

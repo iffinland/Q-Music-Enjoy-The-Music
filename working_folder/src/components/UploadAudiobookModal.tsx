@@ -16,6 +16,7 @@ import { removeTrailingUnderscore } from '../utils/extra';
 import { stripDiacritics } from '../utils/stringHelpers';
 import { AUDIOBOOK_CATEGORIES } from '../constants/categories';
 import { Audiobook } from '../types';
+import { qdnClient } from '../state/api/client';
 
 const uid = new ShortUniqueId();
 const IDENTIFIER_PREFIX = 'enjoymusic_audiobooks_';
@@ -349,15 +350,13 @@ const UploadAudiobookModal: React.FC = () => {
       }
 
       const publishMultiple = async () =>
-        qortalRequest({
-          action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+        qdnClient.publishResource({
           resources,
         });
 
       const publishIndividually = async () => {
         if (audioResource && audioFile) {
-          await qortalRequest({
-            action: 'PUBLISH_QDN_RESOURCE',
+          await qdnClient.publishResource({
             name: username,
             service: 'AUDIO',
             identifier,
@@ -368,8 +367,7 @@ const UploadAudiobookModal: React.FC = () => {
           });
         }
 
-        await qortalRequest({
-          action: 'PUBLISH_QDN_RESOURCE',
+        await qdnClient.publishResource({
           name: username,
           service: 'DOCUMENT',
           identifier,
@@ -383,8 +381,7 @@ const UploadAudiobookModal: React.FC = () => {
 
         const coverPayload = coverResource as { data64?: string } | null;
         if (coverPayload?.data64) {
-          await qortalRequest({
-            action: 'PUBLISH_QDN_RESOURCE',
+          await qdnClient.publishResource({
             name: username,
             service: 'THUMBNAIL',
             identifier,

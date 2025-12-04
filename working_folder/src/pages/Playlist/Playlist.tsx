@@ -40,9 +40,7 @@ import useSendTipModal from '../../hooks/useSendTipModal';
 import { LuCopy } from 'react-icons/lu';
 import { RiHandCoinLine } from 'react-icons/ri';
 import { fetchPlaylistLikeCount, hasUserLikedPlaylist, likePlaylist, unlikePlaylist } from '../../services/playlistLikes';
-
-// Provided by the Qortal runtime
-declare const qortalRequest: (payload: any) => Promise<any>;
+import { qdnClient } from '../../state/api/client';
 
 const favoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites'
@@ -101,27 +99,12 @@ export const Playlist = () => {
         identifier: playlistId,
       });
 
-      // const responseDataSearch = await qortalRequest({
-      //   action: "SEARCH_QDN_RESOURCES",
-      //   mode: "ALL",
-      //   service: "DOCUMENT",
-      //   query: "bteon_vid_",
-      //   limit: 1,
-      //   offset: 0,
-      //   includeMetadata: true,
-      //   reverse: true,
-      //   excludeBlocked: true,
-      //   exactMatchNames: true,
-      //   name: name,
-      //   identifier: id
-      // })
       if (responseDataSearch?.length > 0) {
         const resourceEntry = responseDataSearch.find((entry: any) => !shouldHideQdnResource(entry));
         if (!resourceEntry) return;
         const resourceData = mapPlaylistSummary(resourceEntry);
       
-        const responseData = await qortalRequest({
-          action: 'FETCH_QDN_RESOURCE',
+        const responseData = await qdnClient.fetchResource({
           name: name,
           service: 'PLAYLIST',
           identifier: playlistId
@@ -258,8 +241,7 @@ export const Playlist = () => {
           image: playListData.image ?? null,
         };
         const playlistData64 = await objectToBase64(playlistPayload);
-        await qortalRequest({
-          action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+        await qdnClient.publishResource({
           resources: [
             {
               name: playListData.user || username,

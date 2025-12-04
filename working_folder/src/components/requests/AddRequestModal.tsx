@@ -13,6 +13,7 @@ import { objectToBase64 } from '../../utils/toBase64';
 import { removeTrailingUnderscore } from '../../utils/extra';
 import { SongRequest, upsertSongRequest } from '../../state/features/requestsSlice';
 import { updateRequest } from '../../services/qdnRequests';
+import { qdnClient } from '../../state/api/client';
 
 const uid = new ShortUniqueId();
 
@@ -156,8 +157,7 @@ const AddRequestModal: React.FC = () => {
           },
         ];
 
-        await qortalRequest({
-          action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+        await qdnClient.publishResource({
           resources,
         });
 

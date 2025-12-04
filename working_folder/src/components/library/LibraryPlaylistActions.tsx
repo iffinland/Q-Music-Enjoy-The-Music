@@ -34,6 +34,7 @@ import {
 } from '../../services/playlistLikes';
 import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../../hooks/usePlaylistPlayback';
 import { deletePlaylistResource } from '../../services/playlists';
+import { qdnClient } from '../../state/api/client';
 
 const playlistFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-favorites',
@@ -275,8 +276,7 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
     }
 
     try {
-      const resource = await qortalRequest({
-        action: 'FETCH_QDN_RESOURCE',
+      const resource = await qdnClient.fetchResource({
         name: playlist.user,
         service: 'PLAYLIST',
         identifier: playlist.id,

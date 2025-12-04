@@ -14,6 +14,7 @@ import {
   ModalContent,
   ModalText
 } from "./BlockedNamesModal-styles";
+import { qdnClient } from "../../../state/api/client";
 
 interface PostModalProps {
   open: boolean;
@@ -29,7 +30,7 @@ export const BlockedNamesModal: React.FC<PostModalProps> = ({
   const getBlockedNames = React.useCallback(async () => {
     try {
       const listName = `blockedNames`;
-      const response = await qortalRequest({
+      const response = await qdnClient.rawRequest({
         action: "GET_LIST_ITEMS",
         list_name: listName
       });
@@ -45,7 +46,7 @@ export const BlockedNamesModal: React.FC<PostModalProps> = ({
 
   const removeFromBlockList = async (name: string) => {
     try {
-      const response = await qortalRequest({
+      const response = await qdnClient.rawRequest({
         action: "DELETE_LIST_ITEM",
         list_name: "blockedNames",
         item: name

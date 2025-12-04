@@ -2,6 +2,7 @@ import { SongMeta } from '../state/features/globalSlice';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { cachedSearchQdnResources } from './resourceCache';
 import { objectToBase64 } from '../utils/toBase64';
+import { qdnClient } from '../state/api/client';
 
 /**
  * Shared parsing and memoization for song description k=v pairs
@@ -125,8 +126,7 @@ export const deleteSongResources = async (publisher: string, identifier: string)
     },
   ];
 
-  await qortalRequest({
-    action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+  await qdnClient.publishResource({
     resources,
   });
 };

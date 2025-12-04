@@ -3,6 +3,7 @@ import { fetchQdnResource, getQdnResourceUrl, getQdnResourceStatus } from '../ut
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { objectToBase64 } from '../utils/toBase64';
 import { cachedSearchQdnResources } from './resourceCache';
+import { qdnClient } from '../state/api/client';
 
 const PODCAST_IDENTIFIER_PREFIX = 'enjoymusic_podcast_';
 const FETCH_LIMIT = 25;
@@ -244,8 +245,7 @@ export const deletePodcastResources = async (publisher: string, identifier: stri
     },
   ];
 
-  await qortalRequest({
-    action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+  await qdnClient.publishResource({
     resources,
   });
 };
