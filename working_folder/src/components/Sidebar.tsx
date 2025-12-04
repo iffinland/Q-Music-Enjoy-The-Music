@@ -202,7 +202,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ songs, routes, onNaviga
           </button>
         </div>
         <div className="bg-sky-900/80 border border-sky-500/40 px-5 py-2 rounded-md flex items-center justify-center text-sm font-medium text-sky-200/80">
-          <span>APP version 1.3 RC</span>
+          <span>APP version 1.4 RC</span>
         </div>
       </div>
     </>
