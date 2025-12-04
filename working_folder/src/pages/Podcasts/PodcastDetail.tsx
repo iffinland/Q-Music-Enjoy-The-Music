@@ -1,22 +1,28 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Header from '../../components/Header';
 import Box from '../../components/Box';
 import GoBackButton from '../../components/GoBackButton';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
-import { Podcast } from '../../types';
+import { Podcast, Song } from '../../types';
 import { fetchPodcastByIdentifier } from '../../services/podcasts';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildPodcastShareUrl } from '../../utils/qortalLinks';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
 import { toast } from 'react-hot-toast';
 import moment from 'moment';
-import { FiDownload, FiPlay, FiShare2, FiEdit2 } from 'react-icons/fi';
+import { FiDownload, FiPlay, FiEdit2, FiThumbsUp } from 'react-icons/fi';
+import { LuCopy } from 'react-icons/lu';
+import { RiHandCoinLine } from 'react-icons/ri';
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import { setAddToDownloads, setCurrentSong } from '../../state/features/globalSlice';
 import useUploadPodcastModal from '../../hooks/useUploadPodcastModal';
 import { resolveAudioUrl } from '../../utils/resolveAudioUrl';
+import useSendTipModal from '../../hooks/useSendTipModal';
+import { AddToPlaylistButton } from '../../components/AddToPlayistButton';
+import LikeButton from '../../components/LikeButton';
+import { fetchPodcastLikeCount, hasUserLikedPodcast, likePodcast, unlikePodcast } from '../../services/podcastLikes';
 
 const DEFAULT_COVER =
   'data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"400\"%3E%3Crect width=\"100%25\" height=\"100%25\" fill=\"%230b2137\"%3E%3C/rect%3E%3Ctext x=\"50%25\" y=\"50%25\" fill=\"%2355a8ff\" font-size=\"28\" font-family=\"Arial\" text-anchor=\"middle\"%3ENo Cover%3C/text%3E%3C/svg%3E';
@@ -39,11 +45,11 @@ const formatFileSize = (size?: number): string | null => {
 const PodcastDetail: React.FC = () => {
   const params = useParams();
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const { downloadVideo } = useContext(MyContext);
   const downloads = useSelector((state: RootState) => state.global.downloads);
   const username = useSelector((state: RootState) => state.auth.user?.name);
   const uploadPodcastModal = useUploadPodcastModal();
+  const sendTipModal = useSendTipModal();
 
   const publisher = useMemo(() => decodeURIComponent(params.publisher || ''), [params.publisher]);
   const identifier = useMemo(() => decodeURIComponent(params.identifier || ''), [params.identifier]);
@@ -52,6 +58,9 @@ const PodcastDetail: React.FC = () => {
   const [coverUrl, setCoverUrl] = useState<string>(DEFAULT_COVER);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [podcastLikeCount, setPodcastLikeCount] = useState<number | null>(null);
+  const [hasPodcastLike, setHasPodcastLike] = useState<boolean>(false);
+  const [isProcessingLike, setIsProcessingLike] = useState<boolean>(false);
 
   const loadPodcast = useCallback(async () => {
     if (!publisher || !identifier) {
@@ -208,6 +217,20 @@ const PodcastDetail: React.FC = () => {
     }
   }, [identifier, podcast, publisher]);
 
+  const handleSendTip = useCallback(() => {
+    if (!username) {
+      toast.error('Log in to send tips.');
+      return;
+    }
+
+    if (!podcast?.publisher) {
+      toast.error('Creator information is missing.');
+      return;
+    }
+
+    sendTipModal.open(podcast.publisher);
+  }, [podcast?.publisher, sendTipModal, username]);
+
   const isOwner = useMemo(() => {
     if (!username || !podcast?.publisher) return false;
     return username.toLowerCase() === podcast.publisher.toLowerCase();
@@ -226,6 +249,97 @@ const PodcastDetail: React.FC = () => {
     if (!timestamp) return null;
     return moment(timestamp).format('MMMM D, YYYY • HH:mm');
   }, [podcast]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadLikeData = async () => {
+      if (!identifier) {
+        setPodcastLikeCount(0);
+        setHasPodcastLike(false);
+        return;
+      }
+
+      try {
+        const count = await fetchPodcastLikeCount(identifier);
+        if (!cancelled) {
+          setPodcastLikeCount(count);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setPodcastLikeCount(0);
+        }
+      }
+
+      if (!username) {
+        if (!cancelled) {
+          setHasPodcastLike(false);
+        }
+        return;
+      }
+
+      try {
+        const liked = await hasUserLikedPodcast(username, identifier);
+        if (!cancelled) {
+          setHasPodcastLike(liked);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setHasPodcastLike(false);
+        }
+      }
+    };
+
+    loadLikeData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [identifier, username]);
+
+  const handleTogglePodcastLike = useCallback(async () => {
+    if (!identifier || !podcast?.publisher) return;
+
+    if (!username) {
+      toast.error('Log in to like podcasts.');
+      return;
+    }
+
+    if (isProcessingLike) return;
+
+    try {
+      setIsProcessingLike(true);
+      if (hasPodcastLike) {
+        await unlikePodcast(username, identifier);
+        setHasPodcastLike(false);
+        setPodcastLikeCount((prev) => Math.max(0, (prev ?? 1) - 1));
+        toast.success(`Removed like from "${podcast.title || 'this podcast'}".`);
+      } else {
+        await likePodcast(username, podcast);
+        setHasPodcastLike(true);
+        setPodcastLikeCount((prev) => (prev ?? 0) + 1);
+        toast.success(`You liked "${podcast.title || 'this podcast'}"!`);
+      }
+    } catch (error) {
+      console.error('Failed to toggle podcast like', error);
+      toast.error('Could not update like. Please try again.');
+    } finally {
+      setIsProcessingLike(false);
+    }
+  }, [hasPodcastLike, identifier, isProcessingLike, podcast, username]);
+
+  const favoritePodcastData: Song | null = useMemo(() => {
+    if (!podcast || !identifier) return null;
+    return {
+      id: identifier,
+      title: podcast.title,
+      name: podcast.publisher || publisher,
+      author: podcast.publisher || publisher,
+      service: podcast.service || 'AUDIO',
+      status: podcast.status,
+      mediaType: 'PODCAST',
+    };
+  }, [identifier, podcast, publisher]);
 
   const QuickActionWrapper: React.FC<{ label: string; children: ReactNode }> = ({ label, children }) => (
     <div className="group relative">
@@ -351,7 +465,45 @@ const PodcastDetail: React.FC = () => {
             disabled={!canInteract}
           />
           <QuickActionButton
-            icon={<FiShare2 className="h-5 w-5" />}
+            icon={<FiThumbsUp className={`h-5 w-5 ${hasPodcastLike ? 'text-emerald-300' : ''}`} />}
+            label="Like It"
+            onClick={handleTogglePodcastLike}
+            disabled={!canInteract || isProcessingLike}
+            badge={typeof podcastLikeCount === 'number' ? podcastLikeCount : null}
+          />
+          <QuickActionButton
+            icon={<RiHandCoinLine className="h-5 w-5" />}
+            label="Send Tips To Publisher"
+            onClick={handleSendTip}
+            disabled={!canInteract}
+          />
+          {favoritePodcastData && (
+            <QuickActionWrapper label="Add to Favorites">
+              <LikeButton
+                songId={favoritePodcastData.id}
+                name={favoritePodcastData.name || publisher}
+                service={favoritePodcastData.service || 'AUDIO'}
+                songData={favoritePodcastData}
+                className="flex h-12 w-12 items-center justify-center rounded-xl border border-sky-900/60 bg-sky-950/30 text-white transition hover:-translate-y-0.5 hover:border-sky-500/60"
+                activeClassName="bg-emerald-600/10 border-emerald-400/70"
+                inactiveClassName="bg-sky-950/30"
+                iconSize={22}
+                title="Add to Favorites"
+                ariaLabel="Add to Favorites"
+              />
+            </QuickActionWrapper>
+          )}
+          {favoritePodcastData && (
+            <QuickActionWrapper label="Add to Playlist">
+              <AddToPlaylistButton
+                song={favoritePodcastData}
+                className="flex h-12 w-12 items-center justify-center rounded-xl border border-sky-900/60 bg-sky-950/30 text-white transition hover:-translate-y-0.5 hover:border-sky-500/60"
+                iconSize={22}
+              />
+            </QuickActionWrapper>
+          )}
+          <QuickActionButton
+            icon={<LuCopy className="h-5 w-5" />}
             label="Copy Link & Share It"
             onClick={handleSharePodcast}
             disabled={!canInteract}

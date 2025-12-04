@@ -179,7 +179,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ songs, routes, onNaviga
         >
           Donate Project
           <span className="text-[11px] font-medium text-slate-900/80">
-            Supports Q-Music development
           </span>
         </button>
         <div className="grid grid-cols-2 gap-2">
@@ -192,7 +191,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ songs, routes, onNaviga
             <span className="absolute -top-2 -right-2 text-red-500 drop-shadow">
               <FaTimesCircle size={18} />
             </span>
-            Join CHAT
+            About App
           </button>
           <button
             type="button"
@@ -203,7 +202,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ songs, routes, onNaviga
           </button>
         </div>
         <div className="bg-sky-900/80 border border-sky-500/40 px-5 py-2 rounded-md flex items-center justify-center text-sm font-medium text-sky-200/80">
-          <span>APP version 1.2 RC</span>
+          <span>APP version 1.3 RC</span>
         </div>
       </div>
     </>

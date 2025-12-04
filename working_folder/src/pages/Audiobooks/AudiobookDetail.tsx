@@ -5,18 +5,24 @@ import Box from '../../components/Box';
 import GoBackButton from '../../components/GoBackButton';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
-import { Audiobook } from '../../types';
+import { Audiobook, Song } from '../../types';
 import { fetchAudiobookByIdentifier } from '../../services/audiobooks';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildAudiobookShareUrl } from '../../utils/qortalLinks';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
 import { toast } from 'react-hot-toast';
 import moment from 'moment';
-import { FiDownload, FiPlay, FiShare2, FiEdit2 } from 'react-icons/fi';
+import { FiDownload, FiPlay, FiEdit2, FiThumbsUp } from 'react-icons/fi';
+import { LuCopy } from 'react-icons/lu';
+import { RiHandCoinLine } from 'react-icons/ri';
 import { MyContext } from '../../wrappers/DownloadWrapper';
 import { setAddToDownloads, setCurrentSong } from '../../state/features/globalSlice';
 import useUploadAudiobookModal from '../../hooks/useUploadAudiobookModal';
 import { resolveAudioUrl } from '../../utils/resolveAudioUrl';
+import useSendTipModal from '../../hooks/useSendTipModal';
+import { AddToPlaylistButton } from '../../components/AddToPlayistButton';
+import LikeButton from '../../components/LikeButton';
+import { fetchAudiobookLikeCount, hasUserLikedAudiobook, likeAudiobook, unlikeAudiobook } from '../../services/audiobookLikes';
 
 const DEFAULT_COVER =
   'data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"400\"%3E%3Crect width=\"100%25\" height=\"100%25\" fill=\"%230b2137\"%3E%3C/rect%3E%3Ctext x=\"50%25\" y=\"50%25\" fill=\"%2355a8ff\" font-size=\"28\" font-family=\"Arial\" text-anchor=\"middle\"%3ENo Cover%3C/text%3E%3C/svg%3E';
@@ -43,6 +49,7 @@ const AudiobookDetail: React.FC = () => {
   const downloads = useSelector((state: RootState) => state.global.downloads);
   const username = useSelector((state: RootState) => state.auth.user?.name);
   const uploadAudiobookModal = useUploadAudiobookModal();
+  const sendTipModal = useSendTipModal();
 
   const publisher = useMemo(() => decodeURIComponent(params.publisher || ''), [params.publisher]);
   const identifier = useMemo(() => decodeURIComponent(params.identifier || ''), [params.identifier]);
@@ -51,6 +58,9 @@ const AudiobookDetail: React.FC = () => {
   const [coverUrl, setCoverUrl] = useState<string>(DEFAULT_COVER);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [audiobookLikeCount, setAudiobookLikeCount] = useState<number | null>(null);
+  const [hasAudiobookLike, setHasAudiobookLike] = useState<boolean>(false);
+  const [isProcessingLike, setIsProcessingLike] = useState<boolean>(false);
 
   const loadAudiobook = useCallback(async () => {
     if (!publisher || !identifier) {
@@ -207,6 +217,20 @@ const AudiobookDetail: React.FC = () => {
     }
   }, [identifier, audiobook, publisher]);
 
+  const handleSendTip = useCallback(() => {
+    if (!username) {
+      toast.error('Log in to send tips.');
+      return;
+    }
+
+    if (!audiobook?.publisher) {
+      toast.error('Creator information is missing.');
+      return;
+    }
+
+    sendTipModal.open(audiobook.publisher);
+  }, [audiobook?.publisher, sendTipModal, username]);
+
   const isOwner = useMemo(() => {
     if (!username || !audiobook?.publisher) return false;
     return username.toLowerCase() === audiobook.publisher.toLowerCase();
@@ -225,6 +249,97 @@ const AudiobookDetail: React.FC = () => {
     if (!timestamp) return null;
     return moment(timestamp).format('MMMM D, YYYY • HH:mm');
   }, [audiobook]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadLikeData = async () => {
+      if (!identifier) {
+        setAudiobookLikeCount(0);
+        setHasAudiobookLike(false);
+        return;
+      }
+
+      try {
+        const count = await fetchAudiobookLikeCount(identifier);
+        if (!cancelled) {
+          setAudiobookLikeCount(count);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setAudiobookLikeCount(0);
+        }
+      }
+
+      if (!username) {
+        if (!cancelled) {
+          setHasAudiobookLike(false);
+        }
+        return;
+      }
+
+      try {
+        const liked = await hasUserLikedAudiobook(username, identifier);
+        if (!cancelled) {
+          setHasAudiobookLike(liked);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setHasAudiobookLike(false);
+        }
+      }
+    };
+
+    loadLikeData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [identifier, username]);
+
+  const handleToggleAudiobookLike = useCallback(async () => {
+    if (!identifier || !audiobook?.publisher) return;
+
+    if (!username) {
+      toast.error('Log in to like audiobooks.');
+      return;
+    }
+
+    if (isProcessingLike) return;
+
+    try {
+      setIsProcessingLike(true);
+      if (hasAudiobookLike) {
+        await unlikeAudiobook(username, identifier);
+        setHasAudiobookLike(false);
+        setAudiobookLikeCount((prev) => Math.max(0, (prev ?? 1) - 1));
+        toast.success(`Removed like from "${audiobook.title || 'this audiobook'}".`);
+      } else {
+        await likeAudiobook(username, audiobook);
+        setHasAudiobookLike(true);
+        setAudiobookLikeCount((prev) => (prev ?? 0) + 1);
+        toast.success(`You liked "${audiobook.title || 'this audiobook'}"!`);
+      }
+    } catch (error) {
+      console.error('Failed to toggle audiobook like', error);
+      toast.error('Could not update like. Please try again.');
+    } finally {
+      setIsProcessingLike(false);
+    }
+  }, [audiobook, hasAudiobookLike, identifier, isProcessingLike, username]);
+
+  const favoriteAudiobookData: Song | null = useMemo(() => {
+    if (!audiobook || !identifier) return null;
+    return {
+      id: identifier,
+      title: audiobook.title,
+      name: audiobook.publisher || publisher,
+      author: audiobook.publisher || publisher,
+      service: audiobook.service || 'AUDIO',
+      status: audiobook.status,
+      mediaType: 'AUDIOBOOK',
+    };
+  }, [audiobook, identifier, publisher]);
 
   const QuickActionWrapper: React.FC<{ label: string; children: ReactNode }> = ({ label, children }) => (
     <div className="group relative">
@@ -350,7 +465,45 @@ const AudiobookDetail: React.FC = () => {
             disabled={!canInteract}
           />
           <QuickActionButton
-            icon={<FiShare2 className="h-5 w-5" />}
+            icon={<FiThumbsUp className={`h-5 w-5 ${hasAudiobookLike ? 'text-emerald-300' : ''}`} />}
+            label="Like It"
+            onClick={handleToggleAudiobookLike}
+            disabled={!canInteract || isProcessingLike}
+            badge={typeof audiobookLikeCount === 'number' ? audiobookLikeCount : null}
+          />
+          <QuickActionButton
+            icon={<RiHandCoinLine className="h-5 w-5" />}
+            label="Send Tips To Publisher"
+            onClick={handleSendTip}
+            disabled={!canInteract}
+          />
+          {favoriteAudiobookData && (
+            <QuickActionWrapper label="Add to Favorites">
+              <LikeButton
+                songId={favoriteAudiobookData.id}
+                name={favoriteAudiobookData.name || publisher}
+                service={favoriteAudiobookData.service || 'AUDIO'}
+                songData={favoriteAudiobookData}
+                className="flex h-12 w-12 items-center justify-center rounded-xl border border-sky-900/60 bg-sky-950/30 text-white transition hover:-translate-y-0.5 hover:border-sky-500/60"
+                activeClassName="bg-emerald-600/10 border-emerald-400/70"
+                inactiveClassName="bg-sky-950/30"
+                iconSize={22}
+                title="Add to Favorites"
+                ariaLabel="Add to Favorites"
+              />
+            </QuickActionWrapper>
+          )}
+          {favoriteAudiobookData && (
+            <QuickActionWrapper label="Add to Playlist">
+              <AddToPlaylistButton
+                song={favoriteAudiobookData}
+                className="flex h-12 w-12 items-center justify-center rounded-xl border border-sky-900/60 bg-sky-950/30 text-white transition hover:-translate-y-0.5 hover:border-sky-500/60"
+                iconSize={22}
+              />
+            </QuickActionWrapper>
+          )}
+          <QuickActionButton
+            icon={<LuCopy className="h-5 w-5" />}
             label="Copy Link & Share It"
             onClick={handleShareAudiobook}
             disabled={!canInteract}
