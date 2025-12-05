@@ -12,6 +12,7 @@
   "dependencies": {
     "@emotion/react": "^11.10.6",
     "@emotion/styled": "^11.10.6",
+    "@hookform/resolvers": "^5.2.2",
     "@mui/icons-material": "^5.11.11",
     "@mui/material": "^5.11.13",
     "@radix-ui/react-dialog": "^1.0.4",
@@ -19,12 +20,12 @@
     "@reduxjs/toolkit": "^1.9.3",
     "compressorjs": "^1.2.1",
     "localforage": "^1.10.0",
-    "music-metadata-browser": "^2.5.10",
     "moment": "^2.29.4",
+    "music-metadata-browser": "^2.5.10",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.2.3",
-    "react-hook-form": "^7.45.0",
+    "react-hook-form": "^7.68.0",
     "react-hot-toast": "^2.4.1",
     "react-icons": "^4.10.1",
     "react-intersection-observer": "^9.4.3",
@@ -35,6 +36,7 @@
     "tailwind-merge": "^1.13.2",
     "ts-key-enum": "^2.0.12",
     "use-sound": "^4.0.1",
+    "zod": "^4.1.13",
     "zustand": "^4.3.8"
   },
   "devDependencies": {
