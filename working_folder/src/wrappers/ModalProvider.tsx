@@ -1,9 +1,5 @@
 
 import { useEffect, useState } from "react";
-import UploadModal from "../components/UploadModal";
-import UploadPlaylistModal from "../components/UploadPlaylistModal";
-import UploadPodcastModal from "../components/UploadPodcastModal";
-import UploadAudiobookModal from "../components/UploadAudiobookModal";
 import AddRequestModal from "../components/requests/AddRequestModal";
 import FillRequestModal from "../components/requests/FillRequestModal";
 import AddSongToPlaylistModal from "../components/AddSongToPlaylistModal";
@@ -24,14 +20,10 @@ const ModalProvider: React.FC = () => {
 
   return (
     <>
-      <UploadModal />
       <AddRequestModal />
       <FillRequestModal />
-      <UploadPodcastModal />
-      <UploadAudiobookModal />
       <AddSongToPlaylistModal />
       <SendTipModal />
-      <UploadPlaylistModal />
      
     </>
   );

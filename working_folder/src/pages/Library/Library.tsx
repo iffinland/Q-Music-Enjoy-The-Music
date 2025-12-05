@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import localforage from 'localforage';
 import Header from '../../components/Header';
 import Box from '../../components/Box';
 import RequestRewardInfo from '../../components/requests/RequestRewardInfo';
@@ -24,14 +23,10 @@ import { fetchPodcastsByPublisher, fetchPodcastByGlobalIdentifier } from '../../
 import { fetchAudiobooksByPublisher, fetchAudiobookByGlobalIdentifier } from '../../services/audiobooks';
 import { SongRequest } from '../../state/features/requestsSlice';
 import { fetchRequestsByPublisher } from '../../services/qdnRequests';
+import { readJson } from '../../utils/storage';
 
-const podcastFavoritesStorage = localforage.createInstance({
-  name: 'ear-bump-podcast-favorites',
-});
-
-const audiobookFavoritesStorage = localforage.createInstance({
-  name: 'ear-bump-audiobook-favorites',
-});
+const PODCAST_FAVORITES_KEY = 'ear-bump-podcast-favorites:favorites';
+const AUDIOBOOK_FAVORITES_KEY = 'ear-bump-audiobook-favorites:favorites';
 
 
 type LibraryView =
@@ -179,7 +174,7 @@ export const Library: React.FC = () => {
     if (isLoadingFavPodcasts) return;
     setIsLoadingFavPodcasts(true);
     try {
-      const ids = (await podcastFavoritesStorage.getItem<string[]>('favorites')) || [];
+      const ids = (await readJson<string[]>(PODCAST_FAVORITES_KEY)) || [];
       if (ids.length === 0) {
         setFavoritePodcasts([]);
         setHasLoadedFavPodcasts(true);
@@ -199,7 +194,7 @@ export const Library: React.FC = () => {
     if (isLoadingFavAudiobooks) return;
     setIsLoadingFavAudiobooks(true);
     try {
-      const ids = (await audiobookFavoritesStorage.getItem<string[]>('favorites')) || [];
+      const ids = (await readJson<string[]>(AUDIOBOOK_FAVORITES_KEY)) || [];
       if (ids.length === 0) {
         setFavoriteAudiobooks([]);
         setHasLoadedFavAudiobooks(true);

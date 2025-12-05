@@ -5,10 +5,7 @@ import { addUser } from "../state/features/authSlice";
 import PageLoader from "../components/common/PageLoader";
 import { RootState } from "../state/store";
 import { Favorites, PlayList, setAddToDownloads, setCurrentSong, setFavoritesFromStorage, setFavoritesFromStoragePlaylists, setStatistics, setStatisticsLoading } from "../state/features/globalSlice";
-import localforage from "localforage";
-const favoritesStorage = localforage.createInstance({
-  name: 'ear-bump-favorites'
-})
+import { readJson, writeJson } from "../utils/storage";
 
 import { RequestQueue } from "../utils/queue";
 import { fetchStatisticsSnapshot } from "../services/statistics";
@@ -20,6 +17,9 @@ import { fetchPodcastByIdentifier } from "../services/podcasts";
 import { fetchAudiobookByIdentifier } from "../services/audiobooks";
 import { useNavigate } from "react-router-dom";
 import { qdnClient } from "../state/api/client";
+
+const FAVORITES_KEY = 'ear-bump-favorites:favorites'
+const FAVORITES_PLAYLIST_KEY = 'ear-bump-favorites:favoritesPlaylist'
 
 interface Props {
   children: React.ReactNode;
@@ -63,7 +63,7 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
 
   const getFavouritesFromStorage = useCallback(async () => {
     try {
-      const favorites = await favoritesStorage.getItem<Favorites>('favorites');
+      const favorites = await readJson<Favorites>(FAVORITES_KEY);
       if (favorites) {
         dispatch(setFavoritesFromStorage(favorites));
       } else {
@@ -79,7 +79,7 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
 
   const getFavouritesFromStoragePlaylists = useCallback(async () => {
     try {
-      const favorites = await favoritesStorage.getItem<PlayList[]>('favoritesPlaylist');
+      const favorites = await readJson<PlayList[]>(FAVORITES_PLAYLIST_KEY);
       if (favorites) {
         dispatch(setFavoritesFromStoragePlaylists(favorites));
       } else {

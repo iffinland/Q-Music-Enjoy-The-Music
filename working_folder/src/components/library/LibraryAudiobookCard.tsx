@@ -9,7 +9,6 @@ import {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import localforage from 'localforage';
 import { FaPlay } from 'react-icons/fa';
 import { FiDownload, FiEdit2, FiShare2, FiThumbsUp, FiTrash2 } from 'react-icons/fi';
 import { MdPlaylistAdd } from 'react-icons/md';
@@ -42,10 +41,9 @@ import { deleteAudiobookResources } from '../../services/audiobooks';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import useCoverImage from '../../hooks/useCoverImage';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
+import { readJson, writeJson } from '../../utils/storage';
 
-const audiobookFavoritesStorage = localforage.createInstance({
-  name: 'ear-bump-audiobook-favorites',
-});
+const AUDIOBOOK_FAVORITES_KEY = 'ear-bump-audiobook-favorites:favorites';
 
 interface LibraryAudiobookCardProps {
   audiobook: Audiobook;
@@ -137,8 +135,7 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
       }
 
       try {
-        const existing =
-          (await audiobookFavoritesStorage.getItem<string[]>('favorites')) || [];
+        const existing = (await readJson<string[]>(AUDIOBOOK_FAVORITES_KEY)) || [];
         if (!cancelled) {
           setIsFavorite(existing.includes(audiobook.id));
         }
@@ -271,17 +268,16 @@ export const LibraryAudiobookCard: React.FC<LibraryAudiobookCardProps> = ({
       if (favoriteBusy) return;
       try {
         setFavoriteBusy(true);
-        const favorites =
-          (await audiobookFavoritesStorage.getItem<string[]>('favorites')) || [];
+        const favorites = (await readJson<string[]>(AUDIOBOOK_FAVORITES_KEY)) || [];
 
         if (isFavorite) {
           const updated = favorites.filter((id) => id !== audiobook.id);
-          await audiobookFavoritesStorage.setItem('favorites', updated);
+          await writeJson(AUDIOBOOK_FAVORITES_KEY, updated);
           setIsFavorite(false);
           toast.success('Audiobook removed from favorites.');
         } else {
           const updated = Array.from(new Set([audiobook.id, ...favorites]));
-          await audiobookFavoritesStorage.setItem('favorites', updated);
+          await writeJson(AUDIOBOOK_FAVORITES_KEY, updated);
           setIsFavorite(true);
           toast.success('Audiobook added to favorites!');
         }

@@ -6,11 +6,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../state/store";
 import { Favorites, removeFavSong, setFavSong } from "../state/features/globalSlice";
 import { Song } from "../types";
-import localforage from 'localforage';
+import { readJson, writeJson } from '../utils/storage';
 
-const favoritesStorage = localforage.createInstance({
-  name: 'ear-bump-favorites',
-});
+const FAVORITES_KEY = 'ear-bump-favorites:favorites';
 
 interface LikeButtonProps {
   songId: string;
@@ -56,7 +54,7 @@ const LikeButton: React.FC<LikeButtonProps> = ({
           service,
         }));
 
-        const favoritesObj = await favoritesStorage.getItem<Favorites>('favorites');
+        const favoritesObj = await readJson<Favorites>(FAVORITES_KEY);
 
         if (favoritesObj?.songs?.[songId]) {
           const updatedFavorites: Favorites = {
@@ -64,7 +62,7 @@ const LikeButton: React.FC<LikeButtonProps> = ({
             playlists: favoritesObj.playlists,
           };
           delete updatedFavorites.songs[songId];
-          await favoritesStorage.setItem('favorites', updatedFavorites);
+          await writeJson(FAVORITES_KEY, updatedFavorites);
         }
       } else {
         dispatch(setFavSong({
@@ -74,7 +72,7 @@ const LikeButton: React.FC<LikeButtonProps> = ({
           songData,
         }));
 
-        const favoritesObj = await favoritesStorage.getItem<Favorites>('favorites');
+        const favoritesObj = await readJson<Favorites>(FAVORITES_KEY);
 
         if (!favoritesObj) {
           const newObj: Favorites = {
@@ -88,7 +86,7 @@ const LikeButton: React.FC<LikeButtonProps> = ({
             playlists: {},
           };
 
-          await favoritesStorage.setItem('favorites', newObj);
+          await writeJson(FAVORITES_KEY, newObj);
         } else {
           const updatedFavorites: Favorites = {
             songs: {
@@ -102,7 +100,7 @@ const LikeButton: React.FC<LikeButtonProps> = ({
             playlists: favoritesObj.playlists,
           };
 
-          await favoritesStorage.setItem('favorites', updatedFavorites);
+          await writeJson(FAVORITES_KEY, updatedFavorites);
         }
       }
     } catch (error) {

@@ -24,7 +24,6 @@ import { deleteHostedData, deleteQdnResource, getQdnResourceUrl } from '../../ut
 import { resolveAudioUrl } from '../../utils/resolveAudioUrl';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
 import { MyContext } from '../../wrappers/DownloadWrapper';
-import localforage from 'localforage';
 import {
   fetchPodcastLikeCount,
   hasUserLikedPodcast,
@@ -35,14 +34,13 @@ import { objectToBase64 } from '../../utils/toBase64';
 import { PODCAST_CATEGORIES } from '../../constants/categories';
 import SortControls from '../../components/common/SortControls';
 import Button from '../../components/Button';
+import { readJson, writeJson } from '../../utils/storage';
 
 const PAGE_SIZE = 15;
 const SLOGAN = 'Catch the latest community shows and rediscover timeless episodes.';
 const PODCAST_UNCATEGORIZED = 'Uncategorized';
 
-const favoritesStorage = localforage.createInstance({
-  name: 'ear-bump-favorites',
-});
+const FAVORITES_KEY = 'ear-bump-favorites:favorites';
 
 const Podcasts: React.FC = () => {
   const dispatch = useDispatch();
@@ -679,7 +677,7 @@ const Podcasts: React.FC = () => {
         author: podcast.publisher,
       };
 
-      const storedFavorites = (await favoritesStorage.getItem<Favorites>('favorites')) || {
+      const storedFavorites = (await readJson<Favorites>(FAVORITES_KEY)) || {
         songs: {},
         playlists: {},
       };
@@ -693,7 +691,7 @@ const Podcasts: React.FC = () => {
         if (storedFavorites.songs?.[podcast.id]) {
           delete storedFavorites.songs[podcast.id];
         }
-        await favoritesStorage.setItem('favorites', storedFavorites);
+        await writeJson(FAVORITES_KEY, storedFavorites);
         toast.success('Podcast removed from favorites.');
       } else {
         dispatch(setFavSong({
@@ -708,7 +706,7 @@ const Podcasts: React.FC = () => {
           name: podcast.publisher,
           service: 'AUDIO',
         };
-        await favoritesStorage.setItem('favorites', storedFavorites);
+        await writeJson(FAVORITES_KEY, storedFavorites);
         toast.success('Podcast added to favorites!');
       }
     } catch (error) {

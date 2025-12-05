@@ -11,7 +11,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
 import { FiDownload, FiEdit2, FiPlay, FiShare2, FiThumbsUp } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
-import localforage from 'localforage';
 
 import radioImg from '../assets/img/enjoy-music.jpg';
 import {
@@ -40,15 +39,14 @@ import { RiHandCoinLine } from 'react-icons/ri';
 import useCoverImage from '../hooks/useCoverImage';
 import { qdnClient } from '../state/api/client';
 import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../hooks/usePlaylistPlayback';
+import { readJson, writeJson } from '../utils/storage';
 
 interface PlaylistCardProps {
   data: PlayList;
   onClick?: () => void;
 }
 
-const playlistFavoritesStorage = localforage.createInstance({
-  name: 'ear-bump-favorites',
-});
+const PLAYLIST_FAVORITES_KEY = 'ear-bump-favorites:favoritesPlaylist';
 
 const isValidPlaylistEntry = (playlist: PlayList | null | undefined): playlist is PlayList =>
   Boolean(playlist && typeof playlist.id === 'string' && playlist.id.trim().length > 0);
@@ -263,19 +261,18 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ data, onClick }) => {
       try {
         setIsFavoriteBusy(true);
         const existing = sanitizeFavorites(
-          (await playlistFavoritesStorage.getItem<PlayList[]>('favoritesPlaylist')) ||
-            [],
+          (await readJson<PlayList[]>(PLAYLIST_FAVORITES_KEY)) || [],
         );
 
         if (isFavorited) {
           const updated = existing.filter((playlist) => playlist.id !== data.id);
-          await playlistFavoritesStorage.setItem('favoritesPlaylist', updated);
+          await writeJson(PLAYLIST_FAVORITES_KEY, updated);
           dispatch(removeFavPlaylist(data));
           toast.success('Playlist removed from favorites.');
         } else {
           const filtered = existing.filter((playlist) => playlist.id !== data.id);
           const updated = [data, ...filtered];
-          await playlistFavoritesStorage.setItem('favoritesPlaylist', updated);
+          await writeJson(PLAYLIST_FAVORITES_KEY, updated);
           dispatch(setFavPlaylist(data));
           toast.success('Playlist added to favorites!');
         }

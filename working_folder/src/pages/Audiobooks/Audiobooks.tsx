@@ -23,7 +23,6 @@ import { Favorites, removeFavSong, setAddToDownloads, setCurrentSong, setFavSong
 import { deleteHostedData, deleteQdnResource, getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
 import { MyContext } from '../../wrappers/DownloadWrapper';
-import localforage from 'localforage';
 import {
   fetchAudiobookLikeCount,
   hasUserLikedAudiobook,
@@ -35,14 +34,13 @@ import { AUDIOBOOK_CATEGORIES } from '../../constants/categories';
 import SortControls from '../../components/common/SortControls';
 import Button from '../../components/Button';
 import { resolveAudioUrl } from '../../utils/resolveAudioUrl';
+import { readJson, writeJson } from '../../utils/storage';
 
 const PAGE_SIZE = 15;
 const SLOGAN = 'Immerse yourself in community-narrated stories, lessons, and adventures.';
 const AUDIOBOOK_UNCATEGORIZED = 'Uncategorized';
 
-const favoritesStorage = localforage.createInstance({
-  name: 'ear-bump-audiobook-favorites',
-});
+const FAVORITES_KEY = 'ear-bump-audiobook-favorites:favorites';
 
 const Audiobooks: React.FC = () => {
   const dispatch = useDispatch();
@@ -679,7 +677,7 @@ const Audiobooks: React.FC = () => {
         author: audiobook.publisher,
       };
 
-      const storedFavorites = (await favoritesStorage.getItem<Favorites>('favorites')) || {
+      const storedFavorites = (await readJson<Favorites>(FAVORITES_KEY)) || {
         songs: {},
         playlists: {},
       };
@@ -693,7 +691,7 @@ const Audiobooks: React.FC = () => {
         if (storedFavorites.songs?.[audiobook.id]) {
           delete storedFavorites.songs[audiobook.id];
         }
-        await favoritesStorage.setItem('favorites', storedFavorites);
+        await writeJson(FAVORITES_KEY, storedFavorites);
         toast.success('Audiobook removed from favorites.');
       } else {
         dispatch(setFavSong({
@@ -708,7 +706,7 @@ const Audiobooks: React.FC = () => {
           name: audiobook.publisher,
           service: 'AUDIO',
         };
-        await favoritesStorage.setItem('favorites', storedFavorites);
+        await writeJson(FAVORITES_KEY, storedFavorites);
         toast.success('Audiobook added to favorites!');
       }
     } catch (error) {

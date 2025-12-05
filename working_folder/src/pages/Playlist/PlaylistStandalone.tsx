@@ -8,7 +8,6 @@ import { AiFillEdit, AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { FaPlay } from 'react-icons/fa'
 import { FiShare2, FiFlag } from 'react-icons/fi';
 import { MyContext } from '../../wrappers/DownloadWrapper'
-import localforage from 'localforage'
 import likeImg from '../../assets/img/like-button.png'
 import Box from '../../components/Box';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
@@ -21,10 +20,9 @@ import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../../hooks/usePla
 import { qdnClient } from '../../state/api/client';
 import GoBackButton from '../../components/GoBackButton';
 import { mapPlaylistSummary } from '../../utils/playlistHelpers';
+import { readJson, writeJson } from '../../utils/storage';
 
-const favoritesStorage = localforage.createInstance({
-  name: 'ear-bump-favorites'
-})
+const PLAYLIST_FAVORITES_KEY = 'ear-bump-favorites:favoritesPlaylist';
 
 const sanitizeFavoritesList = (entries: PlayList[] | null | undefined): PlayList[] => {
   if (!Array.isArray(entries)) return [];
@@ -273,24 +271,24 @@ export const PlaylistStandalone = ({
         dispatch(removeFavPlaylist(playListData))
   
         const favoritesObj = sanitizeFavoritesList(
-          await favoritesStorage.getItem<PlayList[]>('favoritesPlaylist'),
+          await readJson<PlayList[]>(PLAYLIST_FAVORITES_KEY),
         )
 
         if(favoritesObj.length){
           const newFavs = favoritesObj.filter((fav)=> fav.id !== playlistId)
-          await favoritesStorage.setItem('favoritesPlaylist', newFavs)
+          await writeJson(PLAYLIST_FAVORITES_KEY, newFavs)
         } 
         
       }else {
         dispatch(setFavPlaylist(playListData))
   
         const favoritesObj = sanitizeFavoritesList(
-          await favoritesStorage.getItem<PlayList[]>('favoritesPlaylist'),
+          await readJson<PlayList[]>(PLAYLIST_FAVORITES_KEY),
         )
         if (playListData?.id) {
           const filtered = favoritesObj.filter((fav)=> fav.id !== playlistId)
           const newObj: PlayList[] =   [playListData, ...filtered]
-          await favoritesStorage.setItem('favoritesPlaylist', newObj)
+          await writeJson(PLAYLIST_FAVORITES_KEY, newObj)
         }
       }
   
