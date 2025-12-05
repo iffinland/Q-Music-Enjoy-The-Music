@@ -13,8 +13,6 @@ import { Playlist } from "./pages/Playlist/Playlist";
 import { Newest } from "./pages/Newest/Newest";
 import BrowseAllSongs from "./pages/BrowseAllSongs/BrowseAllSongs";
 import BrowseAllPlaylists from "./pages/BrowseAllPlaylists/BrowseAllPlaylists";
-import Videos from "./pages/Videos/Videos";
-import VideoDetail from "./pages/Videos/VideoDetail";
 import Podcasts from "./pages/Podcasts/Podcasts";
 import PodcastDetail from "./pages/Podcasts/PodcastDetail";
 import Audiobooks from "./pages/Audiobooks/Audiobooks";
@@ -50,8 +48,6 @@ function App() {
               <Route path="/requests/filled" element={<FilledRequests />} />
               <Route path="/requests/:publisher/:requestId" element={<RequestDetail />} />
               <Route path="/discussions" element={<DiscussionBoards />} />
-              <Route path="/videos" element={<Videos />} />
-              <Route path="/videos/:publisher/:identifier" element={<VideoDetail />} />
               <Route path="/podcasts" element={<Podcasts />} />
               <Route path="/podcasts/:publisher/:identifier" element={<PodcastDetail />} />
               <Route path="/audiobooks" element={<Audiobooks />} />

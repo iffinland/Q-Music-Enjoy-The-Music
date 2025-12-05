@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useContext } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import localforage from 'localforage';
@@ -8,8 +8,6 @@ import RequestRewardInfo from '../../components/requests/RequestRewardInfo';
 import LibrarySongList from '../../components/library/LibrarySongList';
 import LibraryPodcastCard from '../../components/library/LibraryPodcastCard';
 import LibraryAudiobookCard from '../../components/library/LibraryAudiobookCard';
-import LibraryVideoCard from '../../components/library/LibraryVideoCard';
-import VideoPlayerOverlay from '../../components/videos/VideoPlayerOverlay';
 import LazyLoad from '../../components/common/LazyLoad';
 import { useFetchSongs } from '../../hooks/fetchSongs';
 import { RootState } from '../../state/store';
@@ -19,13 +17,11 @@ import { IoMdCloudUpload } from 'react-icons/io';
 import GoBackButton from '../../components/GoBackButton';
 import { toast } from 'react-hot-toast';
 import { setAddToDownloads, setCurrentPlaylist, setCurrentSong, setNowPlayingPlaylist } from '../../state/features/globalSlice';
-import { MyContext } from '../../wrappers/DownloadWrapper';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
 import likeImg from '../../assets/img/like-button.png';
-import { Audiobook, Podcast, Video } from '../../types';
+import { Audiobook, Podcast } from '../../types';
 import { fetchPodcastsByPublisher, fetchPodcastByGlobalIdentifier } from '../../services/podcasts';
 import { fetchAudiobooksByPublisher, fetchAudiobookByGlobalIdentifier } from '../../services/audiobooks';
-import { fetchVideosByPublisher, fetchVideoByGlobalIdentifier } from '../../services/videos';
 import { SongRequest } from '../../state/features/requestsSlice';
 import { fetchRequestsByPublisher } from '../../services/qdnRequests';
 
@@ -37,21 +33,16 @@ const audiobookFavoritesStorage = localforage.createInstance({
   name: 'ear-bump-audiobook-favorites',
 });
 
-const videoFavoritesStorage = localforage.createInstance({
-  name: 'ear-bump-video-favorites',
-});
 
 type LibraryView =
   | 'library-songs'
   | 'library-playlists'
   | 'library-podcasts'
   | 'library-audiobooks'
-  | 'library-videos'
   | 'library-requests'
   | 'favorite-songs'
   | 'favorite-podcasts'
   | 'favorite-audiobooks'
-  | 'favorite-videos'
   | 'favorite-playlists'
   | 'library-likes';
 
@@ -79,7 +70,6 @@ const LoadingState: React.FC<{ label: string }> = ({ label }) => (
 export const Library: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { downloadVideo } = useContext(MyContext);
 
   const username = useSelector((state: RootState) => state?.auth?.user?.name);
   const songListLibrary = useSelector((state: RootState) => state?.global.songListLibrary);
@@ -93,41 +83,20 @@ export const Library: React.FC = () => {
 
   const [userPodcasts, setUserPodcasts] = useState<Podcast[]>([]);
   const [userAudiobooks, setUserAudiobooks] = useState<Audiobook[]>([]);
-  const [userVideos, setUserVideos] = useState<Video[]>([]);
   const [userRequests, setUserRequests] = useState<SongRequest[]>([]);
   const [favoritePodcasts, setFavoritePodcasts] = useState<Podcast[]>([]);
   const [favoriteAudiobooks, setFavoriteAudiobooks] = useState<Audiobook[]>([]);
-  const [favoriteVideos, setFavoriteVideos] = useState<Video[]>([]);
 
   const [isLoadingPodcasts, setIsLoadingPodcasts] = useState(false);
   const [isLoadingAudiobooks, setIsLoadingAudiobooks] = useState(false);
-  const [isLoadingVideos, setIsLoadingVideos] = useState(false);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   const [isLoadingFavPodcasts, setIsLoadingFavPodcasts] = useState(false);
   const [isLoadingFavAudiobooks, setIsLoadingFavAudiobooks] = useState(false);
-  const [isLoadingFavVideos, setIsLoadingFavVideos] = useState(false);
-
   const [hasLoadedUserPodcasts, setHasLoadedUserPodcasts] = useState(false);
   const [hasLoadedUserAudiobooks, setHasLoadedUserAudiobooks] = useState(false);
-  const [hasLoadedUserVideos, setHasLoadedUserVideos] = useState(false);
   const [hasLoadedUserRequests, setHasLoadedUserRequests] = useState(false);
   const [hasLoadedFavPodcasts, setHasLoadedFavPodcasts] = useState(false);
   const [hasLoadedFavAudiobooks, setHasLoadedFavAudiobooks] = useState(false);
-  const [hasLoadedFavVideos, setHasLoadedFavVideos] = useState(false);
-
-  const [playerVideo, setPlayerVideo] = useState<Video | null>(null);
-  const [playerUrl, setPlayerUrl] = useState<string | null>(null);
-  const [playerError, setPlayerError] = useState<string | null>(null);
-  const [isPlayerOpen, setIsPlayerOpen] = useState(false);
-  const [isPlayerLoading, setIsPlayerLoading] = useState(false);
-  const videoFetchToastId = useRef<string | null>(null);
-
-  const dismissVideoFetchToast = useCallback(() => {
-    if (videoFetchToastId.current) {
-      toast.dismiss(videoFetchToastId.current);
-      videoFetchToastId.current = null;
-    }
-  }, []);
 
   const { getYourLibrary, getLikedSongs } = useFetchSongs();
 
@@ -150,11 +119,9 @@ export const Library: React.FC = () => {
   useEffect(() => {
     setUserPodcasts([]);
     setUserAudiobooks([]);
-    setUserVideos([]);
     setUserRequests([]);
     setHasLoadedUserPodcasts(false);
     setHasLoadedUserAudiobooks(false);
-    setHasLoadedUserVideos(false);
     setHasLoadedUserRequests(false);
   }, [username]);
 
@@ -192,23 +159,6 @@ export const Library: React.FC = () => {
 
   const handleUserAudiobookDeleted = useCallback((audiobookId: string) => {
     setUserAudiobooks((prev) => prev.filter((audiobook) => audiobook.id !== audiobookId));
-  }, []);
-
-  const loadUserVideos = useCallback(async () => {
-    if (!username || isLoadingVideos) return;
-    setIsLoadingVideos(true);
-    try {
-      const data = await fetchVideosByPublisher(username);
-      setUserVideos(data);
-      setHasLoadedUserVideos(true);
-    } catch (error) {
-      toast.error('Failed to load your videos.');
-    } finally {
-      setIsLoadingVideos(false);
-    }
-  }, [username, isLoadingVideos]);
-  const handleUserVideoDeleted = useCallback((videoId: string) => {
-    setUserVideos((prev) => prev.filter((video) => video.id !== videoId));
   }, []);
 
   const loadUserRequests = useCallback(async () => {
@@ -266,26 +216,6 @@ export const Library: React.FC = () => {
     }
   }, [isLoadingFavAudiobooks]);
 
-  const loadFavoriteVideos = useCallback(async () => {
-    if (isLoadingFavVideos) return;
-    setIsLoadingFavVideos(true);
-    try {
-      const ids = (await videoFavoritesStorage.getItem<string[]>('favorites')) || [];
-      if (ids.length === 0) {
-        setFavoriteVideos([]);
-        setHasLoadedFavVideos(true);
-        return;
-      }
-      const results = await Promise.all(ids.map((id) => fetchVideoByGlobalIdentifier(id)));
-      setFavoriteVideos(results.filter((video): video is Video => Boolean(video)));
-      setHasLoadedFavVideos(true);
-    } catch (error) {
-      toast.error('Failed to load favorite videos.');
-    } finally {
-      setIsLoadingFavVideos(false);
-    }
-  }, [isLoadingFavVideos]);
-
   useEffect(() => {
     if (mode === 'library-podcasts' && username && !hasLoadedUserPodcasts) {
       loadUserPodcasts();
@@ -294,12 +224,6 @@ export const Library: React.FC = () => {
       loadUserAudiobooks();
     }
   }, [mode, username, hasLoadedUserPodcasts, loadUserPodcasts, hasLoadedUserAudiobooks, loadUserAudiobooks]);
-
-  useEffect(() => {
-    if (mode === 'library-videos' && username && !hasLoadedUserVideos) {
-      loadUserVideos();
-    }
-  }, [mode, username, hasLoadedUserVideos, loadUserVideos]);
 
   useEffect(() => {
     if (mode === 'library-requests' && username && !hasLoadedUserRequests) {
@@ -321,12 +245,6 @@ export const Library: React.FC = () => {
     hasLoadedFavAudiobooks,
     loadFavoriteAudiobooks,
   ]);
-
-  useEffect(() => {
-    if ((mode === 'favorite-videos' || mode === 'library-likes') && !hasLoadedFavVideos) {
-      loadFavoriteVideos();
-    }
-  }, [mode, hasLoadedFavVideos, loadFavoriteVideos]);
 
   useEffect(() => {
     const handlePodcastRefresh = () => {
@@ -351,24 +269,11 @@ export const Library: React.FC = () => {
       }
     };
 
-    const handleVideoRefresh = () => {
-      setHasLoadedUserVideos(false);
-      setHasLoadedFavVideos(false);
-      if (mode === 'library-videos') {
-        loadUserVideos();
-      }
-      if (mode === 'favorite-videos') {
-        loadFavoriteVideos();
-      }
-    };
-
     window.addEventListener('podcasts:refresh', handlePodcastRefresh);
     window.addEventListener('audiobooks:refresh', handleAudiobookRefresh);
-    window.addEventListener('videos:refresh', handleVideoRefresh);
     return () => {
       window.removeEventListener('podcasts:refresh', handlePodcastRefresh);
       window.removeEventListener('audiobooks:refresh', handleAudiobookRefresh);
-      window.removeEventListener('videos:refresh', handleVideoRefresh);
     };
   }, [
     mode,
@@ -376,54 +281,7 @@ export const Library: React.FC = () => {
     loadFavoritePodcasts,
     loadUserAudiobooks,
     loadFavoriteAudiobooks,
-    loadUserVideos,
-    loadFavoriteVideos,
   ]);
-
-  const handlePlayVideo = useCallback(async (video: Video) => {
-    dismissVideoFetchToast();
-    setPlayerVideo(video);
-    setPlayerUrl(null);
-    setPlayerError(null);
-    setIsPlayerOpen(true);
-    setIsPlayerLoading(true);
-
-    try {
-      const resolvedUrl = await getQdnResourceUrl('VIDEO', video.publisher, video.id);
-
-      if (resolvedUrl) {
-        dismissVideoFetchToast();
-        setPlayerUrl(resolvedUrl);
-        setIsPlayerLoading(false);
-      } else {
-        const toastId = `video-fetch-${video.id}`;
-        videoFetchToastId.current = toastId;
-        toast.loading('Preparing the video stream. Please try again shortly.', { id: toastId });
-        downloadVideo({
-          name: video.publisher,
-          service: 'VIDEO',
-          identifier: video.id,
-          title: video.title || '',
-          author: video.author || video.publisher,
-          id: video.id,
-        });
-        setPlayerError('Video is being fetched. Please close and reopen the player in a moment.');
-        setIsPlayerLoading(false);
-      }
-    } catch (error) {
-      setPlayerError('Could not start the video. Please try again.');
-      setIsPlayerLoading(false);
-      dismissVideoFetchToast();
-    }
-  }, [dismissVideoFetchToast, downloadVideo]);
-
-  const handleClosePlayer = useCallback(() => {
-    dismissVideoFetchToast();
-    setIsPlayerOpen(false);
-    setPlayerVideo(null);
-    setPlayerUrl(null);
-    setPlayerError(null);
-  }, [dismissVideoFetchToast]);
 
   const playFavoriteCollection = useCallback(async () => {
     if (!favoriteList || favoriteList.length === 0) return;
@@ -456,29 +314,19 @@ export const Library: React.FC = () => {
             author: firstLikedSong?.author || '',
           }),
         );
-      } else {
-        downloadVideo({
-          name: firstLikedSong.name,
-          service: 'AUDIO',
-          identifier: firstLikedSong.id,
-          title: firstLikedSong?.title || '',
-          author: firstLikedSong?.author || '',
-          id: firstLikedSong.id,
-        });
       }
 
       dispatch(setCurrentSong(firstLikedSong.id));
     } catch (error) {
       toast.error('Unable to start playback right now.');
     }
-  }, [dispatch, downloadVideo, downloads, favoriteList]);
+  }, [dispatch, downloads, favoriteList]);
 
   const favoritesAvailable = Boolean(favorites);
   const hasAnyLikes =
     (favoriteList?.length ?? 0) +
       favoritePodcasts.length +
-      favoriteAudiobooks.length +
-      favoriteVideos.length >
+      favoriteAudiobooks.length >
     0;
 
   useEffect(() => {
@@ -513,24 +361,6 @@ export const Library: React.FC = () => {
         <LibraryAudiobookCard
           key={audiobook.id}
           audiobook={audiobook}
-          onFavoriteChange={options?.onFavoriteChange}
-          showDeleteButton={options?.showDeleteButton}
-          onDeleted={options?.onDeleted}
-        />
-      ))}
-    </div>
-  );
-
-  const renderVideoList = (
-    collection: Video[],
-    options?: { onFavoriteChange?: () => void; showDeleteButton?: boolean; onDeleted?: (videoId: string) => void },
-  ) => (
-    <div className="space-y-3">
-      {collection.map((video) => (
-        <LibraryVideoCard
-          key={video.id}
-          video={video}
-          onPlay={handlePlayVideo}
           onFavoriteChange={options?.onFavoriteChange}
           showDeleteButton={options?.showDeleteButton}
           onDeleted={options?.onDeleted}
@@ -620,16 +450,6 @@ export const Library: React.FC = () => {
           </button>
           <button
             className={`${
-              mode === 'library-videos'
-                ? 'bg-sky-900/70 border border-sky-500/40'
-                : 'border border-sky-900/40 bg-transparent hover:bg-sky-900/40'
-            } text-sky-100 px-4 py-2 rounded transition`}
-            onClick={() => setMode('library-videos')}
-          >
-            My Videos
-          </button>
-          <button
-            className={`${
               mode === 'library-requests'
                 ? 'bg-sky-900/70 border border-sky-500/40'
                 : 'border border-sky-900/40 bg-transparent hover:bg-sky-900/40'
@@ -670,16 +490,6 @@ export const Library: React.FC = () => {
             onClick={() => setMode('favorite-audiobooks')}
           >
             Favorite Audiobooks
-          </button>
-          <button
-            className={`${
-              mode === 'favorite-videos'
-                ? 'bg-sky-900/70 border border-sky-500/40'
-                : 'border border-sky-900/40 bg-transparent hover:bg-sky-900/40'
-            } text-sky-100 px-4 py-2 rounded transition`}
-            onClick={() => setMode('favorite-videos')}
-          >
-            Favorite Videos
           </button>
           <button
             className={`${
@@ -768,26 +578,6 @@ export const Library: React.FC = () => {
           </>
         )}
 
-        {mode === 'library-videos' && (
-          <>
-            <div className="mt-5 mb-4">
-              <h2 className="text-xl font-semibold text-white">My Videos</h2>
-            </div>
-            {!username ? (
-              <EmptyState message="Log in to see the videos you have published." />
-            ) : isLoadingVideos && !userVideos.length ? (
-              <LoadingState label="Loading your videos…" />
-            ) : userVideos.length === 0 ? (
-              <EmptyState message="You have not published any videos yet." />
-            ) : (
-              renderVideoList(userVideos, {
-                showDeleteButton: true,
-                onDeleted: handleUserVideoDeleted,
-              })
-            )}
-          </>
-        )}
-
         {mode === 'library-requests' && (
           <>
             <div className="mt-5 mb-4">
@@ -851,21 +641,6 @@ export const Library: React.FC = () => {
           </>
         )}
 
-        {mode === 'favorite-videos' && (
-          <>
-            <div className="mt-5 mb-4">
-              <h2 className="text-xl font-semibold text-white">Favorite Videos</h2>
-            </div>
-            {isLoadingFavVideos && !favoriteVideos.length ? (
-              <LoadingState label="Loading favorite videos…" />
-            ) : favoriteVideos.length === 0 ? (
-              <EmptyState message="You have not saved any videos as favorites yet." />
-            ) : (
-              renderVideoList(favoriteVideos, { onFavoriteChange: loadFavoriteVideos })
-            )}
-          </>
-        )}
-
         {mode === 'favorite-playlists' && (
           <>
             <div className="mt-5 mb-4">
@@ -883,7 +658,7 @@ export const Library: React.FC = () => {
           <>
             <div className="mt-5 mb-4">
               <h2 className="text-xl font-semibold text-white">My Likes</h2>
-              <p className="text-sm text-sky-200/80">All the songs, podcasts, audiobooks, and videos you have liked in one place.</p>
+              <p className="text-sm text-sky-200/80">All the songs, podcasts, and audiobooks you have liked in one place.</p>
             </div>
             {!favoritesAvailable ? (
               <EmptyState message="Log in to see your likes." />
@@ -918,27 +693,11 @@ export const Library: React.FC = () => {
                     <p className="text-sm text-sky-300/80">You have not liked any audiobooks yet.</p>
                   )}
                 </section>
-                <section>
-                  <h3 className="text-lg font-semibold text-white">Liked Videos</h3>
-                  {favoriteVideos.length > 0 ? (
-                    renderVideoList(favoriteVideos)
-                  ) : (
-                    <p className="text-sm text-sky-300/80">You have not liked any videos yet.</p>
-                  )}
-                </section>
               </div>
             )}
           </>
         )}
       </Header>
-      <VideoPlayerOverlay
-        isOpen={isPlayerOpen}
-        onClose={handleClosePlayer}
-        video={playerVideo}
-        videoUrl={playerUrl}
-        isLoading={isPlayerLoading}
-        error={playerError}
-      />
     </Box>
   );
 };

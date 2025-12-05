@@ -5,7 +5,6 @@ import Box from '../../components/Box';
 import { useSearch, SearchResults } from '../../hooks/useSearch';
 import SongItem from '../../components/SongItem';
 import PlaylistCard from '../../components/PlaylistCard';
-import VideoCard from '../../components/videos/VideoCard';
 import { PodcastCard } from '../../components/podcasts/PodcastCard';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
@@ -44,9 +43,9 @@ export const Search = () => {
       return <div className="text-center text-gray-500 py-10">Enter a search term to begin.</div>;
     }
 
-    const { songs, playlists, videos, podcasts, requests } = results;
+    const { songs, playlists, podcasts, requests } = results;
 
-    const noResults = songs.length === 0 && playlists.length === 0 && videos.length === 0 && podcasts.length === 0 && requests.length === 0;
+    const noResults = songs.length === 0 && playlists.length === 0 && podcasts.length === 0 && requests.length === 0;
 
     if (noResults) {
       return <div className="text-center text-gray-500 py-10">No results found.</div>;
@@ -70,16 +69,6 @@ export const Search = () => {
             <div className="mt-4 flex flex-wrap gap-4">
               {playlists.map((playlist) => (
                 <PlaylistCard key={playlist.id} data={playlist} />
-              ))}
-            </div>
-          </div>
-        )}
-        {videos.length > 0 && (
-          <div>
-            <h2 className="text-white text-2xl font-semibold mb-4">Videos</h2>
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-              {videos.map((video) => (
-                <VideoCard key={video.id} video={video} />
               ))}
             </div>
           </div>

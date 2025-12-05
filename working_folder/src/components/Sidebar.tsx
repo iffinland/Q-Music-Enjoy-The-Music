@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom';
 import { TbPlaylist } from "react-icons/tb";
 import { MdLibraryMusic, MdOutlineFavorite } from "react-icons/md";
 import { FiMessageSquare } from "react-icons/fi";
-import { FaPodcast, FaBookOpen, FaVideo, FaTimesCircle } from "react-icons/fa";
+import { FaPodcast, FaBookOpen, FaTimesCircle } from "react-icons/fa";
 import SidebarItem from "./SidebarItem";
 import Box from "./Box";
 import {AddLibrary} from "./AddLibrary";
@@ -71,12 +71,6 @@ const Sidebar = ({ children, songs }: SidebarProps) => {
       label: 'Browse & Listen Playlists',
       href: '/playlists/all',
       active: matchPath(['/playlists/all', '/playlists'])
-    },
-    {
-      icon: FaVideo,
-      label: 'Watch Music Videos',
-      href: '/videos',
-      active: matchPath('/videos')
     },
     {
       icon: MdOutlineFavorite,
