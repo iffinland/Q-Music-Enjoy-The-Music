@@ -14,7 +14,7 @@ import useSound from 'use-sound';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import CircularProgress from '@mui/material/CircularProgress';
+import Spinner from './common/Spinner';
 import { AiFillStepBackward, AiFillStepForward, AiOutlineRetweet } from 'react-icons/ai';
 import { BsPauseFill, BsPlayFill } from 'react-icons/bs';
 import { FiDownload, FiEdit2, FiInfo, FiMaximize2, FiMinimize2, FiShuffle, FiThumbsUp, FiX } from 'react-icons/fi';
@@ -1089,7 +1089,7 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
                   <BsPlayFill size={22} />
                 )
               ) : (
-                <CircularProgress size={22} />
+                <Spinner size={22} />
               )}
             </button>
             <button
@@ -1486,7 +1486,7 @@ const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded, onPr
             }
           />
           <div className="order-2 flex items-center gap-2 text-sky-200/70 md:order-3">
-            <CircularProgress size={18} />
+            <Spinner size={18} />
             <span className="text-[11px] font-semibold uppercase tracking-wide">Loading</span>
           </div>
           <VolumeControl
@@ -1507,7 +1507,7 @@ const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded, onPr
       </div>
       <div className="rounded-lg border border-sky-900/40 bg-sky-950/30 p-3 text-sky-200/80">
         <div className="flex items-center gap-2">
-          <CircularProgress size={20} />
+          <Spinner size={20} />
           <p className="text-xs font-semibold uppercase tracking-wide">
             Preparing audio… {Math.max(0, percentLoaded)}%
           </p>

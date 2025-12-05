@@ -9,7 +9,7 @@ import { PodcastAlphabetFilter } from '../../components/podcasts/PodcastAlphabet
 import { PodcastCard } from '../../components/podcasts/PodcastCard';
 import { fetchPodcasts } from '../../services/podcasts';
 import { Podcast, Song } from '../../types';
-import { CircularProgress } from '@mui/material';
+import Spinner from '../../components/common/Spinner';
 import useUploadPodcastModal from '../../hooks/useUploadPodcastModal';
 import useSendTipModal from '../../hooks/useSendTipModal';
 import useAddSongToPlaylistModal from '../../hooks/useAddSongToPlaylistModal';
@@ -828,7 +828,7 @@ const Podcasts: React.FC = () => {
         <Box className="p-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-10">
-              <CircularProgress size={32} />
+              <Spinner size={32} />
             </div>
           ) : error ? (
             <div className="rounded-md border border-red-500/40 bg-red-900/30 px-4 py-6 text-center text-sm font-medium text-red-200">

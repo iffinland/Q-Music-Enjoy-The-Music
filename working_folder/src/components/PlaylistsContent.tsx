@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import { Skeleton } from "@mui/material";
+import { Skeleton } from "./ui/skeleton";
 import { useNavigate } from "react-router-dom";
 
 import { PlayList } from "../state/features/globalSlice";

@@ -8,7 +8,7 @@ import PlaylistCard from '../../components/PlaylistCard';
 import { PodcastCard } from '../../components/podcasts/PodcastCard';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
-import { CircularProgress } from '@mui/material';
+import Spinner from '../../components/common/Spinner';
 import useOnPlay from '../../hooks/useOnPlay';
 
 export const Search = () => {
@@ -32,7 +32,7 @@ export const Search = () => {
 
   const renderContent = () => {
     if (isSearching) {
-      return <div className="flex justify-center py-10"><CircularProgress /></div>;
+      return <div className="flex justify-center py-10"><Spinner /></div>;
     }
 
     if (error) {

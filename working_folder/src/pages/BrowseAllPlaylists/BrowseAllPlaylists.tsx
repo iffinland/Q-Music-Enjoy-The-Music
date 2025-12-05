@@ -10,7 +10,7 @@ import {
   setCurrentPlaylist,
   setNewPlayList,
 } from "../../state/features/globalSlice";
-import { CircularProgress } from "@mui/material";
+import Spinner from "../../components/common/Spinner";
 import { useNavigate } from "react-router-dom";
 import { cachedSearchQdnResources } from "../../services/resourceCache";
 import { loadPlaylistMeta } from "../../services/playlistLoader";
@@ -412,7 +412,7 @@ const BrowseAllPlaylists: React.FC = () => {
       <div className="px-6 py-6">
         {isLoading ? (
           <div className="flex justify-center py-10">
-            <CircularProgress />
+            <Spinner />
           </div>
         ) : error ? (
           <div className="flex justify-center py-8">

@@ -1,5 +1,4 @@
 import React, { useCallback } from 'react'
-import { Box, Button, TextField, Typography, Modal } from '@mui/material'
 import {
   useDropzone,
   DropzoneRootProps,
@@ -74,15 +73,13 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ children, onPick }) => {
   })
 
   return (
-    <Box
+    <div
       {...getRootProps()}
-      sx={{
-        display: 'flex'
-      }}
+      className="flex cursor-pointer"
     >
       <input {...getInputProps()} />
       {children}
-    </Box>
+    </div>
   )
 }
 

@@ -1,7 +1,5 @@
 import React from 'react';
-import CircularProgress from '@mui/material/CircularProgress';
-import Box from '@mui/system/Box';
-import { useTheme } from '@mui/material'
+import Spinner from './Spinner';
 
 interface PageLoaderProps {
   size?: number
@@ -12,31 +10,10 @@ const PageLoader: React.FC<PageLoaderProps> = ({
   size = 40,
   thickness = 5
 }) => {
-  const theme = useTheme()
-
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        width: '100%',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        backgroundColor: 'rgba(255, 255, 255, 0.25)',
-        zIndex: 1000
-      }}
-    >
-      <CircularProgress
-        size={size}
-        thickness={thickness}
-        sx={{
-          color: theme.palette.secondary.main
-        }}
-      />
-    </Box>
+    <div className="fixed inset-0 z-50 flex h-full w-full items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+      <Spinner size={size} className="border-[3px] border-t-transparent border-sky-400" />
+    </div>
   )
 }
 

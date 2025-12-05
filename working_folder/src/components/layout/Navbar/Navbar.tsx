@@ -1,23 +1,10 @@
-import React, { useState } from "react";
-import { Box, Popover, useTheme } from "@mui/material";
-import ExitToAppIcon from "@mui/icons-material/ExitToApp";
+import React, { useState, useRef, useEffect } from "react";
 import { BlockedNamesModal } from "../../common/BlockedNamesModal/BlockedNamesModal";
-import {
-  AvatarContainer,
-  CustomAppBar,
-  DropdownContainer,
-  DropdownText,
-  AuthenticateButton,
-  NavbarName,
-  LightModeIcon,
-  DarkModeIcon,
-  ThemeSelectRow,
-  LogoContainer,
-} from "./Navbar-styles";
 import { AccountCircleSVG } from "../../../assets/svgs/AccountCircleSVG";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import PersonOffIcon from "@mui/icons-material/PersonOff";
-import { useNavigate } from "react-router-dom";
+import { LightModeSVG } from "../../../assets/svgs/LightModeSVG";
+import { DarkModeSVG } from "../../../assets/svgs/DarkModeSVG";
+import { FiLogIn, FiChevronDown, FiUserX } from "react-icons/fi";
+import { Button } from "../../ui/button";
 interface Props {
   isAuthenticated: boolean;
   userName: string | null;
@@ -33,24 +20,21 @@ const NavBar: React.FC<Props> = ({
   authenticate,
   setTheme
 }) => {
-  const theme = useTheme();
-  const navigate = useNavigate()
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const [isOpenBlockedNamesModal, setIsOpenBlockedNamesModal] =
     useState<boolean>(false);
 
   const [openUserDropdown, setOpenUserDropdown] = useState<boolean>(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-
-  const handleClick = (event?: React.MouseEvent<HTMLDivElement>) => {
-    const target = event?.currentTarget as unknown as HTMLButtonElement | null;
-    setAnchorEl(target);
-  };
-
-  const handleCloseUserDropdown = () => {
-    setAnchorEl(null);
-    setOpenUserDropdown(false);
-  };
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenUserDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
 
   const onCloseBlockedNames = () => {
@@ -58,104 +42,84 @@ const NavBar: React.FC<Props> = ({
   };
 
   return (
-    <CustomAppBar position="sticky" elevation={2}>
-      <ThemeSelectRow>
-        {theme.palette.mode === "dark" ? (
-          <LightModeIcon
-            onClickFunc={() => setTheme("light")}
-            color="white"
-            height="22"
-            width="22"
-          />
-        ) : (
-          <DarkModeIcon
-            onClickFunc={() => setTheme("dark")}
-            color="black"
-            height="22"
-            width="22"
-          />
+    <header className="sticky top-0 z-30 flex w-full items-center justify-between border-b border-sky-800/60 bg-sky-950/80 px-4 py-2 backdrop-blur">
+      <div className="flex items-center gap-3">
+        {(
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="rounded-full border border-sky-700/60 p-2 transition hover:border-sky-500/70"
+              onClick={() => setTheme("dark")}
+              aria-label="Switch to dark theme"
+            >
+              <DarkModeSVG width="18" height="18" color="white" />
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-sky-700/60 p-2 transition hover:border-sky-500/70"
+              onClick={() => setTheme("light")}
+              aria-label="Switch to light theme"
+            >
+              <LightModeSVG width="18" height="18" color="white" />
+            </button>
+          </div>
         )}
-      
-     
-      </ThemeSelectRow>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: "10px"
-        }}
-      >
+      </div>
+      <div className="flex items-center gap-3 relative" ref={dropdownRef}>
         {!isAuthenticated && (
-          <AuthenticateButton onClick={authenticate}>
-            <ExitToAppIcon />
+          <Button onClick={authenticate} className="gap-2">
+            <FiLogIn />
             Authenticate
-          </AuthenticateButton>
+          </Button>
         )}
         
         {isAuthenticated && userName && (
           <>
-            
-            <AvatarContainer
-              onClick={(e: any) => {
-                handleClick(e);
-                setOpenUserDropdown(true);
-              }}
+            <button
+              type="button"
+              onClick={() => setOpenUserDropdown((v) => !v)}
+              className="flex items-center gap-2 rounded-full border border-sky-800/60 bg-sky-900/40 px-3 py-1.5 text-sm font-semibold text-sky-100 transition hover:border-sky-600"
             >
-              <NavbarName>{userName}</NavbarName>
+              <span>{userName}</span>
               {!userAvatar ? (
-                <AccountCircleSVG
-                  color={theme.palette.text.primary}
-                  width="32"
-                  height="32"
-                />
+                <AccountCircleSVG color="#cbd5e1" width="26" height="26" />
               ) : (
                 <img
                   src={userAvatar}
                   alt="User Avatar"
-                  width="32"
-                  height="32"
-                  style={{
-                    borderRadius: "50%"
-                  }}
+                  width="26"
+                  height="26"
+                  className="rounded-full"
                 />
               )}
-              <ExpandMoreIcon id="expand-icon" sx={{ color: "#ACB6BF" }} />
-            </AvatarContainer>
+              <FiChevronDown />
+            </button>
           </>
         )}
         
-        <Popover
-          id={"user-popover"}
-          open={openUserDropdown}
-          anchorEl={anchorEl}
-          onClose={handleCloseUserDropdown}
-          anchorOrigin={{
-            vertical: "bottom",
-            horizontal: "left"
-          }}
-        >
-          <DropdownContainer
-            onClick={() => {
-              setIsOpenBlockedNamesModal(true);
-              handleCloseUserDropdown();
-            }}
-          >
-            <PersonOffIcon
-              sx={{
-                color: "#e35050"
+        {openUserDropdown && (
+          <div className="absolute right-0 top-full mt-2 w-52 rounded-lg border border-sky-800/60 bg-sky-950/95 shadow-xl">
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-sky-100 hover:bg-sky-900/70"
+              onClick={() => {
+                setIsOpenBlockedNamesModal(true);
+                setOpenUserDropdown(false);
               }}
-            />
-            <DropdownText>Blocked Names</DropdownText>
-          </DropdownContainer>
-        </Popover>
+            >
+              <FiUserX className="text-red-400" />
+              Blocked Names
+            </button>
+          </div>
+        )}
         {isOpenBlockedNamesModal && (
           <BlockedNamesModal
             open={isOpenBlockedNamesModal}
             onClose={onCloseBlockedNames}
           />
         )}
-      </Box>
-    </CustomAppBar>
+      </div>
+    </header>
   );
 };
 

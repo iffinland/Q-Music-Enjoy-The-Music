@@ -1,19 +1,6 @@
 import React, { useState } from "react";
-import {
-  Box,
-  Button,
-  Modal,
-  Typography,
-  SelectChangeEvent,
-  ListItem,
-  List,
-  useTheme
-} from "@mui/material";
-import {
-  StyledModal,
-  ModalContent,
-  ModalText
-} from "./BlockedNamesModal-styles";
+import { Button } from "../../ui/button";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../ui/dialog";
 import {
   useDeleteListItemMutation,
   useLazyGetListItemsQuery
@@ -29,7 +16,6 @@ export const BlockedNamesModal: React.FC<PostModalProps> = ({
   onClose
 }) => {
   const [blockedNames, setBlockedNames] = useState<string[]>([]);
-  const theme = useTheme();
   const [fetchListItems] = useLazyGetListItemsQuery();
   const [deleteListItem] = useDeleteListItemMutation();
   const getBlockedNames = React.useCallback(async () => {
@@ -62,43 +48,29 @@ export const BlockedNamesModal: React.FC<PostModalProps> = ({
   };
 
   return (
-    <StyledModal open={open} onClose={onClose}>
-      <ModalContent>
-        <ModalText>Manage blocked names</ModalText>
-        <List
-          sx={{
-            width: "100%",
-            display: "flex",
-            flexDirection: "column",
-            flex: "1",
-            overflow: "auto"
-          }}
-        >
-          {blockedNames.map((name, index) => (
-            <ListItem
-              key={name + index}
-              sx={{
-                display: "flex"
-              }}
-            >
-              <Typography>{name}</Typography>
-              <Button
-                sx={{
-                  backgroundColor: theme.palette.primary.light,
-                  color: theme.palette.text.primary,
-                  fontFamily: "Raleway"
-                }}
-                onClick={() => removeFromBlockList(name)}
-              >
+    <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
+      <DialogContent>
+        <DialogTitle>Manage blocked names</DialogTitle>
+        <DialogDescription>Remove names from your blocked list.</DialogDescription>
+        <div className="mt-4 max-h-64 space-y-2 overflow-y-auto rounded-md border border-sky-800/50 bg-sky-950/40 p-3">
+          {blockedNames.length === 0 && (
+            <p className="text-sm text-sky-200/80">No blocked names.</p>
+          )}
+          {blockedNames.map((name) => (
+            <div key={name} className="flex items-center justify-between rounded-md bg-sky-900/50 px-3 py-2">
+              <span className="text-sky-100">{name}</span>
+              <Button variant="outline" size="sm" onClick={() => removeFromBlockList(name)}>
                 Remove
               </Button>
-            </ListItem>
+            </div>
           ))}
-        </List>
-        <Button variant="contained" color="primary" onClick={onClose}>
-          Close
-        </Button>
-      </ModalContent>
-    </StyledModal>
+        </div>
+        <div className="mt-4 flex justify-end">
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
