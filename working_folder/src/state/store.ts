@@ -6,6 +6,7 @@ import globalReducer from './features/globalSlice'
 import requestsReducer from './features/requestsSlice'
 import discussionsReducer from './features/discussionsSlice'
 import publishReducer from './slices/publishSlice'
+import playerReducer from './slices/playerSlice'
 
 export const store = configureStore({
   reducer: {
@@ -15,7 +16,8 @@ export const store = configureStore({
     global: globalReducer,
     requests: requestsReducer,
     discussions: discussionsReducer,
-    publish: publishReducer
+    publish: publishReducer,
+    player: playerReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -1,20 +1,28 @@
-
-import usePlayer from "./usePlayer";
-import useAuthModal from "./useAuthModal";
-import { Song } from "../types";
+import { useCallback } from 'react';
+import usePlayer from './usePlayer';
+import { Song } from '../types';
 
 const useOnPlay = (songs: Song[]) => {
-  const player = usePlayer();
+  const { setQueue, setActive, setStatus } = usePlayer();
 
-
-  const onPlay = (id: string) => {
-
-
-    player.setId(id);
-    player.setIds(songs.map((song) => song.id));
-  }
-
-  return onPlay;
+  return useCallback(
+    (id: string) => {
+      const queue = songs.map((song) => ({
+        id: song.id,
+        title: song.title,
+        author: song.author,
+        url: (song as any)?.url ?? null,
+        name: song.name,
+        service: song.service,
+        identifier: song.id,
+        status: (song as any)?.status,
+      }));
+      setQueue(queue);
+      setActive(id);
+      setStatus('loading');
+    },
+    [setActive, setQueue, setStatus, songs],
+  );
 };
 
 export default useOnPlay;

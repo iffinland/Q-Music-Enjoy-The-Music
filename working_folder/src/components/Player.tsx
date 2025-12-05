@@ -10,7 +10,6 @@ import {
   type SetStateAction,
 } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import useSound from 'use-sound';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -36,9 +35,16 @@ import {
   setCurrentPlaylist,
   setCurrentSong,
   setNowPlayingPlaylist,
-  setVolumePlayer,
   upsertNowPlayingPlaylist,
 } from '../state/features/globalSlice';
+import { engine } from '../playback/engine';
+import {
+  setActive,
+  setDuration as setDurationAction,
+  setPosition,
+  setStatus,
+  setVolume,
+} from '../state/slices/playerSlice';
 import { Song } from '../types';
 import { MyContext } from '../wrappers/DownloadWrapper';
 import { getQdnResourceUrl } from '../utils/qortalApi';
@@ -640,7 +646,7 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   const repeatSequence: RepeatMode[] = ['off', 'all', 'one'];
   const dispatch = useDispatch();
   const { downloadVideo } = useContext(MyContext);
-  const volume = useSelector((state: RootState) => state.global.volume);
+  const volume = useSelector((state: RootState) => state.player.volume);
   const nowPlayingPlaylist = useSelector((state: RootState) => state.global.nowPlayingPlaylist);
   const favoriteList = useSelector((state: RootState) => state.global.favoriteList);
   const currentPlaylist = useSelector((state: RootState) => state.global.currentPlaylist);
@@ -662,7 +668,7 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDurationState] = useState(0);
 
   const previousVolumeRef = useRef(volume || 0.75);
 
@@ -672,21 +678,21 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
     }
   }, [volume]);
 
-  const setVolume = useCallback(
+  const updateVolume = useCallback(
     (value: number) => {
-      dispatch(setVolumePlayer(clamp(value)));
+      dispatch(setVolume(clamp(value)));
     },
     [dispatch],
   );
 
   const toggleMute = useCallback(() => {
     if (volume === 0) {
-      setVolume(previousVolumeRef.current || 0.75);
+      updateVolume(previousVolumeRef.current || 0.75);
     } else {
       previousVolumeRef.current = volume;
-      setVolume(0);
+      updateVolume(0);
     }
-  }, [setVolume, volume]);
+  }, [updateVolume, volume]);
 
   const resolveIdentifier = useCallback(
     (entry?: { id?: string; identifier?: string }) => entry?.id ?? entry?.identifier,
@@ -838,56 +844,95 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
     ],
   );
 
-  const [play, { pause, sound }] = useSound(songUrl || '', {
-    html5: true,
-    preload: 'metadata',
-    volume,
-    format: ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac', 'webm'],
-    onplay: () => {
+  useEffect(() => {
+    dispatch(setActive(song.id ?? null));
+    return () => {
+      dispatch(setActive(null));
+    };
+  }, [dispatch, song.id]);
+
+  useEffect(() => {
+    if (!songUrl) {
+      engine.setSrc(null);
+      setIsLoaded(false);
+      setIsPlaying(false);
+      dispatch(setStatus('loading'));
+      dispatch(setPosition(0));
+      dispatch(setDurationAction(0));
+      dispatch(setActive(song.id ?? null));
+      return;
+    }
+    dispatch(setStatus('loading'));
+    dispatch(setActive(song.id ?? null));
+    engine.setSrc(songUrl);
+    const handlePlay = () => {
       setIsLoaded(true);
       setIsPlaying(true);
       onPlaybackStateChange(true);
-    },
-    onend: () => {
+      dispatch(setStatus('playing'));
+    };
+    const handlePause = () => {
       setIsPlaying(false);
       onPlaybackStateChange(false);
+      dispatch(setStatus('paused'));
+    };
+    const handleEnded = () => {
+      setIsPlaying(false);
+      onPlaybackStateChange(false);
+      dispatch(setStatus('idle'));
       if (repeatMode === 'one') {
-        sound?.seek(0);
-        play();
+        void engine.play();
         return;
       }
       void handlePlaylistNavigation('next');
-    },
-    onpause: () => {
-      setIsPlaying(false);
-      onPlaybackStateChange(false);
-    },
-    onload: () => {
-      const total = sound?.duration() ?? 0;
-      setDuration(total);
-    },
-    onloaderror: (_: string, error: Error) => {
-      console.error('Player load error', error);
+    };
+    const handleTime = (current: number, dur: number) => {
+      setCurrentTime(current);
+      setDurationState(dur);
+      dispatch(setPosition(current));
+      dispatch(setDurationAction(dur));
+    };
+    const handleError = (err: unknown) => {
+      console.error('Player error', err);
       setIsLoaded(false);
       setIsPlaying(false);
       onPlaybackStateChange(false);
-      toast.error('Heli laadimine ebaõnnestus.');
-    },
-    onplayerror: (_: string, error: Error) => {
-      console.error('Player play error', error);
-      setIsLoaded(false);
-      setIsPlaying(false);
-      onPlaybackStateChange(false);
-      toast.error('Heli esitamine ebaõnnestus. Proovi uuesti.');
-    },
-  });
+      dispatch(setStatus('error'));
+      toast.error('Playback failed.');
+    };
+    engine.on('play', handlePlay);
+    engine.on('pause', handlePause);
+    engine.on('ended', handleEnded);
+    engine.on('timeupdate', handleTime);
+    engine.on('error', handleError);
+    return () => {
+      engine.off('play', handlePlay);
+      engine.off('pause', handlePause);
+      engine.off('ended', handleEnded);
+      engine.off('timeupdate', handleTime);
+      engine.off('error', handleError);
+    };
+  }, [
+    dispatch,
+    handlePlaylistNavigation,
+    onPlaybackStateChange,
+    repeatMode,
+    song.id,
+    songUrl,
+  ]);
+
+  useEffect(() => {
+    engine.setVolume(volume);
+  }, [volume]);
 
   useEffect(() => {
     setIsLoaded(false);
     setIsPlaying(false);
     onPlaybackStateChange(false);
     setCurrentTime(0);
-  }, [song.id, onPlaybackStateChange]);
+    dispatch(setPosition(0));
+    dispatch(setDurationAction(0));
+  }, [dispatch, song.id, onPlaybackStateChange]);
 
   useEffect(() => {
     if (!isShuffleEnabled) return;
@@ -896,37 +941,14 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   }, [buildShuffleOrder, getActivePlaylistEntries, isShuffleEnabled]);
 
   useEffect(() => {
-    if (!sound || !autoPlay) return undefined;
-
-    sound.play();
-
+    if (!autoPlay) return;
+    void engine.play();
     return () => {
-      sound.stop();
+      engine.pause();
       setIsPlaying(false);
       onPlaybackStateChange(false);
     };
-  }, [autoPlay, onPlaybackStateChange, sound]);
-
-  useEffect(() => () => {
-    sound?.unload();
-  }, [sound]);
-
-  useEffect(() => {
-    if (!sound) return undefined;
-
-    const interval = setInterval(() => {
-      const seek = sound.seek() as number;
-      if (Number.isFinite(seek)) {
-        setCurrentTime(seek);
-      }
-      const totalDuration = sound.duration();
-      if (Number.isFinite(totalDuration)) {
-        setDuration(totalDuration);
-      }
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, [sound]);
+  }, [autoPlay, onPlaybackStateChange]);
 
   useEffect(() => {
     dispatch(upsertNowPlayingPlaylist([song]));
@@ -934,13 +956,12 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
 
   const handlePlayPause = useCallback(() => {
     if (!isLoaded) return;
-
     if (isPlaying) {
-      pause();
+      engine.pause();
     } else {
-      play();
+      void engine.play();
     }
-  }, [isLoaded, isPlaying, pause, play]);
+  }, [isLoaded, isPlaying]);
 
   useEffect(() => {
     if (repeatMode === 'off') {
@@ -950,13 +971,13 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
 
   const handleProgressChange = useCallback(
     (value: number) => {
-      if (!sound || duration <= 0) return;
+      if (duration <= 0) return;
 
       const newTime = clamp(value) * duration;
-      sound.seek(newTime);
+      engine.seek(newTime);
       setCurrentTime(newTime);
     },
-    [duration, sound],
+    [duration],
   );
 
   const progress = duration > 0 ? clamp(currentTime / duration) : 0;
@@ -981,9 +1002,9 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
 
     onRegisterControls({
       play: () => {
-        play();
+        void engine.play();
       },
-      pause,
+      pause: () => engine.pause(),
       togglePlayPause: () => {
         handlePlayPause();
       },
@@ -1002,8 +1023,6 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
     isLoaded,
     isPlaying,
     onRegisterControls,
-    pause,
-    play,
   ]);
 
   return (
@@ -1104,7 +1123,7 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
           </div>
           <VolumeControl
             volume={volume}
-            onVolumeChange={setVolume}
+            onVolumeChange={updateVolume}
             onToggleMute={toggleMute}
             className="order-3 w-full md:order-3 md:ml-auto md:w-auto md:flex-shrink-0"
           />
@@ -1422,8 +1441,31 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
 };
 
 const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded, onProgressChange }) => {
-  const volume = useSelector((state: RootState) => state.global.volume);
+  const volume = useSelector((state: RootState) => state.player.volume);
   const dispatch = useDispatch();
+  const previousVolumeRef = useRef(volume || 0.75);
+
+  useEffect(() => {
+    if (volume > 0) {
+      previousVolumeRef.current = volume;
+    }
+  }, [volume]);
+
+  const updateVolume = useCallback(
+    (value: number) => {
+      dispatch(setVolume(clamp(value)));
+    },
+    [dispatch],
+  );
+
+  const toggleMute = useCallback(() => {
+    if (volume === 0) {
+      updateVolume(previousVolumeRef.current || 0.75);
+    } else {
+      previousVolumeRef.current = volume;
+      updateVolume(0);
+    }
+  }, [updateVolume, volume]);
 
   const details = useSongDetails(song);
   const {
@@ -1435,17 +1477,6 @@ const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded, onPr
     isOwner,
   } = useSongActions(song);
   const { songLikeCount, hasSongLike, isProcessingLike, handleToggleSongLike } = useSongLikeState(song);
-
-  const setVolume = useCallback(
-    (value: number) => {
-      dispatch(setVolumePlayer(clamp(value)));
-    },
-    [dispatch],
-  );
-
-  const toggleMute = useCallback(() => {
-    dispatch(setVolumePlayer(volume === 0 ? 0.75 : 0));
-  }, [dispatch, volume]);
 
   const favoriteSongData: Song = {
     id: song.id,
@@ -1491,7 +1522,7 @@ const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded, onPr
           </div>
           <VolumeControl
             volume={volume}
-            onVolumeChange={setVolume}
+            onVolumeChange={updateVolume}
             onToggleMute={toggleMute}
             className="order-3 w-full md:order-3 md:ml-auto md:w-auto md:flex-shrink-0"
           />
@@ -1524,7 +1555,7 @@ const Player = () => {
   const downloads = useSelector(
     (state: RootState) => state.global.downloads as Record<string, DownloadEntry>,
   );
-  const volume = useSelector((state: RootState) => state.global.volume);
+  const volume = useSelector((state: RootState) => state.player.volume);
   const shuffleOrderRef = useRef<string[]>([]);
   const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
@@ -1611,7 +1642,7 @@ const Player = () => {
 
   const handleVolumeChangeCollapsed = useCallback(
     (value: number) => {
-      dispatch(setVolumePlayer(clamp(value)));
+      dispatch(setVolume(clamp(value)));
     },
     [dispatch],
   );
@@ -1629,6 +1660,10 @@ const Player = () => {
     dispatch(setCurrentSong(null));
     dispatch(setCurrentPlaylist('nowPlayingPlaylist'));
     dispatch(setNowPlayingPlaylist([]));
+    dispatch(setActive(null));
+    dispatch(setStatus('idle'));
+    dispatch(setPosition(0));
+    dispatch(setDurationAction(0));
     shuffleOrderRef.current = [];
     setIsShuffleEnabled(false);
     setRepeatMode('off');
@@ -1717,7 +1752,7 @@ const Player = () => {
           }
           onNext={externalControls ? () => externalControls.next() : undefined}
           onPrevious={externalControls ? () => externalControls.previous() : undefined}
-          onToggleMute={() => dispatch(setVolumePlayer(volume === 0 ? 0.75 : 0))}
+          onToggleMute={() => dispatch(setVolume(volume === 0 ? 0.75 : 0))}
           isMuted={volume === 0}
           volume={volume}
           onVolumeChange={handleVolumeChangeCollapsed}
