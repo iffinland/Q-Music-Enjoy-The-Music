@@ -24,6 +24,7 @@ import FilledRequests from "./pages/Requests/FilledRequests";
 import RequestDetail from "./pages/Requests/RequestDetail";
 import SongDetail from "./pages/Song/SongDetail";
 import DiscussionBoards from "./pages/DiscussionBoards/DiscussionBoards";
+import PublishPage from "./pages/Publish/PublishPage";
 
 function App() {
   return (
@@ -55,6 +56,7 @@ function App() {
               <Route path="/podcasts/:publisher/:identifier" element={<PodcastDetail />} />
               <Route path="/audiobooks" element={<Audiobooks />} />
               <Route path="/audiobooks/:publisher/:identifier" element={<AudiobookDetail />} />
+              <Route path="/publish" element={<PublishPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>

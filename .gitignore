@@ -416,3 +416,11 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Allow Q-Music publish feature assets
+!working_folder/src/components/publish/
+!working_folder/src/components/publish/**
+!working_folder/src/pages/Publish/
+!working_folder/src/pages/Publish/**
+!working_folder/src/schemas/publish.ts
+!working_folder/src/state/slices/publishSlice.ts

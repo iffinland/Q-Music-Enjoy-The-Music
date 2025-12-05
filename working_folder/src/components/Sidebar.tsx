@@ -1,6 +1,6 @@
 
 import { HiHome } from "react-icons/hi";
-import { BiSearch, BiListPlus } from "react-icons/bi";
+import { BiSearch, BiListPlus, BiUpload } from "react-icons/bi";
 import { twMerge } from "tailwind-merge";
 import { useLocation } from 'react-router-dom';
 import { TbPlaylist } from "react-icons/tb";
@@ -47,6 +47,12 @@ const Sidebar = ({ children, songs }: SidebarProps) => {
       label: 'Browse & Listen Songs',
       active: matchPath('/songs'),
       href: '/songs'
+    },
+    {
+      icon: BiUpload,
+      label: 'Publish',
+      active: matchPath('/publish'),
+      href: '/publish'
     },
     {
       icon: FaPodcast,

@@ -5,6 +5,7 @@ import authReducer from './features/authSlice'
 import globalReducer from './features/globalSlice'
 import requestsReducer from './features/requestsSlice'
 import discussionsReducer from './features/discussionsSlice'
+import publishReducer from './slices/publishSlice'
 
 export const store = configureStore({
   reducer: {
@@ -14,6 +15,7 @@ export const store = configureStore({
     global: globalReducer,
     requests: requestsReducer,
     discussions: discussionsReducer,
+    publish: publishReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
