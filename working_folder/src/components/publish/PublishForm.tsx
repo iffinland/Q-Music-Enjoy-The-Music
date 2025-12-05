@@ -6,6 +6,7 @@ import {
   type PublishKind,
   type PublishPayload
 } from '../../schemas/publish'
+import useDraft from '../../features/drafts/useDraft'
 import { useAppDispatch, useAppSelector } from '../../state/hooks'
 import { mergePayload, setKind } from '../../state/slices/publishSlice'
 import KindSelector from './KindSelector'
@@ -37,13 +38,20 @@ const PublishForm = () => {
 
   const watchedValues = form.watch()
 
+  const { saveDraft, isSaving } = useDraft({
+    enabled: true,
+    payload: form.getValues()
+  })
+
   const handleKindChange = (nextKind: PublishKind) => {
     form.setValue('kind', nextKind, { shouldDirty: true })
     dispatch(setKind(nextKind))
   }
 
   const handleSaveDraft = () => {
-    dispatch(mergePayload(form.getValues()))
+    const values = form.getValues()
+    dispatch(mergePayload(values))
+    void saveDraft(values)
   }
 
   const onSubmit = form.handleSubmit((values) => {
@@ -82,9 +90,10 @@ const PublishForm = () => {
             <button
               type="button"
               onClick={handleSaveDraft}
-              className="rounded-md border border-sky-700/60 bg-sky-900/40 px-4 py-2 text-sm font-semibold text-sky-100 transition hover:border-emerald-500/60 hover:text-white"
+              disabled={isSaving}
+              className="rounded-md border border-sky-700/60 bg-sky-900/40 px-4 py-2 text-sm font-semibold text-sky-100 transition hover:border-emerald-500/60 hover:text-white disabled:opacity-60"
             >
-              Save Draft
+              {isSaving ? 'Saving…' : 'Save Draft'}
             </button>
             <button
               type="submit"
