@@ -14,7 +14,10 @@ import {
   ModalContent,
   ModalText
 } from "./BlockedNamesModal-styles";
-import { qdnClient } from "../../../state/api/client";
+import {
+  useDeleteListItemMutation,
+  useLazyGetListItemsQuery
+} from "../../../state/api/endpoints";
 
 interface PostModalProps {
   open: boolean;
@@ -27,18 +30,19 @@ export const BlockedNamesModal: React.FC<PostModalProps> = ({
 }) => {
   const [blockedNames, setBlockedNames] = useState<string[]>([]);
   const theme = useTheme();
+  const [fetchListItems] = useLazyGetListItemsQuery();
+  const [deleteListItem] = useDeleteListItemMutation();
   const getBlockedNames = React.useCallback(async () => {
     try {
       const listName = `blockedNames`;
-      const response = await qdnClient.rawRequest({
-        action: "GET_LIST_ITEMS",
+      const response = await fetchListItems({
         list_name: listName
-      });
-      setBlockedNames(response);
+      }).unwrap();
+      setBlockedNames(Array.isArray(response) ? response : []);
     } catch (error) {
       onClose();
     }
-  }, []);
+  }, [fetchListItems, onClose]);
 
   React.useEffect(() => {
     getBlockedNames();
@@ -46,13 +50,12 @@ export const BlockedNamesModal: React.FC<PostModalProps> = ({
 
   const removeFromBlockList = async (name: string) => {
     try {
-      const response = await qdnClient.rawRequest({
-        action: "DELETE_LIST_ITEM",
+      const response = await deleteListItem({
         list_name: "blockedNames",
         item: name
-      });
+      }).unwrap();
 
-      if (response === true) {
+      if (response === true || response === 'true' || response === 'SUCCESS') {
         setBlockedNames((prev) => prev.filter((n) => n !== name));
       }
     } catch (error) {}

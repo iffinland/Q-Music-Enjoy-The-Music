@@ -52,9 +52,7 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
 
   const askForAccountInformation = useCallback(async () => {
     try {
-      const account = await qdnClient.rawRequest({
-        action: "GET_USER_ACCOUNT"
-      });
+      const account = await qdnClient.getUserAccount();
 
       const name = await getNameInfo(account.address);
       dispatch(addUser({ ...account, name }));

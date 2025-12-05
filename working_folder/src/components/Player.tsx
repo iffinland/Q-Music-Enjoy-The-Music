@@ -1576,8 +1576,7 @@ const Player = () => {
 
   const refetch = useCallback(async ({ name, service, identifier }: ResourceIdentifier) => {
     try {
-      await qdnClient.rawRequest({
-        action: 'GET_QDN_RESOURCE_PROPERTIES',
+      await qdnClient.getResourceProperties({
         name,
         service,
         identifier,

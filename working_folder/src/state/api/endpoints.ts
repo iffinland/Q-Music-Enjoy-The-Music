@@ -78,6 +78,26 @@ export type FetchResourceRequest = QdnLocator & {
   responseType?: string
 }
 
+export type GetResourcePropertiesRequest = QdnLocator
+
+export type GetWalletBalanceRequest = {
+  coin?: string
+}
+
+export type GetListItemsRequest = {
+  list_name: string
+}
+
+export type DeleteListItemRequest = {
+  list_name: string
+  item: string
+}
+
+export type GetUserAccountResponse = {
+  address: string
+  [key: string]: unknown
+}
+
 export const qdnApiWithEndpoints = qdnApi.injectEndpoints({
   endpoints: (builder) => ({
     searchResources: builder.query<any[], SearchResourcesRequest>({
@@ -135,10 +155,23 @@ export const qdnApiWithEndpoints = qdnApi.injectEndpoints({
         identifier
       })
     }),
+    getResourceProperties: builder.query<any, GetResourcePropertiesRequest>({
+      query: ({ service, name, identifier }) => ({
+        action: 'GET_QDN_RESOURCE_PROPERTIES',
+        service,
+        name,
+        identifier
+      })
+    }),
     getAccountNames: builder.query<any, { address?: string } | void>({
       query: (payload) => ({
         action: 'GET_ACCOUNT_NAMES',
         ...(payload ?? {})
+      })
+    }),
+    getUserAccount: builder.query<GetUserAccountResponse, void>({
+      query: () => ({
+        action: 'GET_USER_ACCOUNT'
       })
     }),
     deleteResource: builder.mutation<any, DeleteResourceRequest>({
@@ -148,6 +181,25 @@ export const qdnApiWithEndpoints = qdnApi.injectEndpoints({
         name,
         identifier,
         ...(hostedData ? { hostedData } : {})
+      })
+    }),
+    getListItems: builder.query<any, GetListItemsRequest>({
+      query: ({ list_name }) => ({
+        action: 'GET_LIST_ITEMS',
+        list_name
+      })
+    }),
+    deleteListItem: builder.mutation<any, DeleteListItemRequest>({
+      query: ({ list_name, item }) => ({
+        action: 'DELETE_LIST_ITEM',
+        list_name,
+        item
+      })
+    }),
+    getWalletBalance: builder.query<any, GetWalletBalanceRequest | void>({
+      query: (payload) => ({
+        action: 'GET_WALLET_BALANCE',
+        ...(payload ?? {})
       })
     }),
     sendTip: builder.mutation<any, SendTipRequest>({
@@ -180,9 +232,6 @@ export const qdnApiWithEndpoints = qdnApi.injectEndpoints({
         ...(encoding ? { encoding } : {}),
         ...(responseType ? { responseType } : {})
       })
-    }),
-    rawRequest: builder.mutation<any, QortalRequestOptions>({
-      query: (payload) => payload
     })
   }),
   overrideExisting: true
@@ -197,15 +246,23 @@ export const {
   usePublishResourceMutation,
   useGetStatusQuery,
   useLazyGetStatusQuery,
+  useGetResourcePropertiesQuery,
+  useLazyGetResourcePropertiesQuery,
   useGetAccountNamesQuery,
   useLazyGetAccountNamesQuery,
+  useGetUserAccountQuery,
+  useLazyGetUserAccountQuery,
   useDeleteResourceMutation,
+  useGetListItemsQuery,
+  useLazyGetListItemsQuery,
+  useDeleteListItemMutation,
+  useGetWalletBalanceQuery,
+  useLazyGetWalletBalanceQuery,
   useSendTipMutation,
   useTxStatusQuery,
   useLazyTxStatusQuery,
   useGetResourceUrlQuery,
   useLazyGetResourceUrlQuery,
   useFetchResourceQuery,
-  useLazyFetchResourceQuery,
-  useRawRequestMutation
+  useLazyFetchResourceQuery
 } = qdnApiWithEndpoints
