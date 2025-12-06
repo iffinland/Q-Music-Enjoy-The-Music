@@ -1,4 +1,7 @@
-# Q-Music – Enjoy the Music
+# Further development of this version has been stopped. The latest development version is located in this repo 
+https://github.com/iffinland/Q-Music-VERSION-2.0
+
+## Q-Music – Enjoy the Music
 
 Q-Music is a music and media player built for the Qortal platform. It brings together community-published songs, playlists, podcasts, and videos inside a modern interface and showcases the future vision of the Q-Music community: decentralized, censorship-resistant, and user-driven media.
 
