@@ -2,7 +2,6 @@ import { PlayList } from '../state/features/globalSlice';
 import { deleteQdnResource, fetchQdnResource } from '../utils/qortalApi';
 import { objectToBase64 } from '../utils/toBase64';
 import { cachedSearchQdnResources } from './resourceCache';
-import { qdnClient } from '../state/api/client';
 
 const PLAYLIST_LIKE_PREFIX = 'playlist_like_';
 const LIKE_FETCH_LIMIT = 50;
@@ -73,7 +72,8 @@ export const likePlaylist = async (username: string, playlist: PlayList): Promis
 
   const data64 = await objectToBase64(payload);
 
-  await qdnClient.publishResource({
+  await qortalRequest({
+    action: 'PUBLISH_QDN_RESOURCE',
     name: username,
     service: 'DOCUMENT',
     identifier,

@@ -5,7 +5,10 @@ import { addUser } from "../state/features/authSlice";
 import PageLoader from "../components/common/PageLoader";
 import { RootState } from "../state/store";
 import { Favorites, PlayList, setAddToDownloads, setCurrentSong, setFavoritesFromStorage, setFavoritesFromStoragePlaylists, setStatistics, setStatisticsLoading } from "../state/features/globalSlice";
-import { readJson, writeJson } from "../utils/storage";
+import localforage from "localforage";
+const favoritesStorage = localforage.createInstance({
+  name: 'ear-bump-favorites'
+})
 
 import { RequestQueue } from "../utils/queue";
 import { fetchStatisticsSnapshot } from "../services/statistics";
@@ -13,13 +16,10 @@ import { getNamesByAddress, getQdnResourceUrl } from "../utils/qortalApi";
 import { resolveAudioUrl } from "../utils/resolveAudioUrl";
 import { MyContext } from "./DownloadWrapper";
 import { fetchSongByIdentifier } from "../services/songs";
+import { fetchVideoByIdentifier } from "../services/videos";
 import { fetchPodcastByIdentifier } from "../services/podcasts";
 import { fetchAudiobookByIdentifier } from "../services/audiobooks";
 import { useNavigate } from "react-router-dom";
-import { qdnClient } from "../state/api/client";
-
-const FAVORITES_KEY = 'ear-bump-favorites:favorites'
-const FAVORITES_PLAYLIST_KEY = 'ear-bump-favorites:favoritesPlaylist'
 
 interface Props {
   children: React.ReactNode;
@@ -51,7 +51,9 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
 
   const askForAccountInformation = useCallback(async () => {
     try {
-      const account = await qdnClient.getUserAccount();
+      const account = await qortalRequest({
+        action: "GET_USER_ACCOUNT"
+      });
 
       const name = await getNameInfo(account.address);
       dispatch(addUser({ ...account, name }));
@@ -63,7 +65,7 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
 
   const getFavouritesFromStorage = useCallback(async () => {
     try {
-      const favorites = await readJson<Favorites>(FAVORITES_KEY);
+      const favorites = await favoritesStorage.getItem<Favorites>('favorites');
       if (favorites) {
         dispatch(setFavoritesFromStorage(favorites));
       } else {
@@ -79,7 +81,7 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
 
   const getFavouritesFromStoragePlaylists = useCallback(async () => {
     try {
-      const favorites = await readJson<PlayList[]>(FAVORITES_PLAYLIST_KEY);
+      const favorites = await favoritesStorage.getItem<PlayList[]>('favoritesPlaylist');
       if (favorites) {
         dispatch(setFavoritesFromStoragePlaylists(favorites));
       } else {
@@ -280,6 +282,23 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
       } finally {
         cleanupParams(['audiobook', 'audiobookPublisher', 'type', 'autoplay']);
         navigate(`/audiobooks/${encodeURIComponent(audiobookPublisher)}/${encodeURIComponent(audiobookId)}`, {
+          replace: true,
+        });
+      }
+      return;
+    }
+
+    const videoId = params.get('video');
+    const videoPublisher = params.get('videoPublisher');
+    if (videoId && videoPublisher) {
+      autoPlayHandledRef.current = true;
+      try {
+        await fetchVideoByIdentifier(videoPublisher, videoId);
+      } catch (error) {
+        console.error('Failed to fetch video for shared link', error);
+      } finally {
+        cleanupParams(['video', 'videoPublisher', 'type', 'autoplay']);
+        navigate(`/videos/${encodeURIComponent(videoPublisher)}/${encodeURIComponent(videoId)}`, {
           replace: true,
         });
       }

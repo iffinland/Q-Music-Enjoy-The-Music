@@ -1,9 +1,14 @@
 import ShortUniqueId from 'short-unique-id';
 import { searchQdnResources, fetchQdnResource } from '../utils/qortalApi';
 import { objectToBase64 } from '../utils/toBase64';
-import { qdnClient } from '../state/api/client';
 
-const COMMENT_PREFIX = 'enjoymusic_song_comment_';
+type CommentKind = 'song' | 'podcast' | 'audiobook';
+
+const COMMENT_PREFIXES: Record<CommentKind, string> = {
+  song: 'enjoymusic_song_comment_',
+  podcast: 'enjoymusic_podcast_comment_',
+  audiobook: 'enjoymusic_audiobook_comment_',
+};
 const FETCH_LIMIT = 50;
 const COMMENT_CACHE_TTL = 10_000;
 
@@ -15,6 +20,9 @@ export interface SongComment {
   message: string;
   created: number;
   updated?: number;
+  parentCommentId?: string | null;
+  deleted?: boolean;
+  kind?: CommentKind;
 }
 
 const uid = new ShortUniqueId();
@@ -26,15 +34,46 @@ type CommentCacheEntry = {
 
 const commentCache = new Map<string, CommentCacheEntry>();
 
-const buildCommentCacheKey = (publisher: string, identifier: string) =>
-  `${publisher?.toLowerCase() ?? ''}:${identifier}`;
+const buildCommentCacheKey = (publisher: string, identifier: string, kind: CommentKind) =>
+  `${kind}:${publisher?.toLowerCase() ?? ''}:${identifier}`;
+
+const resolveKind = (kind?: CommentKind): CommentKind => {
+  if (kind === 'podcast' || kind === 'audiobook') return kind;
+  return 'song';
+};
+
+const publishCommentResource = async (
+  name: string,
+  identifier: string,
+  payload: Record<string, unknown>,
+  title: string,
+  description: string,
+) => {
+  const data64 = await objectToBase64(payload);
+
+  await qortalRequest({
+    action: 'PUBLISH_QDN_RESOURCE',
+    name,
+    service: 'DOCUMENT',
+    identifier,
+    data64,
+    encoding: 'base64',
+    title: title.slice(0, 55),
+    description: description.slice(0, 4000),
+  });
+};
 
 export interface FetchSongCommentsOptions {
   force?: boolean;
+  kind?: CommentKind;
 }
 
-export const invalidateSongCommentsCache = (songPublisher: string, songIdentifier: string) => {
-  const cacheKey = buildCommentCacheKey(songPublisher, songIdentifier);
+export const invalidateSongCommentsCache = (
+  songPublisher: string,
+  songIdentifier: string,
+  kind: CommentKind = 'song',
+) => {
+  const cacheKey = buildCommentCacheKey(songPublisher, songIdentifier, kind);
   commentCache.delete(cacheKey);
 };
 
@@ -44,7 +83,8 @@ export const fetchSongComments = async (
   options: FetchSongCommentsOptions = {},
 ): Promise<SongComment[]> => {
   const { force = false } = options;
-  const cacheKey = buildCommentCacheKey(songPublisher, songIdentifier);
+  const kind = resolveKind(options.kind);
+  const cacheKey = buildCommentCacheKey(songPublisher, songIdentifier, kind);
   const now = Date.now();
 
   if (!force) {
@@ -57,7 +97,7 @@ export const fetchSongComments = async (
   }
 
   const promise = (async () => {
-    const prefix = `${COMMENT_PREFIX}${songIdentifier}_`;
+    const identifierPrefix = `${COMMENT_PREFIXES[kind]}${songIdentifier}_`;
     const aggregated: SongComment[] = [];
     let offset = 0;
 
@@ -65,7 +105,7 @@ export const fetchSongComments = async (
       const page = await searchQdnResources({
         mode: 'ALL',
         service: 'DOCUMENT',
-        query: prefix,
+        identifier: identifierPrefix,
         limit: FETCH_LIMIT,
         offset,
         reverse: true,
@@ -87,6 +127,8 @@ export const fetchSongComments = async (
 
           if (!data || typeof data !== 'object') continue;
           if (data.songIdentifier !== songIdentifier) continue;
+          if (data.songPublisher !== songPublisher) continue;
+          if (data.deleted) continue;
 
           const created = data.created ?? entry.created ?? Date.now();
           const updated = data.updated ?? created;
@@ -99,6 +141,8 @@ export const fetchSongComments = async (
             message: data.message || '',
             created,
             updated,
+            parentCommentId: data.parentCommentId ?? null,
+            kind,
           });
         } catch (error) {
           console.error('Failed to fetch song comment', error);
@@ -132,6 +176,8 @@ interface PublishCommentPayload {
   author: string;
   message: string;
   songTitle?: string;
+  parentCommentId?: string | null;
+  kind?: CommentKind;
 }
 
 export const publishSongComment = async ({
@@ -140,9 +186,12 @@ export const publishSongComment = async ({
   author,
   message,
   songTitle,
+  parentCommentId = null,
+  kind,
 }: PublishCommentPayload) => {
+  const resolvedKind = resolveKind(kind);
   const uniqueId = uid(8);
-  const commentIdentifier = `${COMMENT_PREFIX}${identifier}_${uniqueId}`;
+  const commentIdentifier = `${COMMENT_PREFIXES[resolvedKind]}${identifier}_${uniqueId}`;
   const timestamp = Date.now();
 
   const payload = {
@@ -153,27 +202,18 @@ export const publishSongComment = async ({
     message,
     created: timestamp,
     updated: timestamp,
+    parentCommentId,
+    kind: resolvedKind,
   };
+  await publishCommentResource(
+    author,
+    commentIdentifier,
+    payload as Record<string, unknown>,
+    `Comment on ${songTitle || identifier}`,
+    message,
+  );
 
-  const data64 = await objectToBase64(payload);
-  const filename = `${commentIdentifier}.json`;
-
-  await qdnClient.publishResource({
-    resources: [
-      {
-        name: author,
-        service: 'DOCUMENT',
-        data64,
-        identifier: commentIdentifier,
-        filename,
-        title: `Comment on ${songTitle || identifier}`.slice(0, 55),
-        description: message.slice(0, 4000),
-        encoding: 'base64',
-      },
-    ],
-  });
-
-  invalidateSongCommentsCache(publisher, identifier);
+  invalidateSongCommentsCache(publisher, identifier, resolvedKind);
 
   return {
     ...payload,
@@ -181,27 +221,12 @@ export const publishSongComment = async ({
   };
 };
 
-export const deleteSongComment = async (
-  author: string,
-  identifier: string,
-  songPublisher?: string,
-  songIdentifier?: string,
-) => {
-  await qdnClient.deleteResource({
-    name: author,
-    service: 'DOCUMENT',
-    identifier,
-  });
-
-  if (songPublisher && songIdentifier) {
-    invalidateSongCommentsCache(songPublisher, songIdentifier);
-  }
-};
-
 export const updateSongComment = async (
   comment: SongComment,
   message: string,
+  kind?: CommentKind,
 ) => {
+  const resolvedKind = resolveKind(kind ?? comment.kind);
   const timestamp = Date.now();
   const payload = {
     ...comment,
@@ -209,25 +234,65 @@ export const updateSongComment = async (
     updated: timestamp,
   };
 
-  const data64 = await objectToBase64(payload);
-  const filename = `${comment.id}.json`;
+  await publishCommentResource(
+    comment.author,
+    comment.id,
+    payload as Record<string, unknown>,
+    `Comment update ${comment.songIdentifier}`,
+    message,
+  );
 
-  await qdnClient.publishResource({
-    resources: [
-      {
-        name: comment.author,
-        service: 'DOCUMENT',
-        data64,
-        identifier: comment.id,
-        filename,
-        title: `Comment update ${comment.songIdentifier}`.slice(0, 55),
-        description: message.slice(0, 4000),
-        encoding: 'base64',
-      },
-    ],
-  });
-
-  invalidateSongCommentsCache(comment.songPublisher, comment.songIdentifier);
+  invalidateSongCommentsCache(comment.songPublisher, comment.songIdentifier, resolvedKind);
 
   return payload;
 };
+
+export const deleteSongComment = async (comment: SongComment, kind?: CommentKind) => {
+  const resolvedKind = resolveKind(kind ?? comment.kind);
+  const timestamp = Date.now();
+  const payload = {
+    ...comment,
+    deleted: true,
+    updated: timestamp,
+  };
+
+  await publishCommentResource(
+    comment.author || comment.songPublisher,
+    comment.id,
+    payload as Record<string, unknown>,
+    `Comment deleted ${comment.songIdentifier}`,
+    'Deleted comment',
+  );
+
+  invalidateSongCommentsCache(comment.songPublisher, comment.songIdentifier, resolvedKind);
+};
+
+export const fetchPodcastComments = (
+  publisher: string,
+  identifier: string,
+  options: FetchSongCommentsOptions = {},
+) => fetchSongComments(publisher, identifier, { ...options, kind: 'podcast' });
+
+export const publishPodcastComment = (payload: PublishCommentPayload) =>
+  publishSongComment({ ...payload, kind: 'podcast' });
+
+export const updatePodcastComment = (comment: SongComment, message: string) =>
+  updateSongComment(comment, message, 'podcast');
+
+export const deletePodcastComment = (comment: SongComment) =>
+  deleteSongComment(comment, 'podcast');
+
+export const fetchAudiobookComments = (
+  publisher: string,
+  identifier: string,
+  options: FetchSongCommentsOptions = {},
+) => fetchSongComments(publisher, identifier, { ...options, kind: 'audiobook' });
+
+export const publishAudiobookComment = (payload: PublishCommentPayload) =>
+  publishSongComment({ ...payload, kind: 'audiobook' });
+
+export const updateAudiobookComment = (comment: SongComment, message: string) =>
+  updateSongComment(comment, message, 'audiobook');
+
+export const deleteAudiobookComment = (comment: SongComment) =>
+  deleteSongComment(comment, 'audiobook');

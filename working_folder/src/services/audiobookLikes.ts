@@ -2,7 +2,6 @@ import { Audiobook } from '../types';
 import { deleteQdnResource, fetchQdnResource } from '../utils/qortalApi';
 import { objectToBase64 } from '../utils/toBase64';
 import { cachedSearchQdnResources } from './resourceCache';
-import { qdnClient } from '../state/api/client';
 
 const AUDIOBOOK_LIKE_PREFIX = 'audiobook_like_';
 const LIKE_FETCH_LIMIT = 50;
@@ -116,7 +115,8 @@ export const likeAudiobook = async (username: string, audiobook: Audiobook): Pro
 
   const data64 = await objectToBase64(payload);
 
-  await qdnClient.publishResource({
+  await qortalRequest({
+    action: 'PUBLISH_QDN_RESOURCE',
     name: username,
     service: 'DOCUMENT',
     identifier,

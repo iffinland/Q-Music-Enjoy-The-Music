@@ -13,7 +13,6 @@ import { objectToBase64, toBase64 } from '../../utils/toBase64';
 import { addNewSong, setImageCoverHash } from '../../state/features/globalSlice';
 import { removeTrailingUnderscore } from '../../utils/extra';
 import { upsertRequestFill } from '../../state/features/requestsSlice';
-import { qdnClient } from '../../state/api/client';
 
 const uid = new ShortUniqueId();
 
@@ -197,7 +196,8 @@ const FillRequestModal: React.FC = () => {
         description: `Fill for ${fillModal.request.id}`,
       });
 
-      await qdnClient.publishResource({
+      await qortalRequest({
+        action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
         resources,
       });
 

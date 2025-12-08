@@ -6,6 +6,7 @@ import { RiHandCoinLine } from 'react-icons/ri';
 import { MdPlaylistAdd } from 'react-icons/md';
 import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
 import { toast } from 'react-hot-toast';
+import localforage from 'localforage';
 
 import HomeActionButton from '../home/HomeActionButton';
 import useSendTipModal from '../../hooks/useSendTipModal';
@@ -33,10 +34,10 @@ import {
 } from '../../services/playlistLikes';
 import { mapPlaylistSongsToSongs, usePlaylistPlayback } from '../../hooks/usePlaylistPlayback';
 import { deletePlaylistResource } from '../../services/playlists';
-import { qdnClient } from '../../state/api/client';
-import { readJson, writeJson } from '../../utils/storage';
 
-const PLAYLIST_FAVORITES_KEY = 'ear-bump-favorites:favoritesPlaylist';
+const playlistFavoritesStorage = localforage.createInstance({
+  name: 'ear-bump-favorites',
+});
 
 const isValidPlaylistEntry = (playlist: PlayList | null | undefined): playlist is PlayList =>
   Boolean(playlist && typeof playlist.id === 'string' && playlist.id.trim().length > 0);
@@ -184,17 +185,18 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
     try {
       setFavBusy(true);
       const existing = sanitizeFavorites(
-        (await readJson<PlayList[]>(PLAYLIST_FAVORITES_KEY)) || [],
+        (await playlistFavoritesStorage.getItem<PlayList[]>('favoritesPlaylist')) ||
+          [],
       );
 
       if (isFavorited) {
         const updated = existing.filter((item) => item.id !== playlist.id);
-        await writeJson(PLAYLIST_FAVORITES_KEY, updated);
+        await playlistFavoritesStorage.setItem('favoritesPlaylist', updated);
         dispatch(removeFavPlaylist(playlist));
       } else {
         const filtered = existing.filter((item) => item.id !== playlist.id);
         const updated = [playlist, ...filtered];
-        await writeJson(PLAYLIST_FAVORITES_KEY, updated);
+        await playlistFavoritesStorage.setItem('favoritesPlaylist', updated);
         dispatch(setFavPlaylist(playlist));
       }
     } catch (error) {
@@ -243,10 +245,11 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
       dispatch(removePlaylistById(playlist.id));
       if (isFavorited) {
         const existing = sanitizeFavorites(
-          (await readJson<PlayList[]>(PLAYLIST_FAVORITES_KEY)) || [],
+          (await playlistFavoritesStorage.getItem<PlayList[]>('favoritesPlaylist')) ||
+            [],
         );
         const updated = existing.filter((item) => item.id !== playlist.id);
-        await writeJson(PLAYLIST_FAVORITES_KEY, updated);
+        await playlistFavoritesStorage.setItem('favoritesPlaylist', updated);
         dispatch(removeFavPlaylist(playlist));
       }
       toast.success('Playlist deleted.');
@@ -272,7 +275,8 @@ export const LibraryPlaylistActions: React.FC<LibraryPlaylistActionsProps> = ({
     }
 
     try {
-      const resource = await qdnClient.fetchResource({
+      const resource = await qortalRequest({
+        action: 'FETCH_QDN_RESOURCE',
         name: playlist.user,
         service: 'PLAYLIST',
         identifier: playlist.id,

@@ -2,7 +2,6 @@ import { deleteQdnResource, fetchQdnResource } from '../utils/qortalApi';
 import { objectToBase64 } from '../utils/toBase64';
 import { SongRequest } from '../state/features/requestsSlice';
 import { cachedSearchQdnResources } from './resourceCache';
-import { qdnClient } from '../state/api/client';
 
 const REQUEST_LIKE_PREFIX = 'enjoymusic_request_like_';
 const LIKE_FETCH_LIMIT = 50;
@@ -89,7 +88,8 @@ export const likeRequest = async (username: string, request: SongRequest): Promi
 
   const data64 = await objectToBase64(payload);
 
-  await qdnClient.publishResource({
+  await qortalRequest({
+    action: 'PUBLISH_QDN_RESOURCE',
     name: username,
     service: 'DOCUMENT',
     identifier,

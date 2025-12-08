@@ -9,7 +9,6 @@
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
-    "types": ["vite/client", "vitest/globals"],
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",

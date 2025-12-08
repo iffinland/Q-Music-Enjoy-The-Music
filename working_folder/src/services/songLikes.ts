@@ -3,7 +3,6 @@ import { SongMeta } from '../state/features/globalSlice';
 import { deleteQdnResource, fetchQdnResource } from '../utils/qortalApi';
 import { objectToBase64 } from '../utils/toBase64';
 import { cachedSearchQdnResources } from './resourceCache';
-import { qdnClient } from '../state/api/client';
 
 const SONG_LIKE_PREFIX = 'song_like_';
 const LIKE_FETCH_LIMIT = 50;
@@ -76,7 +75,8 @@ export const likeSong = async (username: string, song: LikeableSong): Promise<vo
 
   const data64 = await objectToBase64(payload);
 
-  await qdnClient.publishResource({
+  await qortalRequest({
+    action: 'PUBLISH_QDN_RESOURCE',
     name: username,
     service: 'DOCUMENT',
     identifier,

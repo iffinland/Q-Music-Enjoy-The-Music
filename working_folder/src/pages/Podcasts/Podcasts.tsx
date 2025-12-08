@@ -9,7 +9,7 @@ import { PodcastAlphabetFilter } from '../../components/podcasts/PodcastAlphabet
 import { PodcastCard } from '../../components/podcasts/PodcastCard';
 import { fetchPodcasts } from '../../services/podcasts';
 import { Podcast, Song } from '../../types';
-import Spinner from '../../components/common/Spinner';
+import { CircularProgress } from '@mui/material';
 import useUploadPodcastModal from '../../hooks/useUploadPodcastModal';
 import useSendTipModal from '../../hooks/useSendTipModal';
 import useAddSongToPlaylistModal from '../../hooks/useAddSongToPlaylistModal';
@@ -18,12 +18,12 @@ import { buildPodcastShareUrl } from '../../utils/qortalLinks';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
-import { qdnClient } from '../../state/api/client';
 import { Favorites, removeFavSong, setAddToDownloads, setCurrentSong, setFavSong } from '../../state/features/globalSlice';
 import { deleteHostedData, deleteQdnResource, getQdnResourceUrl } from '../../utils/qortalApi';
 import { resolveAudioUrl } from '../../utils/resolveAudioUrl';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
 import { MyContext } from '../../wrappers/DownloadWrapper';
+import localforage from 'localforage';
 import {
   fetchPodcastLikeCount,
   hasUserLikedPodcast,
@@ -34,13 +34,14 @@ import { objectToBase64 } from '../../utils/toBase64';
 import { PODCAST_CATEGORIES } from '../../constants/categories';
 import SortControls from '../../components/common/SortControls';
 import Button from '../../components/Button';
-import { readJson, writeJson } from '../../utils/storage';
 
 const PAGE_SIZE = 15;
 const SLOGAN = 'Catch the latest community shows and rediscover timeless episodes.';
 const PODCAST_UNCATEGORIZED = 'Uncategorized';
 
-const FAVORITES_KEY = 'ear-bump-favorites:favorites';
+const favoritesStorage = localforage.createInstance({
+  name: 'ear-bump-favorites',
+});
 
 const Podcasts: React.FC = () => {
   const dispatch = useDispatch();
@@ -585,7 +586,8 @@ const Podcasts: React.FC = () => {
 
       const deletionData64 = await objectToBase64(deletionDocument);
 
-      await qdnClient.publishResource({
+      await qortalRequest({
+        action: 'PUBLISH_QDN_RESOURCE',
         name: podcast.publisher,
         service: 'DOCUMENT',
         identifier: podcast.id,
@@ -677,7 +679,7 @@ const Podcasts: React.FC = () => {
         author: podcast.publisher,
       };
 
-      const storedFavorites = (await readJson<Favorites>(FAVORITES_KEY)) || {
+      const storedFavorites = (await favoritesStorage.getItem<Favorites>('favorites')) || {
         songs: {},
         playlists: {},
       };
@@ -691,7 +693,7 @@ const Podcasts: React.FC = () => {
         if (storedFavorites.songs?.[podcast.id]) {
           delete storedFavorites.songs[podcast.id];
         }
-        await writeJson(FAVORITES_KEY, storedFavorites);
+        await favoritesStorage.setItem('favorites', storedFavorites);
         toast.success('Podcast removed from favorites.');
       } else {
         dispatch(setFavSong({
@@ -706,7 +708,7 @@ const Podcasts: React.FC = () => {
           name: podcast.publisher,
           service: 'AUDIO',
         };
-        await writeJson(FAVORITES_KEY, storedFavorites);
+        await favoritesStorage.setItem('favorites', storedFavorites);
         toast.success('Podcast added to favorites!');
       }
     } catch (error) {
@@ -826,7 +828,7 @@ const Podcasts: React.FC = () => {
         <Box className="p-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-10">
-              <Spinner size={32} />
+              <CircularProgress size={32} />
             </div>
           ) : error ? (
             <div className="rounded-md border border-red-500/40 bg-red-900/30 px-4 py-6 text-center text-sm font-medium text-red-200">

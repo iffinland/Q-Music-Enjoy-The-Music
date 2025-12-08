@@ -61,6 +61,7 @@ export const useHomeFeed = (options: UseHomeFeedOptions = {}): UseHomeFeedResult
     playlistsLimit = 10,
     podcastsLimit = 8,
     audiobooksLimit = 8,
+    videosLimit = 8,
   } = options;
   const [data, setData] = useState<HomeFeedData | null>(cachedResult?.data ?? null);
   const [status, setStatus] = useState<Status>(cachedResult ? 'success' : 'idle');
@@ -71,6 +72,7 @@ export const useHomeFeed = (options: UseHomeFeedOptions = {}): UseHomeFeedResult
     playlistsLimit,
     podcastsLimit,
     audiobooksLimit,
+    videosLimit,
   });
   const dataRef = useRef<HomeFeedData | null>(data);
   const statusRef = useRef<Status>(status);
@@ -99,7 +101,7 @@ export const useHomeFeed = (options: UseHomeFeedOptions = {}): UseHomeFeedResult
   }, []);
 
   useEffect(() => {
-    optionsRef.current = { songsLimit, playlistsLimit, podcastsLimit, audiobooksLimit };
+    optionsRef.current = { songsLimit, playlistsLimit, podcastsLimit, audiobooksLimit, videosLimit };
 
     if (!enabled) return;
 
@@ -127,7 +129,7 @@ export const useHomeFeed = (options: UseHomeFeedOptions = {}): UseHomeFeedResult
     return () => {
       cancelled = true;
     };
-  }, [enabled, songsLimit, playlistsLimit, podcastsLimit, audiobooksLimit]);
+  }, [enabled, songsLimit, playlistsLimit, podcastsLimit, audiobooksLimit, videosLimit]);
 
   const refresh = useCallback(async () => {
     cachedResult = null;

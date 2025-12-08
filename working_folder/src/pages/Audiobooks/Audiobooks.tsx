@@ -9,7 +9,7 @@ import { AudiobookAlphabetFilter } from '../../components/audiobooks/AudiobookAl
 import { AudiobookCard } from '../../components/audiobooks/AudiobookCard';
 import { fetchAudiobooks } from '../../services/audiobooks';
 import { Audiobook, Song } from '../../types';
-import Spinner from '../../components/common/Spinner';
+import { CircularProgress } from '@mui/material';
 import useUploadAudiobookModal from '../../hooks/useUploadAudiobookModal';
 import useSendTipModal from '../../hooks/useSendTipModal';
 import useAddSongToPlaylistModal from '../../hooks/useAddSongToPlaylistModal';
@@ -18,11 +18,11 @@ import { buildAudiobookShareUrl } from '../../utils/qortalLinks';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../state/store';
-import { qdnClient } from '../../state/api/client';
 import { Favorites, removeFavSong, setAddToDownloads, setCurrentSong, setFavSong } from '../../state/features/globalSlice';
 import { deleteHostedData, deleteQdnResource, getQdnResourceUrl } from '../../utils/qortalApi';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
 import { MyContext } from '../../wrappers/DownloadWrapper';
+import localforage from 'localforage';
 import {
   fetchAudiobookLikeCount,
   hasUserLikedAudiobook,
@@ -34,13 +34,14 @@ import { AUDIOBOOK_CATEGORIES } from '../../constants/categories';
 import SortControls from '../../components/common/SortControls';
 import Button from '../../components/Button';
 import { resolveAudioUrl } from '../../utils/resolveAudioUrl';
-import { readJson, writeJson } from '../../utils/storage';
 
 const PAGE_SIZE = 15;
 const SLOGAN = 'Immerse yourself in community-narrated stories, lessons, and adventures.';
 const AUDIOBOOK_UNCATEGORIZED = 'Uncategorized';
 
-const FAVORITES_KEY = 'ear-bump-audiobook-favorites:favorites';
+const favoritesStorage = localforage.createInstance({
+  name: 'ear-bump-audiobook-favorites',
+});
 
 const Audiobooks: React.FC = () => {
   const dispatch = useDispatch();
@@ -585,7 +586,8 @@ const Audiobooks: React.FC = () => {
 
       const deletionData64 = await objectToBase64(deletionDocument);
 
-      await qdnClient.publishResource({
+      await qortalRequest({
+        action: 'PUBLISH_QDN_RESOURCE',
         name: audiobook.publisher,
         service: 'DOCUMENT',
         identifier: audiobook.id,
@@ -677,7 +679,7 @@ const Audiobooks: React.FC = () => {
         author: audiobook.publisher,
       };
 
-      const storedFavorites = (await readJson<Favorites>(FAVORITES_KEY)) || {
+      const storedFavorites = (await favoritesStorage.getItem<Favorites>('favorites')) || {
         songs: {},
         playlists: {},
       };
@@ -691,7 +693,7 @@ const Audiobooks: React.FC = () => {
         if (storedFavorites.songs?.[audiobook.id]) {
           delete storedFavorites.songs[audiobook.id];
         }
-        await writeJson(FAVORITES_KEY, storedFavorites);
+        await favoritesStorage.setItem('favorites', storedFavorites);
         toast.success('Audiobook removed from favorites.');
       } else {
         dispatch(setFavSong({
@@ -706,7 +708,7 @@ const Audiobooks: React.FC = () => {
           name: audiobook.publisher,
           service: 'AUDIO',
         };
-        await writeJson(FAVORITES_KEY, storedFavorites);
+        await favoritesStorage.setItem('favorites', storedFavorites);
         toast.success('Audiobook added to favorites!');
       }
     } catch (error) {
@@ -826,7 +828,7 @@ const Audiobooks: React.FC = () => {
         <Box className="p-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-10">
-              <Spinner size={32} />
+              <CircularProgress size={32} />
             </div>
           ) : error ? (
             <div className="rounded-md border border-red-500/40 bg-red-900/30 px-4 py-6 text-center text-sm font-medium text-red-200">

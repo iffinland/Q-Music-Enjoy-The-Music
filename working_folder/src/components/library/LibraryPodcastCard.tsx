@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import localforage from 'localforage';
 import { FaPlay } from 'react-icons/fa';
 import { FiDownload, FiEdit2, FiShare2, FiThumbsUp, FiTrash2 } from 'react-icons/fi';
 import { MdPlaylistAdd } from 'react-icons/md';
@@ -41,9 +42,10 @@ import { deletePodcastResources } from '../../services/podcasts';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import useCoverImage from '../../hooks/useCoverImage';
 import { buildDownloadFilename } from '../../utils/downloadFilename';
-import { readJson, writeJson } from '../../utils/storage';
 
-const PODCAST_FAVORITES_KEY = 'ear-bump-podcast-favorites:favorites';
+const podcastFavoritesStorage = localforage.createInstance({
+  name: 'ear-bump-podcast-favorites',
+});
 
 interface LibraryPodcastCardProps {
   podcast: Podcast;
@@ -135,7 +137,8 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
       }
 
       try {
-        const existing = (await readJson<string[]>(PODCAST_FAVORITES_KEY)) || [];
+        const existing =
+          (await podcastFavoritesStorage.getItem<string[]>('favorites')) || [];
         if (!cancelled) {
           setIsFavorite(existing.includes(podcast.id));
         }
@@ -268,16 +271,17 @@ export const LibraryPodcastCard: React.FC<LibraryPodcastCardProps> = ({
       if (favoriteBusy) return;
       try {
         setFavoriteBusy(true);
-        const favorites = (await readJson<string[]>(PODCAST_FAVORITES_KEY)) || [];
+        const favorites =
+          (await podcastFavoritesStorage.getItem<string[]>('favorites')) || [];
 
         if (isFavorite) {
           const updated = favorites.filter((id) => id !== podcast.id);
-          await writeJson(PODCAST_FAVORITES_KEY, updated);
+          await podcastFavoritesStorage.setItem('favorites', updated);
           setIsFavorite(false);
           toast.success('Podcast removed from favorites.');
         } else {
           const updated = Array.from(new Set([podcast.id, ...favorites]));
-          await writeJson(PODCAST_FAVORITES_KEY, updated);
+          await podcastFavoritesStorage.setItem('favorites', updated);
           setIsFavorite(true);
           toast.success('Podcast added to favorites!');
         }

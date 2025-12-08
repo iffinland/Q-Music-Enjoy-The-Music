@@ -1,12 +1,12 @@
 
 import { HiHome } from "react-icons/hi";
-import { BiSearch, BiListPlus, BiUpload } from "react-icons/bi";
+import { BiSearch, BiListPlus } from "react-icons/bi";
 import { twMerge } from "tailwind-merge";
 import { useLocation } from 'react-router-dom';
 import { TbPlaylist } from "react-icons/tb";
 import { MdLibraryMusic, MdOutlineFavorite } from "react-icons/md";
 import { FiMessageSquare } from "react-icons/fi";
-import { FaPodcast, FaBookOpen, FaTimesCircle } from "react-icons/fa";
+import { FaPodcast, FaBookOpen, FaVideo, FaTimesCircle } from "react-icons/fa";
 import SidebarItem from "./SidebarItem";
 import Box from "./Box";
 import {AddLibrary} from "./AddLibrary";
@@ -49,12 +49,6 @@ const Sidebar = ({ children, songs }: SidebarProps) => {
       href: '/songs'
     },
     {
-      icon: BiUpload,
-      label: 'Publish',
-      active: matchPath('/publish'),
-      href: '/publish'
-    },
-    {
       icon: FaPodcast,
       label: 'Browse & Listen Podcasts',
       href: '/podcasts',
@@ -71,6 +65,12 @@ const Sidebar = ({ children, songs }: SidebarProps) => {
       label: 'Browse & Listen Playlists',
       href: '/playlists/all',
       active: matchPath(['/playlists/all', '/playlists'])
+    },
+    {
+      icon: FaVideo,
+      label: 'Watch Music Videos',
+      href: '/videos',
+      active: matchPath('/videos')
     },
     {
       icon: MdOutlineFavorite,

@@ -10,7 +10,6 @@ import {
   upsertPlaylists,
 } from '../state/features/globalSlice';
 import { Song } from '../types';
-import { qdnClient } from '../state/api/client';
 
 const normalizeSongs = (input: any): SongReference[] => {
   if (Array.isArray(input?.songs)) {
@@ -78,7 +77,8 @@ export const usePlaylistPlayback = () => {
       }
 
       try {
-        const resource = await qdnClient.fetchResource({
+        const resource = await qortalRequest({
+          action: 'FETCH_QDN_RESOURCE',
           name: publisher,
           service: 'PLAYLIST',
           identifier: playlist.id,
@@ -116,3 +116,4 @@ export const usePlaylistPlayback = () => {
     ensurePlaylistSongs: safeEnsurePlaylistSongs,
   };
 };
+

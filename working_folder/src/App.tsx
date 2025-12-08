@@ -1,4 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { store } from "./state/store";
+import { Provider } from "react-redux";
 import GlobalWrapper from "./wrappers/GlobalWrapper";
 import Notification from "./components/common/Notification/Notification";
 import { Home } from "./pages/Home/Home";
@@ -13,6 +15,8 @@ import { Playlist } from "./pages/Playlist/Playlist";
 import { Newest } from "./pages/Newest/Newest";
 import BrowseAllSongs from "./pages/BrowseAllSongs/BrowseAllSongs";
 import BrowseAllPlaylists from "./pages/BrowseAllPlaylists/BrowseAllPlaylists";
+import Videos from "./pages/Videos/Videos";
+import VideoDetail from "./pages/Videos/VideoDetail";
 import Podcasts from "./pages/Podcasts/Podcasts";
 import PodcastDetail from "./pages/Podcasts/PodcastDetail";
 import Audiobooks from "./pages/Audiobooks/Audiobooks";
@@ -22,43 +26,45 @@ import FilledRequests from "./pages/Requests/FilledRequests";
 import RequestDetail from "./pages/Requests/RequestDetail";
 import SongDetail from "./pages/Song/SongDetail";
 import DiscussionBoards from "./pages/DiscussionBoards/DiscussionBoards";
-import PublishPage from "./pages/Publish/PublishPage";
 
 function App() {
   return (
-    <>
-      <Notification />
-      <DownloadWrapper>
+    <Provider store={store}>
+  
+        <Notification />
+        <DownloadWrapper>
         <GlobalWrapper>
           <ModalProvider />
           <ToasterProvider />
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/search" element={<Search />} />
-              <Route path="/playlists" element={<Playlists />} />
-              <Route path="/playlists/all" element={<BrowseAllPlaylists />} />
-              <Route path="/playlists/:name/:playlistId" element={<Playlist />} />
-              <Route path="/liked" element={<Navigate to="/library" replace />} />
-              <Route path="/library" element={<Library />} />
-              <Route path="/newest" element={<Newest />} />
-              <Route path="/songs/:publisher/:identifier" element={<SongDetail />} />
-              <Route path="/songs" element={<BrowseAllSongs />} />
-              <Route path="/requests" element={<Requests />} />
-              <Route path="/requests/filled" element={<FilledRequests />} />
-              <Route path="/requests/:publisher/:requestId" element={<RequestDetail />} />
-              <Route path="/discussions" element={<DiscussionBoards />} />
-              <Route path="/podcasts" element={<Podcasts />} />
-              <Route path="/podcasts/:publisher/:identifier" element={<PodcastDetail />} />
-              <Route path="/audiobooks" element={<Audiobooks />} />
-              <Route path="/audiobooks/:publisher/:identifier" element={<AudiobookDetail />} />
-              <Route path="/publish" element={<PublishPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/playlists" element={<Playlists />} />
+            <Route path="/playlists/all" element={<BrowseAllPlaylists />} />
+            <Route path="/playlists/:name/:playlistId" element={<Playlist />} />
+            <Route path="/liked" element={<Navigate to="/library" replace />} />
+            <Route path="/library" element={<Library />} />
+            <Route path="/newest" element={<Newest />} />
+            <Route path="/songs/:publisher/:identifier" element={<SongDetail />} />
+            <Route path="/songs" element={<BrowseAllSongs />} />
+            <Route path="/requests" element={<Requests />} />
+            <Route path="/requests/filled" element={<FilledRequests />} />
+            <Route path="/requests/:publisher/:requestId" element={<RequestDetail />} />
+            <Route path="/discussions" element={<DiscussionBoards />} />
+            <Route path="/videos" element={<Videos />} />
+            <Route path="/videos/:publisher/:identifier" element={<VideoDetail />} />
+            <Route path="/podcasts" element={<Podcasts />} />
+            <Route path="/podcasts/:publisher/:identifier" element={<PodcastDetail />} />
+            <Route path="/audiobooks" element={<Audiobooks />} />
+            <Route path="/audiobooks/:publisher/:identifier" element={<AudiobookDetail />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
           </Layout>
+       
         </GlobalWrapper>
-      </DownloadWrapper>
-    </>
+        </DownloadWrapper>
+    </Provider>
   );
 }
 

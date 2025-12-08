@@ -25,7 +25,7 @@ import LikeButton from '../../components/LikeButton';
 import { fetchPodcastLikeCount, hasUserLikedPodcast, likePodcast, unlikePodcast } from '../../services/podcastLikes';
 
 const DEFAULT_COVER =
-  'data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"400\"%3E%3Crect width=\"100%25\" height=\"100%25\" fill=\"%230b2137\"%3E%3C/rect%3E%3Ctext x=\"50%25\" y=\"50%25\" fill=\"%2355a8ff\" font-size=\"28\" font-family=\"Arial\" text-anchor=\"middle\"%3ENo Cover%3C/text%3E%3C/svg%3E';
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect width="100%25" height="100%25" fill="%230b2137"%3E%3C/rect%3E%3Ctext x="50%25" y="50%25" fill="%2355a8ff" font-size="28" font-family="Arial" text-anchor="middle"%3ENo Cover%3C/text%3E%3C/svg%3E';
 
 const formatFileSize = (size?: number): string | null => {
   if (typeof size !== 'number' || size <= 0) return null;
@@ -595,6 +595,7 @@ const PodcastDetail: React.FC = () => {
                 </p>
               )}
             </Box>
+
           </div>
         </div>
       )}

@@ -30,7 +30,6 @@ import { getQdnResourceUrl } from '../utils/qortalApi';
 import { useFetchSongs } from '../hooks/fetchSongs';
 import likeImg from '../assets/img/enjoy-music.jpg';
 import { Song } from '../types';
-import { qdnClient } from '../state/api/client';
 
 type PlaylistMode = 'none' | 'existing' | 'new';
 
@@ -273,13 +272,9 @@ const UploadModal = () => {
         return cached;
       }
 
-      const playlistOwner = playlist.user;
-      if (!playlistOwner) {
-        throw new Error('Playlist owner is missing');
-      }
-
-      const response = await qdnClient.fetchResource({
-        name: playlistOwner,
+      const response = await qortalRequest({
+        action: 'FETCH_QDN_RESOURCE',
+        name: playlist.user,
         service: 'PLAYLIST',
         identifier: playlist.id,
       });
@@ -342,7 +337,8 @@ const UploadModal = () => {
         },
       ];
 
-      await qdnClient.publishResource({
+      await qortalRequest({
+        action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
         resources,
       });
     },
@@ -784,7 +780,12 @@ const UploadModal = () => {
           });
         }
 
-        await qdnClient.publishResource({ resources });
+        const multiplePublish = {
+          action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+          resources,
+        };
+
+        await qortalRequest(multiplePublish);
 
         const createdTimestamp = editingSong?.created ?? Date.now();
         const updatedTimestamp = Date.now();

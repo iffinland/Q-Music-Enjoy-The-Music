@@ -8,7 +8,6 @@ import { SearchQdnResourcesParams } from "../utils/qortalApi";
 import { cachedSearchQdnResources } from "../services/resourceCache";
 import { shouldHideQdnResource } from "../utils/qdnResourceFilters";
 import { mapPlaylistSummary } from "../utils/playlistHelpers";
-import { qdnClient } from "../state/api/client";
 
 const SONG_PREFIXES = ["enjoymusic_song_"] as const;
 const PLAYLIST_PREFIXES = ["enjoymusic_playlist_"] as const;
@@ -227,7 +226,8 @@ export const useFetchSongs = () => {
 
       try {
 
-        const responseData = await qdnClient.fetchResource({
+        const responseData = await qortalRequest({
+          action: 'FETCH_QDN_RESOURCE',
           name: user,
           service: 'PLAYLIST',
           identifier: playlistId

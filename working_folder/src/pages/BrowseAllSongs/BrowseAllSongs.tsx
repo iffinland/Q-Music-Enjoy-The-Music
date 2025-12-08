@@ -4,7 +4,7 @@ import Header from "../../components/Header";
 import SongItem from "../../components/SongItem";
 import useOnPlay from "../../hooks/useOnPlay";
 import { SongMeta } from "../../state/features/globalSlice";
-import Spinner from "../../components/common/Spinner";
+import { CircularProgress } from "@mui/material";
 import { cachedSearchQdnResources } from "../../services/resourceCache";
 import { shouldHideQdnResource } from "../../utils/qdnResourceFilters";
 import SortControls from "../../components/common/SortControls";
@@ -400,7 +400,7 @@ const BrowseAllSongs: React.FC = () => {
         )}
         {isLoading ? (
           <div className="flex justify-center py-10">
-            <Spinner />
+            <CircularProgress />
           </div>
         ) : error ? (
           <div className="flex justify-center py-8">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useInView } from 'react-intersection-observer'
-import Spinner from './Spinner'
+import CircularProgress from '@mui/material/CircularProgress'
 
 interface Props {
   onLoadMore: () => Promise<void>
@@ -39,7 +39,7 @@ const LazyLoad: React.FC<Props> = ({ onLoadMore }) => {
           visibility: isFetching ? 'visible' : 'hidden'
         }}
       >
-        <Spinner />
+        <CircularProgress />
       </div>
     </div>
   )

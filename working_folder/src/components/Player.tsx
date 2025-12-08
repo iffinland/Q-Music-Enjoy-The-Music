@@ -10,10 +10,11 @@ import {
   type SetStateAction,
 } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
+import useSound from 'use-sound';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import Spinner from './common/Spinner';
+import CircularProgress from '@mui/material/CircularProgress';
 import { AiFillStepBackward, AiFillStepForward, AiOutlineRetweet } from 'react-icons/ai';
 import { BsPauseFill, BsPlayFill } from 'react-icons/bs';
 import { FiDownload, FiEdit2, FiInfo, FiMaximize2, FiMinimize2, FiShuffle, FiThumbsUp, FiX } from 'react-icons/fi';
@@ -35,16 +36,9 @@ import {
   setCurrentPlaylist,
   setCurrentSong,
   setNowPlayingPlaylist,
+  setVolumePlayer,
   upsertNowPlayingPlaylist,
 } from '../state/features/globalSlice';
-import { engine } from '../playback/engine';
-import {
-  setActive,
-  setDuration as setDurationAction,
-  setPosition,
-  setStatus,
-  setVolume,
-} from '../state/slices/playerSlice';
 import { Song } from '../types';
 import { MyContext } from '../wrappers/DownloadWrapper';
 import { getQdnResourceUrl } from '../utils/qortalApi';
@@ -54,7 +48,6 @@ import useSendTipModal from '../hooks/useSendTipModal';
 import useUploadModal from '../hooks/useUploadModal';
 import useCoverImage from '../hooks/useCoverImage';
 import { fetchSongLikeCount, hasUserLikedSong, likeSong, unlikeSong } from '../services/songLikes';
-import { qdnClient } from '../state/api/client';
 
 interface DownloadStatus {
   status?: string;
@@ -646,7 +639,7 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   const repeatSequence: RepeatMode[] = ['off', 'all', 'one'];
   const dispatch = useDispatch();
   const { downloadVideo } = useContext(MyContext);
-  const volume = useSelector((state: RootState) => state.player.volume);
+  const volume = useSelector((state: RootState) => state.global.volume);
   const nowPlayingPlaylist = useSelector((state: RootState) => state.global.nowPlayingPlaylist);
   const favoriteList = useSelector((state: RootState) => state.global.favoriteList);
   const currentPlaylist = useSelector((state: RootState) => state.global.currentPlaylist);
@@ -668,7 +661,7 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDurationState] = useState(0);
+  const [duration, setDuration] = useState(0);
 
   const previousVolumeRef = useRef(volume || 0.75);
 
@@ -678,21 +671,21 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
     }
   }, [volume]);
 
-  const updateVolume = useCallback(
+  const setVolume = useCallback(
     (value: number) => {
-      dispatch(setVolume(clamp(value)));
+      dispatch(setVolumePlayer(clamp(value)));
     },
     [dispatch],
   );
 
   const toggleMute = useCallback(() => {
     if (volume === 0) {
-      updateVolume(previousVolumeRef.current || 0.75);
+      setVolume(previousVolumeRef.current || 0.75);
     } else {
       previousVolumeRef.current = volume;
-      updateVolume(0);
+      setVolume(0);
     }
-  }, [updateVolume, volume]);
+  }, [setVolume, volume]);
 
   const resolveIdentifier = useCallback(
     (entry?: { id?: string; identifier?: string }) => entry?.id ?? entry?.identifier,
@@ -844,95 +837,56 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
     ],
   );
 
-  useEffect(() => {
-    dispatch(setActive(song.id ?? null));
-    return () => {
-      dispatch(setActive(null));
-    };
-  }, [dispatch, song.id]);
-
-  useEffect(() => {
-    if (!songUrl) {
-      engine.setSrc(null);
-      setIsLoaded(false);
-      setIsPlaying(false);
-      dispatch(setStatus('loading'));
-      dispatch(setPosition(0));
-      dispatch(setDurationAction(0));
-      dispatch(setActive(song.id ?? null));
-      return;
-    }
-    dispatch(setStatus('loading'));
-    dispatch(setActive(song.id ?? null));
-    engine.setSrc(songUrl);
-    const handlePlay = () => {
+  const [play, { pause, sound }] = useSound(songUrl || '', {
+    html5: true,
+    preload: 'metadata',
+    volume,
+    format: ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac', 'webm'],
+    onplay: () => {
       setIsLoaded(true);
       setIsPlaying(true);
       onPlaybackStateChange(true);
-      dispatch(setStatus('playing'));
-    };
-    const handlePause = () => {
+    },
+    onend: () => {
       setIsPlaying(false);
       onPlaybackStateChange(false);
-      dispatch(setStatus('paused'));
-    };
-    const handleEnded = () => {
-      setIsPlaying(false);
-      onPlaybackStateChange(false);
-      dispatch(setStatus('idle'));
       if (repeatMode === 'one') {
-        void engine.play();
+        sound?.seek(0);
+        play();
         return;
       }
       void handlePlaylistNavigation('next');
-    };
-    const handleTime = (current: number, dur: number) => {
-      setCurrentTime(current);
-      setDurationState(dur);
-      dispatch(setPosition(current));
-      dispatch(setDurationAction(dur));
-    };
-    const handleError = (err: unknown) => {
-      console.error('Player error', err);
+    },
+    onpause: () => {
+      setIsPlaying(false);
+      onPlaybackStateChange(false);
+    },
+    onload: () => {
+      const total = sound?.duration() ?? 0;
+      setDuration(total);
+    },
+    onloaderror: (_: string, error: Error) => {
+      console.error('Player load error', error);
       setIsLoaded(false);
       setIsPlaying(false);
       onPlaybackStateChange(false);
-      dispatch(setStatus('error'));
-      toast.error('Playback failed.');
-    };
-    engine.on('play', handlePlay);
-    engine.on('pause', handlePause);
-    engine.on('ended', handleEnded);
-    engine.on('timeupdate', handleTime);
-    engine.on('error', handleError);
-    return () => {
-      engine.off('play', handlePlay);
-      engine.off('pause', handlePause);
-      engine.off('ended', handleEnded);
-      engine.off('timeupdate', handleTime);
-      engine.off('error', handleError);
-    };
-  }, [
-    dispatch,
-    handlePlaylistNavigation,
-    onPlaybackStateChange,
-    repeatMode,
-    song.id,
-    songUrl,
-  ]);
-
-  useEffect(() => {
-    engine.setVolume(volume);
-  }, [volume]);
+      toast.error('Heli laadimine ebaõnnestus.');
+    },
+    onplayerror: (_: string, error: Error) => {
+      console.error('Player play error', error);
+      setIsLoaded(false);
+      setIsPlaying(false);
+      onPlaybackStateChange(false);
+      toast.error('Heli esitamine ebaõnnestus. Proovi uuesti.');
+    },
+  });
 
   useEffect(() => {
     setIsLoaded(false);
     setIsPlaying(false);
     onPlaybackStateChange(false);
     setCurrentTime(0);
-    dispatch(setPosition(0));
-    dispatch(setDurationAction(0));
-  }, [dispatch, song.id, onPlaybackStateChange]);
+  }, [song.id, onPlaybackStateChange]);
 
   useEffect(() => {
     if (!isShuffleEnabled) return;
@@ -941,14 +895,37 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   }, [buildShuffleOrder, getActivePlaylistEntries, isShuffleEnabled]);
 
   useEffect(() => {
-    if (!autoPlay) return;
-    void engine.play();
+    if (!sound || !autoPlay) return undefined;
+
+    sound.play();
+
     return () => {
-      engine.pause();
+      sound.stop();
       setIsPlaying(false);
       onPlaybackStateChange(false);
     };
-  }, [autoPlay, onPlaybackStateChange]);
+  }, [autoPlay, onPlaybackStateChange, sound]);
+
+  useEffect(() => () => {
+    sound?.unload();
+  }, [sound]);
+
+  useEffect(() => {
+    if (!sound) return undefined;
+
+    const interval = setInterval(() => {
+      const seek = sound.seek() as number;
+      if (Number.isFinite(seek)) {
+        setCurrentTime(seek);
+      }
+      const totalDuration = sound.duration();
+      if (Number.isFinite(totalDuration)) {
+        setDuration(totalDuration);
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [sound]);
 
   useEffect(() => {
     dispatch(upsertNowPlayingPlaylist([song]));
@@ -956,12 +933,13 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
 
   const handlePlayPause = useCallback(() => {
     if (!isLoaded) return;
+
     if (isPlaying) {
-      engine.pause();
+      pause();
     } else {
-      void engine.play();
+      play();
     }
-  }, [isLoaded, isPlaying]);
+  }, [isLoaded, isPlaying, pause, play]);
 
   useEffect(() => {
     if (repeatMode === 'off') {
@@ -971,13 +949,13 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
 
   const handleProgressChange = useCallback(
     (value: number) => {
-      if (duration <= 0) return;
+      if (!sound || duration <= 0) return;
 
       const newTime = clamp(value) * duration;
-      engine.seek(newTime);
+      sound.seek(newTime);
       setCurrentTime(newTime);
     },
-    [duration],
+    [duration, sound],
   );
 
   const progress = duration > 0 ? clamp(currentTime / duration) : 0;
@@ -1002,9 +980,9 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
 
     onRegisterControls({
       play: () => {
-        void engine.play();
+        play();
       },
-      pause: () => engine.pause(),
+      pause,
       togglePlayPause: () => {
         handlePlayPause();
       },
@@ -1023,6 +1001,8 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
     isLoaded,
     isPlaying,
     onRegisterControls,
+    pause,
+    play,
   ]);
 
   return (
@@ -1108,7 +1088,7 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
                   <BsPlayFill size={22} />
                 )
               ) : (
-                <Spinner size={22} />
+                <CircularProgress size={22} />
               )}
             </button>
             <button
@@ -1123,7 +1103,7 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
           </div>
           <VolumeControl
             volume={volume}
-            onVolumeChange={updateVolume}
+            onVolumeChange={setVolume}
             onToggleMute={toggleMute}
             className="order-3 w-full md:order-3 md:ml-auto md:w-auto md:flex-shrink-0"
           />
@@ -1441,31 +1421,8 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
 };
 
 const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded, onProgressChange }) => {
-  const volume = useSelector((state: RootState) => state.player.volume);
+  const volume = useSelector((state: RootState) => state.global.volume);
   const dispatch = useDispatch();
-  const previousVolumeRef = useRef(volume || 0.75);
-
-  useEffect(() => {
-    if (volume > 0) {
-      previousVolumeRef.current = volume;
-    }
-  }, [volume]);
-
-  const updateVolume = useCallback(
-    (value: number) => {
-      dispatch(setVolume(clamp(value)));
-    },
-    [dispatch],
-  );
-
-  const toggleMute = useCallback(() => {
-    if (volume === 0) {
-      updateVolume(previousVolumeRef.current || 0.75);
-    } else {
-      previousVolumeRef.current = volume;
-      updateVolume(0);
-    }
-  }, [updateVolume, volume]);
 
   const details = useSongDetails(song);
   const {
@@ -1477,6 +1434,17 @@ const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded, onPr
     isOwner,
   } = useSongActions(song);
   const { songLikeCount, hasSongLike, isProcessingLike, handleToggleSongLike } = useSongLikeState(song);
+
+  const setVolume = useCallback(
+    (value: number) => {
+      dispatch(setVolumePlayer(clamp(value)));
+    },
+    [dispatch],
+  );
+
+  const toggleMute = useCallback(() => {
+    dispatch(setVolumePlayer(volume === 0 ? 0.75 : 0));
+  }, [dispatch, volume]);
 
   const favoriteSongData: Song = {
     id: song.id,
@@ -1517,12 +1485,12 @@ const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded, onPr
             }
           />
           <div className="order-2 flex items-center gap-2 text-sky-200/70 md:order-3">
-            <Spinner size={18} />
+            <CircularProgress size={18} />
             <span className="text-[11px] font-semibold uppercase tracking-wide">Loading</span>
           </div>
           <VolumeControl
             volume={volume}
-            onVolumeChange={updateVolume}
+            onVolumeChange={setVolume}
             onToggleMute={toggleMute}
             className="order-3 w-full md:order-3 md:ml-auto md:w-auto md:flex-shrink-0"
           />
@@ -1538,7 +1506,7 @@ const PlayerLoading: React.FC<PlayerLoadingProps> = ({ song, percentLoaded, onPr
       </div>
       <div className="rounded-lg border border-sky-900/40 bg-sky-950/30 p-3 text-sky-200/80">
         <div className="flex items-center gap-2">
-          <Spinner size={20} />
+          <CircularProgress size={20} />
           <p className="text-xs font-semibold uppercase tracking-wide">
             Preparing audio… {Math.max(0, percentLoaded)}%
           </p>
@@ -1555,7 +1523,7 @@ const Player = () => {
   const downloads = useSelector(
     (state: RootState) => state.global.downloads as Record<string, DownloadEntry>,
   );
-  const volume = useSelector((state: RootState) => state.player.volume);
+  const volume = useSelector((state: RootState) => state.global.volume);
   const shuffleOrderRef = useRef<string[]>([]);
   const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
@@ -1607,7 +1575,8 @@ const Player = () => {
 
   const refetch = useCallback(async ({ name, service, identifier }: ResourceIdentifier) => {
     try {
-      await qdnClient.getResourceProperties({
+      await qortalRequest({
+        action: 'GET_QDN_RESOURCE_PROPERTIES',
         name,
         service,
         identifier,
@@ -1642,7 +1611,7 @@ const Player = () => {
 
   const handleVolumeChangeCollapsed = useCallback(
     (value: number) => {
-      dispatch(setVolume(clamp(value)));
+      dispatch(setVolumePlayer(clamp(value)));
     },
     [dispatch],
   );
@@ -1660,10 +1629,6 @@ const Player = () => {
     dispatch(setCurrentSong(null));
     dispatch(setCurrentPlaylist('nowPlayingPlaylist'));
     dispatch(setNowPlayingPlaylist([]));
-    dispatch(setActive(null));
-    dispatch(setStatus('idle'));
-    dispatch(setPosition(0));
-    dispatch(setDurationAction(0));
     shuffleOrderRef.current = [];
     setIsShuffleEnabled(false);
     setRepeatMode('off');
@@ -1752,7 +1717,7 @@ const Player = () => {
           }
           onNext={externalControls ? () => externalControls.next() : undefined}
           onPrevious={externalControls ? () => externalControls.previous() : undefined}
-          onToggleMute={() => dispatch(setVolume(volume === 0 ? 0.75 : 0))}
+          onToggleMute={() => dispatch(setVolumePlayer(volume === 0 ? 0.75 : 0))}
           isMuted={volume === 0}
           volume={volume}
           onVolumeChange={handleVolumeChangeCollapsed}

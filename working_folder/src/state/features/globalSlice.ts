@@ -46,6 +46,7 @@ interface StatisticsData {
   qmusicPlaylists: number
   totalPodcasts: number
   totalAudiobooks: number
+  musicVideos: number
   totalPublishers: number
   openRequests: number
   filledRequests: number

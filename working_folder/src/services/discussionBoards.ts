@@ -7,7 +7,6 @@ import {
 import { deleteQdnResource } from '../utils/qortalApi';
 import { objectToBase64 } from '../utils/toBase64';
 import { cachedSearchQdnResources, clearSearchCache } from './resourceCache';
-import { qdnClient } from '../state/api/client';
 
 const THREAD_IDENTIFIER_PREFIX = 'qm_discussion_thread_';
 const REPLY_IDENTIFIER_PREFIX = 'qm_discussion_reply_';
@@ -20,7 +19,8 @@ const generateId = () => `${Date.now().toString(36)}${Math.random().toString(36)
 
 const fetchQdnJson = async (name: string, identifier: string) => {
   try {
-    const payload = await qdnClient.fetchResource({
+    const payload = await qortalRequest({
+      action: 'FETCH_QDN_RESOURCE',
       name,
       service: THREAD_SERVICE,
       identifier,
@@ -188,7 +188,8 @@ const publishDocument = async (
 ) => {
   const data64 = await objectToBase64(payload);
 
-  await qdnClient.publishResource({
+  await qortalRequest({
+    action: 'PUBLISH_QDN_RESOURCE',
     name,
     service: THREAD_SERVICE,
     identifier,

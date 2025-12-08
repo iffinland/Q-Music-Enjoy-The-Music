@@ -5,10 +5,6 @@ import Modal from './Modal';
 import Input from './Input';
 import Button from './Button';
 import useSendTipModal from '../hooks/useSendTipModal';
-import {
-  useLazyGetWalletBalanceQuery,
-  useSendTipMutation
-} from '../state/api/endpoints';
 
 const DEFAULT_AMOUNT = '5';
 const ADJUST_STEP = 1;
@@ -72,10 +68,10 @@ const SendTipModal: React.FC = () => {
     onSuccess,
     close,
   } = useSendTipModal();
-  const [fetchWalletBalance, { isFetching: isBalanceLoading }] = useLazyGetWalletBalanceQuery();
-  const [sendTip, { isLoading: isSubmitting }] = useSendTipMutation();
   const [amount, setAmount] = useState<string>(DEFAULT_AMOUNT);
   const [balance, setBalance] = useState<number | null>(null);
+  const [isBalanceLoading, setIsBalanceLoading] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const successTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -91,6 +87,8 @@ const SendTipModal: React.FC = () => {
     if (!isOpen) {
       setAmount(DEFAULT_AMOUNT);
       setBalance(null);
+      setIsBalanceLoading(false);
+      setIsSubmitting(false);
       if (successTimeoutRef.current) {
         window.clearTimeout(successTimeoutRef.current);
         successTimeoutRef.current = null;
@@ -107,8 +105,12 @@ const SendTipModal: React.FC = () => {
     let isCancelled = false;
 
     const fetchBalance = async () => {
+      setIsBalanceLoading(true);
       try {
-        const response = await fetchWalletBalance({ coin: 'QORT' }).unwrap();
+        const response = await qortalRequest({
+          action: 'GET_WALLET_BALANCE',
+          coin: 'QORT',
+        });
         if (isCancelled) return;
 
         const parsedBalance = extractBalance(response);
@@ -119,6 +121,10 @@ const SendTipModal: React.FC = () => {
           setBalance(null);
           toast.error('Could not load your QORT balance.');
         }
+      } finally {
+        if (!isCancelled) {
+          setIsBalanceLoading(false);
+        }
       }
     };
 
@@ -127,7 +133,7 @@ const SendTipModal: React.FC = () => {
     return () => {
       isCancelled = true;
     };
-  }, [fetchWalletBalance, isOpen, presetAmount]);
+  }, [isOpen, presetAmount]);
 
   const handleClose = () => {
     if (successTimeoutRef.current) {
@@ -166,11 +172,13 @@ const SendTipModal: React.FC = () => {
     }
 
     try {
-      await sendTip({
-        recipient,
+      setIsSubmitting(true);
+      await qortalRequest({
+        action: 'SEND_COIN',
         coin: 'QORT',
+        recipient,
         amount: numericAmount,
-      }).unwrap();
+      });
 
       if (onSuccess) {
         try {
@@ -190,6 +198,8 @@ const SendTipModal: React.FC = () => {
     } catch (error) {
       console.error('Failed to send tip', error);
       toast.error('Could not send the tip. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

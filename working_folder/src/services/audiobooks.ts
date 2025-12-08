@@ -3,7 +3,6 @@ import { fetchQdnResource, getQdnResourceUrl, getQdnResourceStatus } from '../ut
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { objectToBase64 } from '../utils/toBase64';
 import { cachedSearchQdnResources } from './resourceCache';
-import { qdnClient } from '../state/api/client';
 
 const AUDIOBOOK_IDENTIFIER_PREFIX = 'enjoymusic_audiobooks_';
 const FETCH_LIMIT = 25;
@@ -245,7 +244,8 @@ export const deleteAudiobookResources = async (publisher: string, identifier: st
     },
   ];
 
-  await qdnClient.publishResource({
+  await qortalRequest({
+    action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
     resources,
   });
 };

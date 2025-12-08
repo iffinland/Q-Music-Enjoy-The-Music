@@ -4,7 +4,6 @@ import { RootState } from '../state/store';
 import { setImageCoverHash } from '../state/features/globalSlice';
 import { queueFetchAvatars } from '../wrappers/GlobalWrapper';
 import { coverImageCacheKey, NOT_FOUND_MARKER } from '../utils/coverImage';
-import { qdnClient } from '../state/api/client';
 
 type CoverStatus = 'idle' | 'loading' | 'ready' | 'missing';
 
@@ -61,7 +60,8 @@ export const useCoverImage = (options: CoverOptions): CoverResult => {
 
     await queueFetchAvatars.push(async () => {
       try {
-        const url = await qdnClient.getResourceUrl({
+        const url = await qortalRequest({
+          action: 'GET_QDN_RESOURCE_URL',
           name: publisher,
           service,
           identifier,

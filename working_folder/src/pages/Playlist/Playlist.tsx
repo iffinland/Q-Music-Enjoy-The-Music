@@ -21,6 +21,7 @@ import {
 import { FiPlay, FiEdit2, FiList, FiChevronUp, FiChevronDown, FiThumbsUp } from 'react-icons/fi';
 import { AiFillHeart, AiOutlineHeart } from 'react-icons/ai';
 import { MyContext } from '../../wrappers/DownloadWrapper';
+import localforage from 'localforage';
 import likeImg from '../../assets/img/like-button.png';
 import Box from '../../components/Box';
 import { getQdnResourceUrl } from '../../utils/qortalApi';
@@ -39,10 +40,13 @@ import useSendTipModal from '../../hooks/useSendTipModal';
 import { LuCopy } from 'react-icons/lu';
 import { RiHandCoinLine } from 'react-icons/ri';
 import { fetchPlaylistLikeCount, hasUserLikedPlaylist, likePlaylist, unlikePlaylist } from '../../services/playlistLikes';
-import { qdnClient } from '../../state/api/client';
-import { readJson, writeJson } from '../../utils/storage';
 
-const PLAYLIST_FAVORITES_KEY = 'ear-bump-favorites:favoritesPlaylist';
+// Provided by the Qortal runtime
+declare const qortalRequest: (payload: any) => Promise<any>;
+
+const favoritesStorage = localforage.createInstance({
+  name: 'ear-bump-favorites'
+})
 
 const sanitizeFavoritesList = (entries: PlayList[] | null | undefined): PlayList[] => {
   if (!Array.isArray(entries)) return [];
@@ -97,12 +101,27 @@ export const Playlist = () => {
         identifier: playlistId,
       });
 
+      // const responseDataSearch = await qortalRequest({
+      //   action: "SEARCH_QDN_RESOURCES",
+      //   mode: "ALL",
+      //   service: "DOCUMENT",
+      //   query: "bteon_vid_",
+      //   limit: 1,
+      //   offset: 0,
+      //   includeMetadata: true,
+      //   reverse: true,
+      //   excludeBlocked: true,
+      //   exactMatchNames: true,
+      //   name: name,
+      //   identifier: id
+      // })
       if (responseDataSearch?.length > 0) {
         const resourceEntry = responseDataSearch.find((entry: any) => !shouldHideQdnResource(entry));
         if (!resourceEntry) return;
         const resourceData = mapPlaylistSummary(resourceEntry);
       
-        const responseData = await qdnClient.fetchResource({
+        const responseData = await qortalRequest({
+          action: 'FETCH_QDN_RESOURCE',
           name: name,
           service: 'PLAYLIST',
           identifier: playlistId
@@ -239,7 +258,8 @@ export const Playlist = () => {
           image: playListData.image ?? null,
         };
         const playlistData64 = await objectToBase64(playlistPayload);
-        await qdnClient.publishResource({
+        await qortalRequest({
+          action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
           resources: [
             {
               name: playListData.user || username,
@@ -445,26 +465,26 @@ export const Playlist = () => {
       const alreadyFavorite =  !!favoritesPlaylist?.find((play)=> play?.id === playlistId)
       if(alreadyFavorite){
         dispatch(removeFavPlaylist(playListData))
-
+  
         const favoritesObj = sanitizeFavoritesList(
-          await readJson<PlayList[]>(PLAYLIST_FAVORITES_KEY),
+          await favoritesStorage.getItem<PlayList[]>('favoritesPlaylist'),
         )
 
         if(favoritesObj.length){
           const newFavs = favoritesObj.filter((fav)=> fav.id !== playlistId)
-          await writeJson(PLAYLIST_FAVORITES_KEY, newFavs)
+          await favoritesStorage.setItem('favoritesPlaylist', newFavs)
       } 
       
     }else {
         dispatch(setFavPlaylist(playListData))
 
         const favoritesObj = sanitizeFavoritesList(
-          await readJson<PlayList[]>(PLAYLIST_FAVORITES_KEY),
+          await favoritesStorage.getItem<PlayList[]>('favoritesPlaylist'),
         )
         if (playListData?.id) {
           const filtered = favoritesObj.filter((fav)=> fav.id !== playlistId)
           const newObj: PlayList[] =   [playListData, ...filtered]
-          await writeJson(PLAYLIST_FAVORITES_KEY, newObj)
+          await favoritesStorage.setItem('favoritesPlaylist', newObj)
         }
       }
   
