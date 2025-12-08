@@ -10,7 +10,7 @@ type ResourceSummaryResult = {
 
 type ResourcePrefixConfig = {
   key: string;
-  service: 'AUDIO' | 'PLAYLIST' | 'DOCUMENT' | 'VIDEO';
+  service: 'AUDIO' | 'PLAYLIST' | 'DOCUMENT';
 };
 
 const TRACKED_AUDIO_SERIES_PREFIXES = ['enjoymusic'];
@@ -20,13 +20,12 @@ const RESOURCE_PREFIXES: ResourcePrefixConfig[] = [
   { key: 'enjoymusic_playlist', service: 'PLAYLIST' },
   { key: 'enjoymusic_podcast', service: 'AUDIO' },
   { key: 'enjoymusic_audiobooks', service: 'AUDIO' },
-  { key: 'enjoymusic_video', service: 'VIDEO' },
 ];
 
 const PAGE_SIZE = 200;
 
 const fetchResourceSummary = async (
-  service: 'AUDIO' | 'PLAYLIST' | 'DOCUMENT' | 'VIDEO',
+  service: 'AUDIO' | 'PLAYLIST' | 'DOCUMENT',
   prefix: string,
 ): Promise<ResourceSummaryResult> => {
   let offset = 0;
@@ -91,7 +90,6 @@ export interface StatisticsSnapshot {
   qmusicPlaylists: number;
   totalPodcasts: number;
   totalAudiobooks: number;
-  musicVideos: number;
   totalPublishers: number;
   openRequests: number;
   filledRequests: number;
@@ -113,7 +111,6 @@ export const fetchStatisticsSnapshot = async (): Promise<StatisticsSnapshot> => 
   const qmusicAudiobooks = prefixResults.get('enjoymusic_audiobooks')?.count ?? 0;
   const totalPodcasts = qmusicPodcasts;
   const totalAudiobooks = qmusicAudiobooks;
-  const musicVideos = prefixResults.get('enjoymusic_video')?.count ?? 0;
 
   const publisherSet = new Set<string>();
   prefixResults.forEach((result) => {
@@ -139,7 +136,6 @@ export const fetchStatisticsSnapshot = async (): Promise<StatisticsSnapshot> => 
     qmusicPlaylists,
     totalPodcasts,
     totalAudiobooks,
-    musicVideos,
     totalPublishers: publisherSet.size,
     openRequests,
     filledRequests,

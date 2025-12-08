@@ -7,7 +7,7 @@ export interface Song {
   name: string;
   service?: string;
   status?: Status
-  mediaType?: 'SONG' | 'PODCAST' | 'AUDIOBOOK' | 'VIDEO' | string;
+  mediaType?: 'SONG' | 'PODCAST' | 'AUDIOBOOK' | string;
 }
 
 export interface Product {
@@ -38,25 +38,3 @@ export interface Podcast {
 }
 
 export type Audiobook = Podcast;
-
-export interface Video {
-  id: string;
-  title: string;
-  description?: string;
-  created?: number;
-  updated?: number;
-  publisher: string;
-  status?: Status;
-  service: string;
-  size?: number;
-  type?: string;
-  coverImage?: string;
-  videoFilename?: string;
-  videoMimeType?: string;
-  durationSeconds?: number;
-  author?: string;
-  genre?: string;
-  mood?: string;
-  language?: string;
-  notes?: string;
-}

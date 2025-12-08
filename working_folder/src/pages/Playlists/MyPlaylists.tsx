@@ -5,13 +5,16 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import LazyLoad from "../../components/common/LazyLoad";
 import { PlayListsContent } from "../../components/PlaylistsContent";
 import LibraryPlaylistActions from "../../components/library/LibraryPlaylistActions";
 import { RootState } from "../../state/store";
 import { fetchPlaylistsByPublisher } from "../../services/playlists";
-import { PlayList } from "../../state/features/globalSlice";
+import {
+  PlayList,
+  addToPlaylistHashMap,
+} from "../../state/features/globalSlice";
 
 const PAGE_SIZE = 18;
 
@@ -29,6 +32,7 @@ type PlaylistRefreshDetail = {
 
 export const MyPlaylists = () => {
   const username = useSelector((state: RootState) => state.auth?.user?.name);
+  const dispatch = useDispatch();
   const [playlists, setPlaylists] = useState<PlayList[]>([]);
   const playlistsRef = useRef<PlayList[]>([]);
   const pendingOptimisticRef = useRef<Map<string, PlayList>>(new Map());
@@ -78,6 +82,9 @@ export const MyPlaylists = () => {
           offset,
           limit: PAGE_SIZE,
         });
+        result.items.forEach((playlist) => {
+          dispatch(addToPlaylistHashMap(playlist));
+        });
         setHasMore(result.hasMore);
         setPlaylists((prev) => {
           if (reset) {
@@ -111,7 +118,7 @@ export const MyPlaylists = () => {
         }
       }
     },
-    [username, isLoadingMore, mergeWithPending]
+    [username, isLoadingMore, mergeWithPending, dispatch]
   );
 
   useEffect(() => {
@@ -155,6 +162,7 @@ export const MyPlaylists = () => {
 
       const playlistDetail = detail.playlist;
       if (playlistDetail) {
+        dispatch(addToPlaylistHashMap(playlistDetail));
         pendingOptimisticRef.current.set(playlistDetail.id, playlistDetail);
         setPlaylists((prev) => {
           const idx = prev.findIndex((entry) => entry.id === playlistDetail.id);
@@ -173,7 +181,7 @@ export const MyPlaylists = () => {
     return () => {
       window.removeEventListener("playlists:refresh", handleRefresh);
     };
-  }, [loadPlaylists]);
+  }, [dispatch, loadPlaylists]);
 
   if (!username) {
     return <Message label="Log in to view playlists you have published." />;

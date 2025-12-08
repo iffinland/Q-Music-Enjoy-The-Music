@@ -1,14 +1,10 @@
-
 import { useCallback, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { cachedSearchQdnResources } from '../services/resourceCache';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
-import { PlayList, SongMeta } from '../state/features/globalSlice';
+import { PlayList, SongMeta, setIsLoadingGlobal } from '../state/features/globalSlice';
 import { Podcast } from '../types';
-import { Video } from '../types';
 import { SongRequest } from '../state/features/requestsSlice';
-import { setIsLoadingGlobal } from '../state/features/globalSlice';
-import { buildVideoMeta } from '../services/videos';
 import {
   mapPlaylistSummary,
   resolvePlaylistCategory,
@@ -20,14 +16,12 @@ import {
 
 const SONG_PREFIX = 'enjoymusic_song_';
 const PLAYLIST_PREFIX_QMUSIC = 'enjoymusic_playlist_';
-const VIDEO_PREFIX = 'enjoymusic_video_';
 const PODCAST_PREFIX = 'enjoymusic_podcast_';
 const REQUEST_PREFIX = 'enjoymusic_request_';
 
 export interface SearchResults {
   songs: SongMeta[];
   playlists: PlayList[];
-  videos: Video[];
   podcasts: Podcast[];
   requests: SongRequest[];
 }
@@ -35,19 +29,17 @@ export interface SearchResults {
 export const useSearch = () => {
   const dispatch = useDispatch();
   const [error, setError] = useState<string | null>(null);
-  // simple request versioning to avoid stale updates
   const requestVersionRef = (typeof window !== 'undefined' ? (window as any) : {}) as { _: any };
   if (!requestVersionRef._) requestVersionRef._ = {};
   const versionKey = 'useSearchVersion';
 
   const search = useCallback(async (searchTerm: string): Promise<SearchResults> => {
-    // bump version for each invocation
     requestVersionRef._[versionKey] = (requestVersionRef._[versionKey] || 0) + 1;
     const currentVersion = requestVersionRef._[versionKey];
     const normalized = searchTerm.trim();
     if (!normalized) {
       dispatch(setIsLoadingGlobal(false));
-      return { songs: [], playlists: [], videos: [], podcasts: [], requests: [] };
+      return { songs: [], playlists: [], podcasts: [], requests: [] };
     }
 
     dispatch(setIsLoadingGlobal(true));
@@ -107,26 +99,16 @@ export const useSearch = () => {
     };
 
     try {
-      const [
-        songResults,
-        playlistResultsQmusic,
-        videoDocumentResults,
-        videoBinaryResults,
-        podcastResults,
-        requestResults,
-      ] = await Promise.all([
+      const [songResults, playlistResultsQmusic, podcastResults, requestResults] = await Promise.all([
         searchWithPrefix('AUDIO', SONG_PREFIX),
         searchWithPrefix('PLAYLIST', PLAYLIST_PREFIX_QMUSIC),
-        searchWithPrefix('DOCUMENT', VIDEO_PREFIX),
-        searchWithPrefix('VIDEO', VIDEO_PREFIX),
         searchWithPrefix('DOCUMENT', PODCAST_PREFIX),
         searchWithPrefix('DOCUMENT', REQUEST_PREFIX),
       ]);
 
-      // if a newer search started, abandon mapping work
       if (currentVersion !== requestVersionRef._[versionKey]) {
         dispatch(setIsLoadingGlobal(false));
-        return { songs: [], playlists: [], videos: [], podcasts: [], requests: [] };
+        return { songs: [], playlists: [], podcasts: [], requests: [] };
       }
 
       const songs = songResults
@@ -169,32 +151,6 @@ export const useSearch = () => {
         })
         .map((playlist: any): PlayList => mapPlaylistSummary(playlist));
 
-      const rawVideos = [...videoDocumentResults, ...videoBinaryResults];
-      const videoMap = new Map<string, Video>();
-      rawVideos.forEach((entry: any) => {
-        if (
-          !matchesQuery(
-            entry?.identifier,
-            entry?.name,
-            entry?.metadata?.title,
-            entry?.metadata?.description,
-          )
-        ) {
-          return;
-        }
-        const meta = buildVideoMeta(entry);
-        if (!meta) return;
-        const existing = videoMap.get(meta.id);
-        if (!existing) {
-          videoMap.set(meta.id, meta);
-          return;
-        }
-        if (!existing.title && meta.title) {
-          videoMap.set(meta.id, { ...existing, ...meta });
-        }
-      });
-      const videos = Array.from(videoMap.values());
-
       const podcasts = podcastResults
         .filter((podcast: any) =>
           matchesQuery(
@@ -206,17 +162,17 @@ export const useSearch = () => {
           ),
         )
         .map((podcast: any): Podcast => ({
-        id: podcast.identifier,
-        title: podcast?.metadata?.title,
-        description: podcast?.metadata?.description,
-        created: podcast.created,
-        updated: podcast.updated,
-        publisher: podcast.name,
-        status: podcast.status,
-        service: 'AUDIO',
-        size: podcast.size,
-        type: podcast.metadata?.type || podcast.mimeType || podcast.contentType,
-      }));
+          id: podcast.identifier,
+          title: podcast?.metadata?.title,
+          description: podcast?.metadata?.description,
+          created: podcast.created,
+          updated: podcast.updated,
+          publisher: podcast.name,
+          status: podcast.status,
+          service: 'AUDIO',
+          size: podcast.size,
+          type: podcast.metadata?.type || podcast.mimeType || podcast.contentType,
+        }));
 
       const requests = requestResults
         .filter((request: any) =>
@@ -229,26 +185,25 @@ export const useSearch = () => {
           ),
         )
         .map((request: any): SongRequest => ({
-        id: request.identifier,
-        title: request.metadata?.title,
-        artist: request.metadata?.artist,
-        publisher: request.name,
-        created: request.created,
-        updated: request.updated,
-        status: 'open',
-      }));
+          id: request.identifier,
+          title: request.metadata?.title,
+          artist: request.metadata?.artist,
+          publisher: request.name,
+          created: request.created,
+          updated: request.updated,
+          status: 'open',
+        }));
 
-      // if a newer search started during mapping, drop this result
       if (currentVersion !== requestVersionRef._[versionKey]) {
         dispatch(setIsLoadingGlobal(false));
-        return { songs: [], playlists: [], videos: [], podcasts: [], requests: [] };
+        return { songs: [], playlists, podcasts, requests: [] };
       }
 
       dispatch(setIsLoadingGlobal(false));
-      return { songs, playlists, videos, podcasts, requests };
+      return { songs, playlists, podcasts, requests };
     } catch (err) {
       setError('Failed to perform search. Please try again.');
-      return { songs: [], playlists: [], videos: [], podcasts: [], requests: [] };
+      return { songs: [], playlists: [], podcasts: [], requests: [] };
     }
   }, [dispatch]);
 

@@ -16,7 +16,7 @@ const SearchInput: React.FC<SearchInputProps> = ({ value, onChange, onEnter }) =
   
   return ( 
     <Input 
-      placeholder="Search for songs, artists, playlists, videos, podcasts, audiobooks, and more..."
+      placeholder="Search for songs, artists, playlists, podcasts, audiobooks, and more..."
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={handleInputKeyDown}

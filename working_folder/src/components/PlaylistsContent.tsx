@@ -16,14 +16,18 @@ interface PlaylistsContentProps {
 const ALL_CATEGORIES_VALUE = "ALL";
 const UNCATEGORIZED_LABEL = "Uncategorized";
 
+type PlaylistWithGenre = PlayList & { genre?: unknown };
+
 const getPlaylistTimestamp = (playlist: PlayList) => {
   const candidate = playlist.updated ?? playlist.created ?? 0;
   return typeof candidate === "number" ? candidate : 0;
 };
 
-const getPlaylistCategory = (playlist: PlayList): string | null => {
+const getPlaylistCategory = (playlist: PlaylistWithGenre): string | null => {
   const candidate =
-    playlist.categoryName || playlist.category || (playlist as any)?.genre || null;
+    playlist.categoryName ||
+    playlist.category ||
+    (typeof playlist.genre === "string" ? playlist.genre : null);
   if (!candidate || typeof candidate !== "string") return null;
   const trimmed = candidate.trim();
   return trimmed.length > 0 ? trimmed : null;

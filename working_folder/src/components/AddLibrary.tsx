@@ -29,7 +29,6 @@ export const AddLibrary: React.FC<LibraryProps> = ({
           <p className="text-sky-200/80 font-medium text-sm">Playlists: {formatStat(statsData?.qmusicPlaylists)}</p>
           <p className="text-sky-200/80 font-medium text-sm">Podcasts: {formatStat(statsData?.totalPodcasts)}</p>
           <p className="text-sky-200/80 font-medium text-sm">Audiobooks: {formatStat(statsData?.totalAudiobooks)}</p>
-          <p className="text-sky-200/80 font-medium text-sm">Music Videos: {formatStat(statsData?.musicVideos)}</p>
           <p className="text-sky-200/80 font-medium text-sm">Open Requests: {formatStat(statsData?.openRequests)}</p>
           <p className="text-sky-200/80 font-medium text-sm">Filled Requests: {formatStat(statsData?.filledRequests)}</p>
           <p className="text-sky-200/80 font-medium text-sm">Total Publishers: {formatStat(statsData?.totalPublishers)}</p>

@@ -95,16 +95,6 @@ export const buildAudiobookShareUrl = (name: string, identifier: string): string
   return `qortal://${base}//?${query}`;
 };
 
-export const buildVideoShareUrl = (name: string, identifier: string): string => {
-  const base = normalizeBase(getQdnBase());
-  const query = buildShareQuery({
-    type: 'video',
-    video: identifier,
-    videoPublisher: name,
-  });
-  return `qortal://${base}//?${query}`;
-};
-
 export const buildDiscussionShareUrl = (threadId: string, replyId?: string | null): string => {
   const base = normalizeBase(getQdnBase());
   const query = buildShareQuery(

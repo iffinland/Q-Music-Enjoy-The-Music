@@ -8,7 +8,6 @@ import HomeSongCard from '../../components/home/HomeSongCard';
 import HomePlaylistCard from '../../components/home/HomePlaylistCard';
 import HomePodcastCard from '../../components/home/HomePodcastCard';
 import HomeAudiobookCard from '../../components/home/HomeAudiobookCard';
-import HomeVideoCard from '../../components/home/HomeVideoCard';
 import qmusicLogo from '../../assets/img/qmusic.png';
 import { RootState } from '../../state/store';
 import {
@@ -80,7 +79,7 @@ const HomeHero = () => (
         </span>
       </h1>
       <p className="text-[0.65rem] leading-snug text-sky-200/80 md:max-w-xs md:text-[0.7rem] md:text-left">
-        Discover the latest community creations and keep your library fresh with new songs, playlists, podcasts, audiobooks and videos. Request your favorites & earn more QORTs.
+        Discover the latest community creations and keep your library fresh with new songs, playlists, podcasts and audiobooks. Request your favorites & earn more QORTs.
       </p>
     </div>
   </section>
@@ -97,42 +96,18 @@ export const Home = () => {
     playlistsLimit: 12,
     podcastsLimit: 8,
     audiobooksLimit: 8,
-    videosLimit: 8,
   });
 
   const songs = data?.songs ?? [];
   const playlists = data?.playlists ?? [];
   const podcasts = data?.podcasts ?? [];
   const audiobooks = data?.audiobooks ?? [];
-  const videos = data?.videos ?? [];
-  const filteredVideos = React.useMemo(
-    () =>
-      videos.filter((video) => {
-        if (!video) return false;
-        const identifier = (video.id || '').toLowerCase();
-        if (!identifier) return false;
-        if (identifier.startsWith('video_like_')) return false;
-
-        const normalizedTitle = (video.title || '').trim();
-        if (normalizedTitle.length === 0) return false;
-        if (/^like[:\s]/i.test(normalizedTitle)) return false;
-        if (/video\s+like\s+for/i.test(normalizedTitle)) return false;
-
-        const normalizedDescription = (video.description || '').toLowerCase();
-        if (normalizedDescription.includes('video like for')) return false;
-
-        return Boolean(video.publisher);
-      }),
-    [videos],
-  );
-
   const showSongSkeleton = isLoading && songs.length === 0;
   const showPlaylistSkeleton = isLoading && playlists.length === 0;
   const showPodcastSkeleton = isLoading && podcasts.length === 0;
   const showAudiobookSkeleton = isLoading && audiobooks.length === 0;
-  const showVideoSkeleton = isLoading && filteredVideos.length === 0;
 
-  const hasAnyData = songs.length + playlists.length + podcasts.length + audiobooks.length + videos.length > 0;
+  const hasAnyData = songs.length + playlists.length + podcasts.length + audiobooks.length > 0;
   const shouldShowError = !isLoading && error && !hasAnyData;
 
   React.useEffect(() => {
@@ -255,19 +230,6 @@ export const Home = () => {
           </HomeSection>
         )}
 
-        {(showVideoSkeleton || filteredVideos.length > 0) && (
-          <HomeSection title="Newest videos" viewAllTo="/videos" viewAllLabel="All Videos">
-            {showVideoSkeleton ? (
-              <SectionSkeleton variant="compact" />
-            ) : (
-              <HorizontalScroll>
-                {filteredVideos.map((video) => (
-                  <HomeVideoCard key={video.id} video={video} />
-                ))}
-              </HorizontalScroll>
-            )}
-          </HomeSection>
-        )}
       </div>
     </Box>
   );

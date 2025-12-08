@@ -16,7 +16,6 @@ import { getNamesByAddress, getQdnResourceUrl } from "../utils/qortalApi";
 import { resolveAudioUrl } from "../utils/resolveAudioUrl";
 import { MyContext } from "./DownloadWrapper";
 import { fetchSongByIdentifier } from "../services/songs";
-import { fetchVideoByIdentifier } from "../services/videos";
 import { fetchPodcastByIdentifier } from "../services/podcasts";
 import { fetchAudiobookByIdentifier } from "../services/audiobooks";
 import { useNavigate } from "react-router-dom";
@@ -282,23 +281,6 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
       } finally {
         cleanupParams(['audiobook', 'audiobookPublisher', 'type', 'autoplay']);
         navigate(`/audiobooks/${encodeURIComponent(audiobookPublisher)}/${encodeURIComponent(audiobookId)}`, {
-          replace: true,
-        });
-      }
-      return;
-    }
-
-    const videoId = params.get('video');
-    const videoPublisher = params.get('videoPublisher');
-    if (videoId && videoPublisher) {
-      autoPlayHandledRef.current = true;
-      try {
-        await fetchVideoByIdentifier(videoPublisher, videoId);
-      } catch (error) {
-        console.error('Failed to fetch video for shared link', error);
-      } finally {
-        cleanupParams(['video', 'videoPublisher', 'type', 'autoplay']);
-        navigate(`/videos/${encodeURIComponent(videoPublisher)}/${encodeURIComponent(videoId)}`, {
           replace: true,
         });
       }
