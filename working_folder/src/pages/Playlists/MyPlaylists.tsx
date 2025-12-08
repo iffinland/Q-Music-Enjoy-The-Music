@@ -1,11 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSelector } from 'react-redux';
-import LazyLoad from '../../components/common/LazyLoad';
-import { PlayListsContent } from '../../components/PlaylistsContent';
-import LibraryPlaylistActions from '../../components/library/LibraryPlaylistActions';
-import { RootState } from '../../state/store';
-import { fetchPlaylistsByPublisher } from '../../services/playlists';
-import { PlayList } from '../../state/features/globalSlice';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useSelector } from "react-redux";
+import LazyLoad from "../../components/common/LazyLoad";
+import { PlayListsContent } from "../../components/PlaylistsContent";
+import LibraryPlaylistActions from "../../components/library/LibraryPlaylistActions";
+import { RootState } from "../../state/store";
+import { fetchPlaylistsByPublisher } from "../../services/playlists";
+import { PlayList } from "../../state/features/globalSlice";
 
 const PAGE_SIZE = 18;
 
@@ -18,7 +24,7 @@ const Message: React.FC<{ label: string }> = ({ label }) => (
 type PlaylistRefreshDetail = {
   playlist?: PlayList;
   playlistId?: string;
-  mode?: 'create' | 'edit' | 'delete';
+  mode?: "create" | "edit" | "delete";
 };
 
 export const MyPlaylists = () => {
@@ -35,23 +41,20 @@ export const MyPlaylists = () => {
     playlistsRef.current = playlists;
   }, [playlists]);
 
-  const mergeWithPending = useCallback(
-    (items: PlayList[]): PlayList[] => {
-      if (pendingOptimisticRef.current.size === 0) return items;
-      const merged = [...items];
-      pendingOptimisticRef.current.forEach((pending, id) => {
-        const idx = merged.findIndex((entry) => entry.id === id);
-        if (idx !== -1) {
-          merged[idx] = { ...merged[idx], ...pending };
-          pendingOptimisticRef.current.delete(id);
-        } else {
-          merged.unshift(pending);
-        }
-      });
-      return merged;
-    },
-    [],
-  );
+  const mergeWithPending = useCallback((items: PlayList[]): PlayList[] => {
+    if (pendingOptimisticRef.current.size === 0) return items;
+    const merged = [...items];
+    pendingOptimisticRef.current.forEach((pending, id) => {
+      const idx = merged.findIndex((entry) => entry.id === id);
+      if (idx !== -1) {
+        merged[idx] = { ...merged[idx], ...pending };
+        pendingOptimisticRef.current.delete(id);
+      } else {
+        merged.unshift(pending);
+      }
+    });
+    return merged;
+  }, []);
 
   const loadPlaylists = useCallback(
     async (options: { reset?: boolean; showSpinner?: boolean } = {}) => {
@@ -92,8 +95,8 @@ export const MyPlaylists = () => {
           return mergeWithPending(merged);
         });
       } catch (err) {
-        console.error('Failed to load playlists for user', err);
-        setError('Unable to load your playlists. Please try again.');
+        console.error("Failed to load playlists for user", err);
+        setError("Unable to load your playlists. Please try again.");
         if (reset) {
           setPlaylists([]);
           setHasMore(false);
@@ -108,7 +111,7 @@ export const MyPlaylists = () => {
         }
       }
     },
-    [username, isLoadingMore, mergeWithPending],
+    [username, isLoadingMore, mergeWithPending]
   );
 
   useEffect(() => {
@@ -130,7 +133,7 @@ export const MyPlaylists = () => {
 
   const showEmptyState = useMemo(
     () => !isInitialLoading && playlists.length === 0 && !error,
-    [isInitialLoading, playlists.length, error],
+    [isInitialLoading, playlists.length, error]
   );
 
   useEffect(() => {
@@ -141,10 +144,10 @@ export const MyPlaylists = () => {
         return;
       }
 
-      if (detail.mode === 'delete' && detail.playlistId) {
+      if (detail.mode === "delete" && detail.playlistId) {
         pendingOptimisticRef.current.delete(detail.playlistId);
         setPlaylists((prev) =>
-          prev.filter((playlist) => playlist.id !== detail.playlistId),
+          prev.filter((playlist) => playlist.id !== detail.playlistId)
         );
         loadPlaylists({ reset: true, showSpinner: false });
         return;
@@ -166,9 +169,9 @@ export const MyPlaylists = () => {
       }
     };
 
-    window.addEventListener('playlists:refresh', handleRefresh);
+    window.addEventListener("playlists:refresh", handleRefresh);
     return () => {
-      window.removeEventListener('playlists:refresh', handleRefresh);
+      window.removeEventListener("playlists:refresh", handleRefresh);
     };
   }, [loadPlaylists]);
 
@@ -181,18 +184,24 @@ export const MyPlaylists = () => {
       <div className="flex flex-col gap-y-2">
         <h1 className="text-white text-3xl font-semibold">My Playlists</h1>
         <p className="text-sm text-sky-200/80">
-          Browse every playlist you have published to Q-Music or Ear-Bump.
+          Browse every playlist you have published.
         </p>
       </div>
 
-      {isInitialLoading && playlists.length === 0 && <Message label="Loading your playlists…" />}
+      {isInitialLoading && playlists.length === 0 && (
+        <Message label="Loading your playlists…" />
+      )}
       {error && <Message label={error} />}
-      {showEmptyState && <Message label="No playlists found. Publish one to see it here." />}
+      {showEmptyState && (
+        <Message label="No playlists found. Publish one to see it here." />
+      )}
 
       {playlists.length > 0 && (
         <PlayListsContent
           playlists={playlists}
-          renderActions={(playlist) => <LibraryPlaylistActions playlist={playlist} />}
+          renderActions={(playlist) => (
+            <LibraryPlaylistActions playlist={playlist} />
+          )}
         />
       )}
 
