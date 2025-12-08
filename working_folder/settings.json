@@ -1,0 +1,47 @@
+{
+  // Üldine vormindus
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+
+  // Prettier kui vaikimisi vormindaja
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // ESLint – lase tal vigu fixida salvestamisel
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  },
+
+  // Tailwind CSS (kui Tailwind laiendus on paigaldatud)
+  "tailwindCSS.includeLanguages": {
+    "typescriptreact": "html"
+  },
+
+  // Vaate puhastamine: ära näita suurt jama failipuus
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/BACKUPS": true
+  }
+}
