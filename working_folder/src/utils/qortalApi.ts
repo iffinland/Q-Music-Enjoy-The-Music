@@ -173,23 +173,36 @@ export const getNamesByAddress = async (address: string): Promise<string[]> => {
 const urlInflight = new Map<string, Promise<string | null>>();
 const urlCache = new Map<string, { url: string | null; expiresAt: number }>();
 const URL_TTL_MS = 5 * 60_000; // 5 minutes
+const NULL_URL_TTL_MS = 10_000; // short TTL for negative results
+
+export interface GetQdnResourceUrlOptions {
+  forceRefresh?: boolean;
+  nullTtlMs?: number;
+}
 
 export const getQdnResourceUrl = async (
   service: string,
   name: string,
   identifier: string,
+  options: GetQdnResourceUrlOptions = {},
 ): Promise<string | null> => {
   try {
+    const { forceRefresh = false, nullTtlMs = NULL_URL_TTL_MS } = options;
     const key = `${service}:${name}:${identifier}`;
+    const now = Date.now();
     const cached = urlCache.get(key);
-    if (cached && Date.now() < cached.expiresAt) {
+    if (!forceRefresh && cached && now < cached.expiresAt) {
       return cached.url;
     }
-    const inflightExisting = urlInflight.get(key);
-    if (inflightExisting) {
-      return inflightExisting;
+
+    if (!forceRefresh) {
+      const inflightExisting = urlInflight.get(key);
+      if (inflightExisting) {
+        return inflightExisting;
+      }
     }
-    const p = (async () => {
+
+    const promise = (async () => {
       const result = await qortalRequest({
         action: 'GET_QDN_RESOURCE_URL',
         service,
@@ -197,15 +210,17 @@ export const getQdnResourceUrl = async (
         identifier,
       });
       const url = typeof result === 'string' && result !== 'Resource does not exist' ? result : null;
-      urlCache.set(key, { url, expiresAt: Date.now() + URL_TTL_MS });
+      const ttl = url ? URL_TTL_MS : Math.max(1_000, Number.isFinite(nullTtlMs) ? nullTtlMs : NULL_URL_TTL_MS);
+      urlCache.set(key, { url, expiresAt: Date.now() + ttl });
       urlInflight.delete(key);
       return url;
     })().catch((e) => {
       urlInflight.delete(key);
       throw e;
     });
-    urlInflight.set(key, p);
-    return p;
+
+    urlInflight.set(key, promise);
+    return promise;
   } catch (error) {
     console.error('Failed to resolve QDN resource URL', error);
   }

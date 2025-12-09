@@ -13,13 +13,13 @@ import { Song } from "../types";
 import { AddToPlaylistButton } from "./AddToPlayistButton";
 import { toast } from "react-hot-toast";
 import { buildSongShareUrl } from "../utils/qortalLinks";
-import { getQdnResourceUrl } from "../utils/qortalApi";
 import { Link, useNavigate } from "react-router-dom";
 import useSendTipModal from "../hooks/useSendTipModal";
 import { fetchSongLikeCount, hasUserLikedSong, likeSong, unlikeSong } from "../services/songLikes";
 import useUploadModal from "../hooks/useUploadModal";
 import useCoverImage from "../hooks/useCoverImage";
 import { buildDownloadFilename } from '../utils/downloadFilename';
+import { resolveAudioUrl } from "../utils/resolveAudioUrl";
 
 interface SongItemProps {
   data: SongMeta;
@@ -105,7 +105,7 @@ const SongItem: React.FC<SongItemProps> = ({
   const handlePlay = useCallback(async (event?: MouseEvent<HTMLButtonElement>) => {
     event?.stopPropagation();
     if (data?.status?.status === 'READY' || downloads[data.id]?.status?.status === 'READY') {
-      const resolvedUrl = await getQdnResourceUrl('AUDIO', data.name, data.id);
+      const resolvedUrl = await resolveAudioUrl(data.name, data.id);
       dispatch(setAddToDownloads({
         name: data.name,
         service: 'AUDIO',
@@ -176,7 +176,7 @@ const SongItem: React.FC<SongItemProps> = ({
     }
 
     try {
-      const resolvedUrl = await getQdnResourceUrl('AUDIO', data.name, data.id);
+      const resolvedUrl = await resolveAudioUrl(data.name, data.id);
       if (!resolvedUrl) {
         toast.error("Song download is not available yet.");
         return;

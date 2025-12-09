@@ -41,13 +41,13 @@ import {
 } from '../state/features/globalSlice';
 import { Song } from '../types';
 import { MyContext } from '../wrappers/DownloadWrapper';
-import { getQdnResourceUrl } from '../utils/qortalApi';
 import { buildAudiobookShareUrl, buildPodcastShareUrl, buildSongShareUrl } from '../utils/qortalLinks';
 import { buildDownloadFilename } from '../utils/downloadFilename';
 import useSendTipModal from '../hooks/useSendTipModal';
 import useUploadModal from '../hooks/useUploadModal';
 import useCoverImage from '../hooks/useCoverImage';
 import { fetchSongLikeCount, hasUserLikedSong, likeSong, unlikeSong } from '../services/songLikes';
+import { resolveAudioUrl } from '../utils/resolveAudioUrl';
 
 interface DownloadStatus {
   status?: string;
@@ -348,7 +348,7 @@ const useSongActions = (song?: Song) => {
     }
 
     try {
-      const resolvedUrl = await getQdnResourceUrl('AUDIO', song.name, song.id);
+      const resolvedUrl = await resolveAudioUrl(song.name, song.id);
       if (!resolvedUrl) {
         toast.error('Song download is not available yet.');
         return;
@@ -662,6 +662,7 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const loadRetryRef = useRef(false);
 
   const previousVolumeRef = useRef(volume || 0.75);
 
@@ -691,6 +692,10 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
     (entry?: { id?: string; identifier?: string }) => entry?.id ?? entry?.identifier,
     [],
   );
+
+  useEffect(() => {
+    loadRetryRef.current = false;
+  }, [song.id, songUrl]);
 
   const getActivePlaylistEntries = useCallback((): (PlaylistSong | Song)[] => {
     if (currentPlaylist === 'nowPlayingPlaylist') {
@@ -747,7 +752,7 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
         songToPlay?.status?.status === 'READY' ||
         downloads[downloadKey]?.status?.status === 'READY'
       ) {
-        const resolvedUrl = await getQdnResourceUrl('AUDIO', songToPlay.name, downloadKey);
+        const resolvedUrl = await resolveAudioUrl(songToPlay.name, downloadKey);
         dispatch(
           setAddToDownloads({
             name: songToPlay.name,
@@ -837,6 +842,27 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
     ],
   );
 
+  const refreshUrlAndRetry = useCallback(async (): Promise<string | null> => {
+    if (!song?.name || !song?.id) return null;
+
+    const refreshedUrl = await resolveAudioUrl(song.name, song.id);
+    if (refreshedUrl) {
+      dispatch(
+        setAddToDownloads({
+          name: song.name,
+          service: 'AUDIO',
+          id: song.id,
+          identifier: song.id,
+          url: refreshedUrl,
+          status: song.status,
+          title: song.title || '',
+          author: song.author || '',
+        }),
+      );
+    }
+    return refreshedUrl;
+  }, [dispatch, song]);
+
   const [play, { pause, sound }] = useSound(songUrl || '', {
     html5: true,
     preload: 'metadata',
@@ -870,7 +896,17 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
       setIsLoaded(false);
       setIsPlaying(false);
       onPlaybackStateChange(false);
-      toast.error('Heli laadimine ebaõnnestus.');
+      if (!loadRetryRef.current) {
+        loadRetryRef.current = true;
+        void (async () => {
+          const refreshed = await refreshUrlAndRetry();
+          if (!refreshed) {
+            toast.error('Heli laadimine ebaõnnestus.');
+          }
+        })();
+      } else {
+        toast.error('Heli laadimine ebaõnnestus.');
+      }
     },
     onplayerror: (_: string, error: Error) => {
       console.error('Player play error', error);

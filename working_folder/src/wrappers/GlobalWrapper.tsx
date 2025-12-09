@@ -12,7 +12,7 @@ const favoritesStorage = localforage.createInstance({
 
 import { RequestQueue } from "../utils/queue";
 import { fetchStatisticsSnapshot } from "../services/statistics";
-import { getNamesByAddress, getQdnResourceUrl } from "../utils/qortalApi";
+import { getNamesByAddress } from "../utils/qortalApi";
 import { resolveAudioUrl } from "../utils/resolveAudioUrl";
 import { MyContext } from "./DownloadWrapper";
 import { fetchSongByIdentifier } from "../services/songs";
@@ -298,14 +298,14 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
 
     autoPlayHandledRef.current = true;
 
-    try {
-      const songMeta = await fetchSongByIdentifier(publisher, identifier);
-      if (!songMeta) {
-        console.warn('Song metadata not found for shared link', { publisher, identifier });
-        return;
-      }
+      try {
+        const songMeta = await fetchSongByIdentifier(publisher, identifier);
+        if (!songMeta) {
+          console.warn('Song metadata not found for shared link', { publisher, identifier });
+          return;
+        }
 
-      const resolvedUrl = await getQdnResourceUrl('AUDIO', publisher, identifier);
+        const resolvedUrl = await resolveAudioUrl(publisher, identifier);
 
       if (resolvedUrl) {
         dispatch(setAddToDownloads({
