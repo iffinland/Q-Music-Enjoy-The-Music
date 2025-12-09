@@ -12,39 +12,41 @@ const Notification = () => {
   if (alertTypes.alertError) {
     toast.error(`❌ ${alertTypes?.alertError}`, {
       position: 'bottom-right',
-      autoClose: 4000,
+      autoClose: 2000,
       hideProgressBar: false,
       closeOnClick: true,
       pauseOnHover: true,
       draggable: true,
       progress: undefined,
-      icon: false
+      icon: false,
+      theme: 'colored'
     })
     dispatch(removeNotification())
   }
   if (alertTypes.alertSuccess) {
     toast.success(`✔️ ${alertTypes?.alertSuccess}`, {
       position: 'bottom-right',
-      autoClose: 4000,
+      autoClose: 2000,
       hideProgressBar: false,
       closeOnClick: true,
       pauseOnHover: true,
       draggable: true,
       progress: undefined,
-      icon: false
+      icon: false,
+      theme: 'colored'
     })
     dispatch(removeNotification())
   }
   if (alertTypes.alertInfo) {
     toast.info(`${alertTypes?.alertInfo}`, {
       position: 'top-right',
-      autoClose: 10000,
+      autoClose: 2000,
       hideProgressBar: false,
       closeOnClick: true,
       pauseOnHover: true,
       draggable: true,
       progress: undefined,
-      theme: 'light'
+      theme: 'colored'
     })
     dispatch(removeNotification())
   }
@@ -53,7 +55,7 @@ const Notification = () => {
     return (
       <ToastContainer
         position="top-right"
-        autoClose={10000}
+        autoClose={2000}
         hideProgressBar={false}
         newestOnTop={false}
         closeOnClick
@@ -61,7 +63,7 @@ const Notification = () => {
         pauseOnFocusLoss
         draggable
         pauseOnHover
-        theme="light"
+        theme="colored"
         toastStyle={{ fontSize: '16px' }}
         transition={Slide}
       />
@@ -72,13 +74,14 @@ const Notification = () => {
     <ToastContainer
       transition={Zoom}
       position="bottom-right"
-      autoClose={false}
+      autoClose={2000}
       hideProgressBar={false}
       newestOnTop={false}
       closeOnClick
       rtl={false}
       draggable
       pauseOnHover
+      theme="colored"
     />
   )
 }

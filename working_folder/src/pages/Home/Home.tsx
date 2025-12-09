@@ -181,18 +181,6 @@ export const Home = () => {
           )}
         </HomeSection>
 
-        <HomeSection title="Newest playlists" viewAllTo="/playlists/all" viewAllLabel="All Playlists">
-          {showPlaylistSkeleton ? (
-            <SectionSkeleton variant="compact" />
-          ) : (
-            <HorizontalScroll>
-              {playlists.map((playlist) => (
-                <HomePlaylistCard key={playlist.id} playlist={playlist} />
-              ))}
-            </HorizontalScroll>
-          )}
-        </HomeSection>
-
         {(showPodcastSkeleton || podcasts.length > 0 || audiobooks.length > 0) && (
           <HomeSection title="Newest podcasts" viewAllTo="/podcasts" viewAllLabel="All Podcasts">
             {showPodcastSkeleton ? (
@@ -229,6 +217,18 @@ export const Home = () => {
             )}
           </HomeSection>
         )}
+
+        <HomeSection title="Newest playlists" viewAllTo="/playlists/all" viewAllLabel="All Playlists">
+          {showPlaylistSkeleton ? (
+            <SectionSkeleton variant="compact" />
+          ) : (
+            <HorizontalScroll>
+              {playlists.map((playlist) => (
+                <HomePlaylistCard key={playlist.id} playlist={playlist} />
+              ))}
+            </HorizontalScroll>
+          )}
+        </HomeSection>
 
       </div>
     </Box>

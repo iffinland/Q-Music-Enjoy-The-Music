@@ -486,6 +486,7 @@ const UploadAudiobookModal: React.FC = () => {
       }
       isOpen={uploadAudiobookModal.isOpen}
       onChange={onChange}
+      contentClassName="md:w-[60vw] md:max-w-[60vw]"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-y-5">
         <div>

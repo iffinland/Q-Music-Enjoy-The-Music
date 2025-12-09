@@ -486,6 +486,7 @@ const UploadPodcastModal: React.FC = () => {
       }
       isOpen={uploadPodcastModal.isOpen}
       onChange={onChange}
+      contentClassName="md:w-[60vw] md:max-w-[60vw]"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-y-5">
         <div>

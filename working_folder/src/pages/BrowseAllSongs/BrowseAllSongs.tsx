@@ -12,17 +12,7 @@ import { MUSIC_CATEGORIES } from "../../constants/categories";
 import Button from "../../components/Button";
 import useUploadModal from "../../hooks/useUploadModal";
 
-type SourceKey = "ALL" | "QMUSIC";
 type AlphabetKey = "ALL" | string;
-
-const SOURCE_FILTERS: Array<{
-  key: SourceKey;
-  label: string;
-  prefix?: string;
-}> = [
-  { key: "ALL", label: "All songs" },
-  { key: "QMUSIC", label: "Q-Music songs", prefix: "enjoymusic_song_" },
-];
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
@@ -96,7 +86,6 @@ const buildSongMeta = (song: any): SongMeta => {
 const BrowseAllSongs: React.FC = () => {
 
   const [songs, setSongs] = useState<SongMeta[]>([]);
-  const [activeSource, setActiveSource] = useState<SourceKey>("ALL");
   const [activeLetter, setActiveLetter] = useState<AlphabetKey>("ALL");
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -164,15 +153,7 @@ const BrowseAllSongs: React.FC = () => {
     setError(null);
 
     try {
-      let aggregated: SongMeta[] = [];
-
-      if (activeSource === "ALL") {
-        aggregated = await fetchSongsForPrefix("enjoymusic_song_");
-      } else {
-        const { prefix } =
-          SOURCE_FILTERS.find((filter) => filter.key === activeSource) || {};
-        aggregated = await fetchSongsForPrefix(prefix || "enjoymusic_song_");
-      }
+      const aggregated = await fetchSongsForPrefix("enjoymusic_song_");
 
       const uniqueSongs = Array.from(
         aggregated.reduce((map, song) => {
@@ -199,18 +180,17 @@ const BrowseAllSongs: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [activeSource, fetchSongsForPrefix]);
+  }, [fetchSongsForPrefix]);
 
   useEffect(() => {
     fetchSongs();
   }, [fetchSongs]);
 
-  const handleSourceChange = (source: SourceKey) => {
-    if (source === activeSource) return;
-    setActiveSource(source);
+  const handleQMusicFilter = () => {
     setActiveLetter("ALL");
     setCurrentPage(1);
     setSelectedCategory('ALL');
+    void fetchSongs();
   };
 
   const handleLetterChange = (letter: AlphabetKey) => {
@@ -296,9 +276,9 @@ const BrowseAllSongs: React.FC = () => {
   return (
     <Box className="overflow-hidden">
       <Header className="rounded-t-lg bg-gradient-to-b from-sky-900/80 via-sky-950/40 to-transparent">
-        <div className="flex flex-col items-center gap-y-6 text-center">
-          <div className="flex flex-col gap-3">
-            <div>
+        <div className="flex flex-col gap-y-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+            <div className="flex-1 text-center md:text-left">
               <h1 className="text-white text-3xl font-semibold">
                 Browse All Songs
               </h1>
@@ -306,43 +286,33 @@ const BrowseAllSongs: React.FC = () => {
                 Discover every song across the Q-Music catalog.
               </p>
             </div>
-            <div className="flex justify-center">
+            <div className="flex flex-1 justify-center">
+              <button
+                type="button"
+                onClick={handleQMusicFilter}
+                className="min-w-[160px] rounded-full border px-5 py-2 text-sm font-semibold transition bg-sky-800/80 border-sky-400/60 text-white shadow-lg shadow-sky-900/40"
+              >
+                Q-Music songs
+              </button>
+            </div>
+            <div className="flex flex-1 justify-end">
               <Button
                 type="button"
                 onClick={() => uploadModal.openSingle()}
-                className="w-full md:w-auto"
+                className="w-full sm:w-auto md:w-auto max-w-[240px] bg-gradient-to-r from-sky-400 to-cyan-300 text-sky-950 hover:from-sky-300 hover:to-cyan-200 shadow-lg shadow-sky-900/40 border-transparent"
               >
                 Add Audio Track
               </Button>
             </div>
           </div>
-          <div className="flex flex-wrap justify-center gap-3">
-            {SOURCE_FILTERS.map((filter) => {
-              const isActive = activeSource === filter.key;
-              return (
-                <button
-                  key={filter.key}
-                  type="button"
-                  onClick={() => handleSourceChange(filter.key)}
-                  className={`min-w-[140px] rounded-full border px-5 py-2 text-sm font-medium transition ${
-                    isActive
-                      ? "bg-sky-800/80 border-sky-400/60 text-white shadow-lg shadow-sky-900/40"
-                      : "bg-sky-900/40 border-sky-800/70 text-sky-200/80 hover:bg-sky-800/50"
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="flex flex-wrap justify-center gap-2 rounded-lg border border-sky-900/60 bg-sky-950/40 p-4">
             <button
               type="button"
               onClick={() => handleLetterChange("ALL")}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+              className={`rounded-md border px-3 py-1 text-sm font-semibold transition ${
                 activeLetter === "ALL"
-                  ? "bg-sky-700/80 border-sky-400/60 text-white"
-                  : "bg-sky-950/40 border-sky-800/70 text-sky-200/70 hover:bg-sky-800/50"
+                  ? "border-sky-400 bg-sky-700 text-white shadow-sm"
+                  : "border-sky-800/80 bg-sky-950/40 text-sky-300 hover:border-sky-600 hover:text-white"
               }`}
             >
               All
@@ -354,10 +324,10 @@ const BrowseAllSongs: React.FC = () => {
                   key={letter}
                   type="button"
                   onClick={() => handleLetterChange(letter)}
-                  className={`h-8 w-8 rounded-full border text-xs font-semibold transition ${
+                  className={`rounded-md border px-3 py-1 text-sm font-semibold transition ${
                     isActive
-                      ? "bg-sky-700/80 border-sky-400/60 text-white"
-                      : "bg-sky-950/40 border-sky-800/70 text-sky-200/70 hover:bg-sky-800/50"
+                      ? "border-sky-400 bg-sky-700 text-white shadow-sm"
+                      : "border-sky-800/80 bg-sky-950/40 text-sky-300 hover:border-sky-600 hover:text-white"
                   }`}
                 >
                   {letter}
