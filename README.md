@@ -1,5 +1,5 @@
 # Further development of this version has been stopped. The latest development version is located in this repo 
-https://github.com/iffinland/Q-Music-VERSION-2.0
+https://github.com/iffinland/YouMusa
 
 ## Q-Music – Enjoy the Music
 
