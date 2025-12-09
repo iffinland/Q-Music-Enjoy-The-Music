@@ -20,6 +20,7 @@ interface QortalRequestOptions {
   filename?: string
   list_name?: string
   item?: string
+  groupId?: number
   items?: string[]
   tag1?: string
   tag2?: string
