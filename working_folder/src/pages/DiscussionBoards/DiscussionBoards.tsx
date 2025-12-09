@@ -440,31 +440,31 @@ const DiscussionBoards: React.FC = () => {
   const handleShareLink = async (threadId: string, replyId?: string | null) => {
     const shareUrl = buildDiscussionShareUrl(threadId, replyId);
     if (!shareUrl) {
-      toast.error('Ei saa linki koostada.');
+      toast.error('Unable to build share link.');
       return;
     }
     try {
       await copyToClipboard(shareUrl);
-      toast.success('Link kopeeritud lõikelauale.');
+      toast.success('Link copied to clipboard.');
     } catch (err) {
       console.error('Failed to copy link', err);
-      toast.error('Linki kopeerimine ebaõnnestus.');
+      toast.error('Failed to copy link.');
     }
   };
 
   const handleDeleteThread = async () => {
     if (!selectedThread || username !== selectedThread.publisher) return;
-    const confirmed = window.confirm('Kas kustutada see teema? Seda ei saa tagasi võtta.');
+    const confirmed = window.confirm('Delete this thread? This cannot be undone.');
     if (!confirmed) return;
     setIsDeletingThread(true);
     try {
       await deleteDiscussionThread(selectedThread);
       dispatch(clearThreadUnread(selectedThread.id));
       dispatch(removeDiscussionThread(selectedThread.id));
-      toast.success('Teema kustutatud');
+      toast.success('Thread deleted.');
       setSelectedThreadId(null);
     } catch (err: any) {
-      toast.error(err?.message || 'Teema kustutamine ebaõnnestus.');
+      toast.error(err?.message || 'Failed to delete thread.');
     } finally {
       setIsDeletingThread(false);
     }
@@ -472,18 +472,18 @@ const DiscussionBoards: React.FC = () => {
 
   const handleDeleteReply = async (reply: DiscussionReply) => {
     if (reply.author !== username) {
-      toast.error('Ainult autor saab vastust kustutada.');
+      toast.error('Only the author can delete this reply.');
       return;
     }
-    const confirmed = window.confirm('Kas kustutada see vastus?');
+    const confirmed = window.confirm('Delete this reply?');
     if (!confirmed) return;
     setDeletingReplyId(reply.id);
     try {
       await deleteDiscussionReply(reply);
       dispatch(removeReplyFromThread({ threadId: reply.threadId, replyId: reply.id }));
-      toast.success('Vastus kustutatud');
+      toast.success('Reply deleted.');
     } catch (err: any) {
-      toast.error(err?.message || 'Vastuse kustutamine ebaõnnestus.');
+      toast.error(err?.message || 'Failed to delete reply.');
     } finally {
       setDeletingReplyId(null);
     }

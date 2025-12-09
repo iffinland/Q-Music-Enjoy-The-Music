@@ -8,17 +8,18 @@ import { CircularProgress } from "@mui/material";
 import { cachedSearchQdnResources } from "../../services/resourceCache";
 import { shouldHideQdnResource } from "../../utils/qdnResourceFilters";
 import SortControls from "../../components/common/SortControls";
+import BrowseToolbar from "../../components/common/BrowseToolbar";
+import AlphabetFilter from "../../components/common/AlphabetFilter";
 import { MUSIC_CATEGORIES } from "../../constants/categories";
 import Button from "../../components/Button";
 import useUploadModal from "../../hooks/useUploadModal";
 
 type AlphabetKey = "ALL" | string;
 
-const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-
 const PAGE_SIZE = 24;
 const FETCH_LIMIT = 50;
 const MAX_FETCH_BATCHES = 5;
+const SLOGAN = "Discover every song across the Q-Music catalog.";
 
 const buildSongMeta = (song: any): SongMeta => {
   const description: string = song?.metadata?.description || "";
@@ -274,19 +275,13 @@ const BrowseAllSongs: React.FC = () => {
   );
 
   return (
-    <Box className="overflow-hidden">
-      <Header className="rounded-t-lg bg-gradient-to-b from-sky-900/80 via-sky-950/40 to-transparent">
-        <div className="flex flex-col gap-y-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-            <div className="flex-1 text-center md:text-left">
-              <h1 className="text-white text-3xl font-semibold">
-                Browse All Songs
-              </h1>
-              <p className="text-sky-200/80 text-sm mt-2">
-                Discover every song across the Q-Music catalog.
-              </p>
-            </div>
-            <div className="flex flex-1 justify-center">
+    <div className="px-4 py-6">
+      <Header className="rounded-lg bg-gradient-to-b from-sky-900/80 via-sky-950/40 to-transparent">
+        <BrowseToolbar
+          title="Browse & Listen Songs"
+          slogan={SLOGAN}
+          action={
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
               <button
                 type="button"
                 onClick={handleQMusicFilter}
@@ -294,8 +289,6 @@ const BrowseAllSongs: React.FC = () => {
               >
                 Q-Music songs
               </button>
-            </div>
-            <div className="flex flex-1 justify-end">
               <Button
                 type="button"
                 onClick={() => uploadModal.openSingle()}
@@ -304,125 +297,99 @@ const BrowseAllSongs: React.FC = () => {
                 Add Audio Track
               </Button>
             </div>
-          </div>
-          <div className="flex flex-wrap justify-center gap-2 rounded-lg border border-sky-900/60 bg-sky-950/40 p-4">
-            <button
-              type="button"
-              onClick={() => handleLetterChange("ALL")}
-              className={`rounded-md border px-3 py-1 text-sm font-semibold transition ${
-                activeLetter === "ALL"
-                  ? "border-sky-400 bg-sky-700 text-white shadow-sm"
-                  : "border-sky-800/80 bg-sky-950/40 text-sky-300 hover:border-sky-600 hover:text-white"
-              }`}
-            >
-              All
-            </button>
-            {ALPHABET.map((letter) => {
-              const isActive = activeLetter === letter;
-              return (
-                <button
-                  key={letter}
-                  type="button"
-                  onClick={() => handleLetterChange(letter)}
-                  className={`rounded-md border px-3 py-1 text-sm font-semibold transition ${
-                    isActive
-                      ? "border-sky-400 bg-sky-700 text-white shadow-sm"
-                      : "border-sky-800/80 bg-sky-950/40 text-sky-300 hover:border-sky-600 hover:text-white"
-                  }`}
-                >
-                  {letter}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+          }
+        />
       </Header>
 
-      <div className="px-6 py-6">
-        {!isLoading && !error && (
-          <div className="mb-6">
-            <SortControls
-              sortOrder={'desc'}
-              onSortOrderChange={() => {}}
-              categories={(() => {
-                const normalized = new Set<string>();
-                songs.forEach((song) => {
-                  const category = getSongCategory(song);
-                  if (!category) {
-                    normalized.add('Uncategorized');
-                  } else {
-                    normalized.add(category);
-                  }
-                });
-                const base: string[] = [...MUSIC_CATEGORIES];
-                normalized.forEach((category) => {
-                  if (!base.includes(category)) {
-                    base.push(category);
-                  }
-                });
-                return base;
-              })()}
-              selectedCategory={selectedCategory}
-              onCategoryChange={setSelectedCategory}
-              showOrderButtons={false}
-            />
-          </div>
-        )}
-        {isLoading ? (
-          <div className="flex justify-center py-10">
-            <CircularProgress />
-          </div>
-        ) : error ? (
-          <div className="rounded-md border border-red-500/40 bg-red-900/40 px-4 py-6 text-center text-sm font-medium text-red-100">
-            {error}
-          </div>
-        ) : paginatedSongs.length === 0 ? (
-          <div className="rounded-md border border-sky-900/60 bg-sky-950/60 px-4 py-6 text-center text-sm font-semibold text-sky-200/80">
-            No songs match the selected filters.
-          </div>
-        ) : (
-          <>
-            <div
-              className="
-                mt-6
+      <div className="mt-6 flex flex-col gap-6">
+        <Box className="p-6">
+          <AlphabetFilter activeLetter={activeLetter} onLetterSelect={handleLetterChange} />
+        </Box>
+
+        <Box className="p-4">
+          <SortControls
+            sortOrder={'desc'}
+            onSortOrderChange={() => {}}
+            categories={(() => {
+              const normalized = new Set<string>();
+              songs.forEach((song) => {
+                const category = getSongCategory(song);
+                if (!category) {
+                  normalized.add('Uncategorized');
+                } else {
+                  normalized.add(category);
+                }
+              });
+              const base: string[] = [...MUSIC_CATEGORIES];
+              normalized.forEach((category) => {
+                if (!base.includes(category)) {
+                  base.push(category);
+                }
+              });
+              return base;
+            })()}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            showOrderButtons={false}
+          />
+        </Box>
+
+        <Box className="p-6">
+          {isLoading ? (
+            <div className="flex justify-center py-10">
+              <CircularProgress />
+            </div>
+          ) : error ? (
+            <div className="rounded-md border border-red-500/40 bg-red-900/40 px-4 py-6 text-center text-sm font-medium text-red-100">
+              {error}
+            </div>
+          ) : paginatedSongs.length === 0 ? (
+            <div className="rounded-md border border-sky-900/60 bg-sky-950/60 px-4 py-6 text-center text-sm font-semibold text-sky-200/80">
+              No songs match the selected filters.
+            </div>
+          ) : (
+            <>
+              <div
+                className="
                 grid
                 grid-cols-[repeat(auto-fit,minmax(240px,1fr))]
                 gap-4
               "
-            >
-              {paginatedSongs.map((song) => (
-                <SongItem
-                  key={song.id}
-                  data={song}
-                  onClick={(id: string) => onPlay(id)}
-                />
-              ))}
-            </div>
-            {totalPages > 1 && (
-              <div className="mt-8 flex justify-center gap-2">
-                {paginationNumbers.map((pageNumber) => {
-                  const isActive = currentPageSafe === pageNumber;
-                  return (
-                    <button
-                      key={pageNumber}
-                      type="button"
-                      onClick={() => setCurrentPage(pageNumber)}
-                      className={`h-9 min-w-[36px] rounded-md border px-3 text-sm font-semibold transition ${
-                        isActive
-                          ? "bg-sky-700/80 border-sky-400/60 text-white"
-                          : "bg-sky-950/40 border-sky-800/70 text-sky-200/70 hover:bg-sky-800/50"
-                      }`}
-                    >
-                      {pageNumber}
-                    </button>
-                  );
-                })}
+              >
+                {paginatedSongs.map((song) => (
+                  <SongItem
+                    key={song.id}
+                    data={song}
+                    onClick={(id: string) => onPlay(id)}
+                  />
+                ))}
               </div>
-            )}
-          </>
-        )}
+              {totalPages > 1 && (
+                <div className="mt-8 flex justify-center gap-2">
+                  {paginationNumbers.map((pageNumber) => {
+                    const isActive = currentPageSafe === pageNumber;
+                    return (
+                      <button
+                        key={pageNumber}
+                        type="button"
+                        onClick={() => setCurrentPage(pageNumber)}
+                        className={`h-9 min-w-[36px] rounded-md border px-3 text-sm font-semibold transition ${
+                          isActive
+                            ? "bg-sky-700/80 border-sky-400/60 text-white"
+                            : "bg-sky-950/40 border-sky-800/70 text-sky-200/70 hover:bg-sky-800/50"
+                        }`}
+                      >
+                        {pageNumber}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </Box>
       </div>
-    </Box>
+    </div>
   );
 };
 

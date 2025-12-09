@@ -123,7 +123,7 @@ const AudiobookDetail: React.FC = () => {
         }));
       } else {
         console.error('[AudiobookDetail] Audio URL not found', { publisher, identifier });
-        toast.error('Helifaili ei leitud. Proovi hiljem.');
+        toast.error('Audio file not found. Please try again later.');
         downloadVideo({
           name: publisher,
           service: 'AUDIO',
@@ -156,7 +156,7 @@ const AudiobookDetail: React.FC = () => {
 
       if (!resolvedUrl) {
         console.error('[AudiobookDetail] Download URL not found', { publisher, identifier });
-        toast.error('Helifaili ei leitud. Proovi hiljem.');
+        toast.error('Audio file not found. Please try again later.');
         return;
       }
 

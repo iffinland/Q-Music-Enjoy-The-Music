@@ -123,7 +123,7 @@ const PodcastDetail: React.FC = () => {
         }));
       } else {
         console.error('[PodcastDetail] Audio URL not found', { publisher, identifier });
-        toast.error('Helifaili ei leitud. Proovi hiljem.');
+        toast.error('Audio file not found. Please try again later.');
         downloadVideo({
           name: publisher,
           service: 'AUDIO',
@@ -156,7 +156,7 @@ const PodcastDetail: React.FC = () => {
 
       if (!resolvedUrl) {
         console.error('[PodcastDetail] Download URL not found', { publisher, identifier });
-        toast.error('Helifaili ei leitud. Proovi hiljem.');
+        toast.error('Audio file not found. Please try again later.');
         return;
       }
 

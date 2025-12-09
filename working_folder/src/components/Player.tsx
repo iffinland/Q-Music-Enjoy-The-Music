@@ -901,11 +901,11 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
         void (async () => {
           const refreshed = await refreshUrlAndRetry();
           if (!refreshed) {
-            toast.error('Heli laadimine ebaõnnestus.');
+            toast.error('Audio failed to load.');
           }
         })();
       } else {
-        toast.error('Heli laadimine ebaõnnestus.');
+        toast.error('Audio failed to load.');
       }
     },
     onplayerror: (_: string, error: Error) => {
@@ -913,7 +913,7 @@ const PlayerPlayback: React.FC<PlayerPlaybackProps> = ({
       setIsLoaded(false);
       setIsPlaying(false);
       onPlaybackStateChange(false);
-      toast.error('Heli esitamine ebaõnnestus. Proovi uuesti.');
+      toast.error('Audio failed to play. Please try again.');
     },
   });
 
