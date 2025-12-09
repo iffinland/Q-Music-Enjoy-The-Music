@@ -23,6 +23,9 @@ const RESOURCE_PREFIXES: ResourcePrefixConfig[] = [
 ];
 
 const PAGE_SIZE = 200;
+const STATS_CACHE_TTL = 5 * 60 * 1000;
+
+let cachedStatistics: { data: StatisticsSnapshot; timestamp: number } | null = null;
 
 const fetchResourceSummary = async (
   service: 'AUDIO' | 'PLAYLIST' | 'DOCUMENT',
@@ -96,6 +99,10 @@ export interface StatisticsSnapshot {
 }
 
 export const fetchStatisticsSnapshot = async (): Promise<StatisticsSnapshot> => {
+  if (cachedStatistics && Date.now() - cachedStatistics.timestamp < STATS_CACHE_TTL) {
+    return cachedStatistics.data;
+  }
+
   const prefixResults = new Map<string, ResourceSummaryResult>();
 
   await Promise.all(
@@ -129,7 +136,7 @@ export const fetchStatisticsSnapshot = async (): Promise<StatisticsSnapshot> => 
   const openRequests = requests.filter((request) => !isRequestFilled(request)).length;
   const filledRequests = requests.length - openRequests;
 
-  return {
+  const snapshot: StatisticsSnapshot = {
     allSongs: qmusicSongs,
     allPlaylists: qmusicPlaylists,
     qmusicSongs,
@@ -140,4 +147,11 @@ export const fetchStatisticsSnapshot = async (): Promise<StatisticsSnapshot> => 
     openRequests,
     filledRequests,
   };
+
+  cachedStatistics = {
+    data: snapshot,
+    timestamp: Date.now(),
+  };
+
+  return snapshot;
 };

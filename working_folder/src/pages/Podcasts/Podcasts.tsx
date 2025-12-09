@@ -831,7 +831,7 @@ const Podcasts: React.FC = () => {
               <CircularProgress size={32} />
             </div>
           ) : error ? (
-            <div className="rounded-md border border-red-500/40 bg-red-900/30 px-4 py-6 text-center text-sm font-medium text-red-200">
+            <div className="rounded-md border border-red-500/40 bg-red-900/40 px-4 py-6 text-center text-sm font-medium text-red-100">
               {error}
             </div>
           ) : paginatedPodcasts.length === 0 ? (

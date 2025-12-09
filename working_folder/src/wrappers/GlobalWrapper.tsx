@@ -128,7 +128,10 @@ const GlobalWrapper: React.FC<Props> = ({ children }) => {
   );
 
   useEffect(() => {
-    loadStatistics();
+    const timer = setTimeout(() => {
+      loadStatistics({ showSpinner: false });
+    }, 500);
+    return () => clearTimeout(timer);
   }, [loadStatistics]);
 
   useEffect(() => {

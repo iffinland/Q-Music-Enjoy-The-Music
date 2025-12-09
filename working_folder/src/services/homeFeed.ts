@@ -5,6 +5,7 @@ import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { Audiobook, Podcast } from '../types';
 import { cachedSearchQdnResources } from './resourceCache';
 import { mapPlaylistSummary } from '../utils/playlistHelpers';
+import fallbackCover from '../assets/img/enjoy-music.jpg';
 
 type Resource = Record<string, unknown> & {
   identifier?: string;
@@ -84,7 +85,10 @@ const mapPodcastResource = (resource: any): Podcast | null => {
     service: 'AUDIO',
     size: resource?.size,
     type: resource?.metadata?.type || resource?.mimeType || resource?.contentType,
-    coverImage: typeof resource?.metadata?.coverImage === 'string' ? resource.metadata.coverImage : undefined,
+    coverImage:
+      typeof resource?.metadata?.coverImage === 'string' && resource.metadata.coverImage.trim().length > 0
+        ? resource.metadata.coverImage
+        : fallbackCover,
   };
 };
 
@@ -107,7 +111,10 @@ const mapAudiobookResource = (resource: any): Audiobook | null => {
     service: 'AUDIO',
     size: resource?.size,
     type: resource?.metadata?.type || resource?.mimeType || resource?.contentType,
-    coverImage: typeof resource?.metadata?.coverImage === 'string' ? resource.metadata.coverImage : undefined,
+    coverImage:
+      typeof resource?.metadata?.coverImage === 'string' && resource.metadata.coverImage.trim().length > 0
+        ? resource.metadata.coverImage
+        : fallbackCover,
   };
 };
 

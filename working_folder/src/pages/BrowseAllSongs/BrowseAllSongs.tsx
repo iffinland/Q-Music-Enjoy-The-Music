@@ -373,14 +373,12 @@ const BrowseAllSongs: React.FC = () => {
             <CircularProgress />
           </div>
         ) : error ? (
-          <div className="flex justify-center py-8">
-            <p className="text-sm text-red-300">{error}</p>
+          <div className="rounded-md border border-red-500/40 bg-red-900/40 px-4 py-6 text-center text-sm font-medium text-red-100">
+            {error}
           </div>
         ) : paginatedSongs.length === 0 ? (
-          <div className="flex justify-center py-8">
-            <p className="text-sm text-sky-200/80">
-              No songs match the selected filters.
-            </p>
+          <div className="rounded-md border border-sky-900/60 bg-sky-950/60 px-4 py-6 text-center text-sm font-semibold text-sky-200/80">
+            No songs match the selected filters.
           </div>
         ) : (
           <>

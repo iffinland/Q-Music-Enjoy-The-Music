@@ -1,8 +1,9 @@
 import { Audiobook } from '../types';
-import { fetchQdnResource, getQdnResourceUrl, getQdnResourceStatus } from '../utils/qortalApi';
 import { shouldHideQdnResource } from '../utils/qdnResourceFilters';
 import { objectToBase64 } from '../utils/toBase64';
 import { cachedSearchQdnResources } from './resourceCache';
+import { fetchQdnResource, getQdnResourceUrl } from '../utils/qortalApi';
+import fallbackCover from '../assets/img/enjoy-music.jpg';
 
 const AUDIOBOOK_IDENTIFIER_PREFIX = 'enjoymusic_audiobooks_';
 const FETCH_LIMIT = 25;
@@ -25,6 +26,10 @@ export const buildAudiobookMeta = (item: any): Audiobook | null => {
     typeof item?.metadata?.author === 'string'
       ? item.metadata.author.trim()
       : undefined;
+  const coverImage =
+    typeof item?.metadata?.coverImage === 'string' && item.metadata.coverImage.trim().length > 0
+      ? item.metadata.coverImage.trim()
+      : undefined;
 
   return {
     id: item.identifier,
@@ -39,6 +44,7 @@ export const buildAudiobookMeta = (item: any): Audiobook | null => {
     type: item.metadata?.type || item.mimeType || item.contentType,
     category: typeof item?.metadata?.category === 'string' ? item.metadata.category : undefined,
     author,
+    coverImage: coverImage || fallbackCover,
   };
 };
 
@@ -49,10 +55,8 @@ interface FetchAudiobooksOptions {
 
 export const fetchAudiobooks = async (options: FetchAudiobooksOptions = {}): Promise<Audiobook[]> => {
   const targetLimit = Math.max(1, options.limit ?? 30);
-  const detailBatchSize = Math.max(0, Math.min(targetLimit, options.detailBatchSize ?? Math.min(30, targetLimit)));
 
   const aggregated: Audiobook[] = [];
-  const rawEntries: Array<{ entry: any; index: number }> = [];
   const seen = new Set<string>();
 
   let offset = 0;
@@ -87,7 +91,6 @@ export const fetchAudiobooks = async (options: FetchAudiobooksOptions = {}): Pro
       if (!audiobook) continue;
       if (seen.has(audiobook.id)) continue;
       aggregated.push(audiobook);
-      rawEntries.push({ entry, index: aggregated.length - 1 });
       seen.add(audiobook.id);
       if (aggregated.length >= targetLimit) {
         shouldStop = true;
@@ -102,102 +105,6 @@ export const fetchAudiobooks = async (options: FetchAudiobooksOptions = {}): Pro
     offset += payload.length;
     batches += 1;
   }
-
-  const detailTargets = rawEntries.slice(0, detailBatchSize);
-  await Promise.all(
-    detailTargets.map(async ({ entry, index }) => {
-      try {
-        const [document, thumbnailUrl, audioStatus] = await Promise.all([
-          fetchQdnResource({
-            name: entry.name,
-            service: entry.service,
-            identifier: entry.identifier,
-          }),
-          getQdnResourceUrl('THUMBNAIL', entry.name, entry.identifier).catch(() => null),
-          getQdnResourceStatus({
-            name: entry.name,
-            service: 'AUDIO',
-            identifier: entry.identifier,
-          }).catch(() => null),
-        ]);
-
-        if (!document || !aggregated[index]) return;
-
-        let parsed: any = document;
-        if (typeof document === 'string') {
-          try {
-            parsed = JSON.parse(document);
-          } catch (parseError) {
-            console.error('Failed to parse audiobook document', parseError);
-            parsed = null;
-          }
-        }
-
-        if (!parsed || typeof parsed !== 'object') return;
-
-        const coverImageFromDocument =
-          typeof parsed.coverImage === 'string' && parsed.coverImage.trim().length > 0
-            ? parsed.coverImage
-            : undefined;
-
-        const audioInfo =
-          parsed.audio && typeof parsed.audio === 'object'
-            ? parsed.audio
-            : undefined;
-
-        const resolvedCoverImage =
-          coverImageFromDocument ||
-          (typeof thumbnailUrl === 'string' && thumbnailUrl.trim().length > 0
-            ? thumbnailUrl
-            : aggregated[index].coverImage);
-
-        const resolvedAudioFilename =
-          audioInfo?.filename ||
-          parsed.audioFilename ||
-          aggregated[index].audioFilename;
-
-        const resolvedAudioMimeType =
-          audioInfo?.mimeType ||
-          parsed.audioMimeType ||
-          aggregated[index].audioMimeType;
-        const resolvedSize =
-          (typeof audioInfo?.size === 'number' && audioInfo.size > 0
-            ? audioInfo.size
-            : null) ??
-          (audioStatus && typeof (audioStatus as any).size === 'number' && (audioStatus as any).size > 0
-            ? ((audioStatus as any).size as number)
-            : audioStatus && typeof (audioStatus as any).dataSize === 'number' && (audioStatus as any).dataSize > 0
-            ? ((audioStatus as any).dataSize as number)
-            : aggregated[index].size);
-        const resolvedCategory =
-          typeof parsed.category === 'string' && parsed.category.trim().length > 0
-            ? parsed.category.trim()
-            : aggregated[index].category;
-        const metadataAuthor =
-          parsed.metadata && typeof parsed.metadata === 'object' && typeof parsed.metadata.author === 'string'
-            ? parsed.metadata.author.trim()
-            : '';
-        const resolvedAuthor =
-          (typeof parsed.author === 'string' && parsed.author.trim().length > 0
-            ? parsed.author.trim()
-            : metadataAuthor) || aggregated[index].author;
-
-        aggregated[index] = {
-          ...aggregated[index],
-          title: parsed.title || aggregated[index].title,
-          description: parsed.description || aggregated[index].description,
-          coverImage: resolvedCoverImage,
-          audioFilename: resolvedAudioFilename,
-          audioMimeType: resolvedAudioMimeType,
-          size: resolvedSize,
-          category: resolvedCategory,
-          author: resolvedAuthor,
-        };
-      } catch (error) {
-        console.error('Failed to fetch audiobook document', error);
-      }
-    })
-  );
 
   return aggregated;
 };

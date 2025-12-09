@@ -4,7 +4,6 @@ import HomeCardHoverDetails from './HomeCardHoverDetails';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import { Podcast } from '../../types';
 import { formatDateTime } from '../../utils/metadata';
-import useCoverImage from '../../hooks/useCoverImage';
 
 const truncate = (value: string, max = 200) => {
   if (!value) return '';
@@ -19,13 +18,7 @@ interface HomePodcastCardProps {
 export const HomePodcastCard: React.FC<HomePodcastCardProps> = ({ podcast }) => {
   const navigate = useNavigate();
 
-  const { url: coverUrl } = useCoverImage({
-    identifier: podcast?.id ?? null,
-    publisher: podcast?.publisher ?? null,
-    enabled: Boolean(podcast?.id && podcast?.publisher),
-    service: 'THUMBNAIL',
-  });
-  const coverImage = podcast.coverImage && podcast.coverImage.trim().length > 0 ? podcast.coverImage : coverUrl || radioImg;
+  const coverImage = podcast.coverImage && podcast.coverImage.trim().length > 0 ? podcast.coverImage : radioImg;
   const performer = podcast.author?.trim() || podcast.publisher || 'Unknown host';
   const publisher = podcast.publisher || 'Unknown publisher';
 

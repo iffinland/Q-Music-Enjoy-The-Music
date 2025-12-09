@@ -4,7 +4,6 @@ import HomeCardHoverDetails from './HomeCardHoverDetails';
 import radioImg from '../../assets/img/enjoy-music.jpg';
 import { Audiobook } from '../../types';
 import { formatDateTime } from '../../utils/metadata';
-import useCoverImage from '../../hooks/useCoverImage';
 
 const truncate = (value: string, max = 200) => {
   if (!value) return '';
@@ -19,12 +18,8 @@ interface HomeAudiobookCardProps {
 export const HomeAudiobookCard: React.FC<HomeAudiobookCardProps> = ({ audiobook }) => {
   const navigate = useNavigate();
 
-  const { url: coverUrl } = useCoverImage({
-    identifier: audiobook?.id ?? null,
-    publisher: audiobook?.publisher ?? null,
-    enabled: Boolean(audiobook?.id && audiobook?.publisher),
-  });
-  const coverImage = audiobook.coverImage && audiobook.coverImage.trim().length > 0 ? audiobook.coverImage : coverUrl || radioImg;
+  const coverImage =
+    audiobook.coverImage && audiobook.coverImage.trim().length > 0 ? audiobook.coverImage : radioImg;
   const performer = audiobook.author?.trim() || audiobook.publisher || 'Unknown narrator';
   const publisher = audiobook.publisher || 'Unknown publisher';
 
