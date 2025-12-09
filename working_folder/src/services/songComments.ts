@@ -5,6 +5,14 @@ import { objectToBase64 } from '../utils/toBase64';
 const COMMENT_PREFIX = 'enjoymusic_song_comment_';
 const FETCH_LIMIT = 50;
 const COMMENT_CACHE_TTL = 10_000;
+const MAX_COMMENTS = 200;
+const ensureQortalRequest = () => {
+  const fn = (window as any)?.qortalRequest;
+  if (typeof fn !== 'function') {
+    throw new Error('Qortal API is not available. Please open Qortal and try again.');
+  }
+  return fn as (payload: Record<string, unknown>) => Promise<any>;
+};
 
 export interface SongComment {
   id: string;
@@ -30,6 +38,7 @@ const buildCommentCacheKey = (publisher: string, identifier: string) =>
 
 export interface FetchSongCommentsOptions {
   force?: boolean;
+  max?: number;
 }
 
 export const invalidateSongCommentsCache = (songPublisher: string, songIdentifier: string) => {
@@ -42,7 +51,8 @@ export const fetchSongComments = async (
   songIdentifier: string,
   options: FetchSongCommentsOptions = {},
 ): Promise<SongComment[]> => {
-  const { force = false } = options;
+  const { force = false, max } = options;
+  const maxComments = max && max > 0 ? Math.min(max, MAX_COMMENTS) : MAX_COMMENTS;
   const cacheKey = buildCommentCacheKey(songPublisher, songIdentifier);
   const now = Date.now();
 
@@ -59,16 +69,17 @@ export const fetchSongComments = async (
     const prefix = `${COMMENT_PREFIX}${songIdentifier}_`;
     const aggregated: SongComment[] = [];
     let offset = 0;
+    let totalFetched = 0;
 
-    while (true) {
+    while (totalFetched < MAX_COMMENTS) {
       const page = await searchQdnResources({
         mode: 'ALL',
         service: 'DOCUMENT',
         query: prefix,
-        limit: FETCH_LIMIT,
+        limit: Math.min(FETCH_LIMIT, maxComments - totalFetched),
         offset,
         reverse: true,
-        includeMetadata: false,
+        includeMetadata: true,
         excludeBlocked: true,
       });
 
@@ -76,35 +87,71 @@ export const fetchSongComments = async (
         break;
       }
 
+      const legacyEntries: any[] = [];
+
       for (const entry of page) {
-        try {
-          const data = await fetchQdnResource({
-            name: entry.name,
-            service: entry.service,
-            identifier: entry.identifier,
-          });
+        const identifier = typeof entry?.identifier === 'string' ? entry.identifier : '';
+        if (!identifier) continue;
+        totalFetched += 1;
 
-          if (!data || typeof data !== 'object') continue;
-          if (data.songIdentifier !== songIdentifier) continue;
+        const created = entry.updated ?? entry.created ?? Date.now();
+        const metaAuthor =
+          typeof entry?.metadata?.author === 'string' && entry.metadata.author.trim().length > 0
+            ? entry.metadata.author.trim()
+            : entry.name;
+        const metaMessage =
+          typeof entry?.metadata?.description === 'string' && entry.metadata.description.trim().length > 0
+            ? entry.metadata.description
+            : null;
 
-          const created = data.created ?? entry.created ?? Date.now();
-          const updated = data.updated ?? created;
-
+        if (metaMessage) {
           aggregated.push({
-            id: entry.identifier,
-            songIdentifier: data.songIdentifier,
-            songPublisher: data.songPublisher,
-            author: data.author || entry.name,
-            message: data.message || '',
+            id: identifier,
+            songIdentifier,
+            songPublisher: songPublisher,
+            author: metaAuthor || entry.name,
+            message: metaMessage,
             created,
-            updated,
+            updated: created,
           });
-        } catch (error) {
-          console.error('Failed to fetch song comment', error);
+        } else {
+          legacyEntries.push(entry);
         }
       }
 
-      if (page.length < FETCH_LIMIT) {
+      if (legacyEntries.length > 0) {
+        await Promise.all(
+          legacyEntries.map(async (entry) => {
+            try {
+              const data = await fetchQdnResource({
+                name: entry.name,
+                service: entry.service,
+                identifier: entry.identifier,
+              });
+
+              if (!data || typeof data !== 'object') return;
+              if (data.songIdentifier !== songIdentifier) return;
+
+              const created = data.created ?? entry.created ?? Date.now();
+              const updated = data.updated ?? created;
+
+              aggregated.push({
+                id: entry.identifier,
+                songIdentifier: data.songIdentifier,
+                songPublisher: data.songPublisher,
+                author: data.author || entry.name,
+                message: data.message || '',
+                created,
+                updated,
+              });
+            } catch (error) {
+              console.error('Failed to fetch song comment', error);
+            }
+          }),
+        );
+      }
+
+      if (page.length < FETCH_LIMIT || totalFetched >= MAX_COMMENTS) {
         break;
       }
 
@@ -157,20 +204,18 @@ export const publishSongComment = async ({
   const data64 = await objectToBase64(payload);
   const filename = `${commentIdentifier}.json`;
 
+  const qortalRequest = ensureQortalRequest();
+
   await qortalRequest({
-    action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
-    resources: [
-      {
-        name: author,
-        service: 'DOCUMENT',
-        data64,
-        identifier: commentIdentifier,
-        filename,
-        title: `Comment on ${songTitle || identifier}`.slice(0, 55),
-        description: message.slice(0, 4000),
-        encoding: 'base64',
-      },
-    ],
+    action: 'PUBLISH_QDN_RESOURCE',
+    name: author,
+    service: 'DOCUMENT',
+    identifier: commentIdentifier,
+    data64,
+    encoding: 'base64',
+    filename,
+    title: `Comment on ${songTitle || identifier}`.slice(0, 55),
+    description: message.slice(0, 4000),
   });
 
   invalidateSongCommentsCache(publisher, identifier);

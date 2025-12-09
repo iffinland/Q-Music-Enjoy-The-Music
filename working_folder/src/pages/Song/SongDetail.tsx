@@ -48,6 +48,7 @@ const SongDetail: React.FC = () => {
 
   const [comments, setComments] = useState<SongComment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState<boolean>(false);
+  const [commentsLimit, setCommentsLimit] = useState<number>(50);
   const [commentText, setCommentText] = useState<string>('');
   const [isSubmittingComment, setIsSubmittingComment] = useState<boolean>(false);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
@@ -92,14 +93,28 @@ const SongDetail: React.FC = () => {
 
     setIsLoadingComments(true);
     try {
-      const results = await fetchSongComments(publisher, identifier);
+      const results = await fetchSongComments(publisher, identifier, { max: commentsLimit });
       setComments(results);
     } catch (error) {
       console.error('Failed to load song comments', error);
     } finally {
       setIsLoadingComments(false);
     }
-  }, [identifier, publisher]);
+  }, [commentsLimit, identifier, publisher]);
+  const loadMoreComments = useCallback(async () => {
+    if (!publisher || !identifier || isLoadingComments) return;
+    const nextLimit = commentsLimit + 50;
+    setCommentsLimit(nextLimit);
+    setIsLoadingComments(true);
+    try {
+      const results = await fetchSongComments(publisher, identifier, { force: true, max: nextLimit });
+      setComments(results);
+    } catch (error) {
+      console.error('Failed to load more song comments', error);
+    } finally {
+      setIsLoadingComments(false);
+    }
+  }, [commentsLimit, identifier, isLoadingComments, publisher]);
 
   useEffect(() => {
     loadSong();
@@ -369,7 +384,7 @@ const SongDetail: React.FC = () => {
       toast.success('Comment added!');
     } catch (error) {
       console.error('Failed to publish comment', error);
-      toast.error('Failed to add comment. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to add comment. Please try again.');
     } finally {
       setIsSubmittingComment(false);
     }
@@ -733,6 +748,17 @@ const SongDetail: React.FC = () => {
                   </div>
                 );
               })}
+              {comments.length > 0 && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    onClick={loadMoreComments}
+                    disabled={isLoadingComments}
+                    className="w-auto bg-sky-700 hover:bg-sky-600 px-6 py-2"
+                  >
+                    {isLoadingComments ? 'Loading…' : 'Load more comments'}
+                  </Button>
+                </div>
+              )}
             </div>
           </Box>
         </div>
